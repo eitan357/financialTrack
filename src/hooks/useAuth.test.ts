@@ -2,8 +2,11 @@ import { renderHook } from '@testing-library/react'
 
 const mockUnsubscribe = jest.fn()
 const mockOnAuthStateChanged = jest.fn()
+const mockGetAuthInstance = jest.fn(() => ({}))
 
-jest.mock('@/lib/firebase/auth', () => ({ getAuthInstance: () => ({}) }))
+jest.mock('@/lib/firebase/auth', () => ({
+  getAuthInstance: () => mockGetAuthInstance(),
+}))
 jest.mock('firebase/auth', () => ({
   onAuthStateChanged: (_auth: unknown, callback: (user: unknown) => void) => {
     mockOnAuthStateChanged(callback)
@@ -17,6 +20,7 @@ describe('useAuth', () => {
   beforeEach(() => {
     mockOnAuthStateChanged.mockClear()
     mockUnsubscribe.mockClear()
+    mockGetAuthInstance.mockClear()
   })
 
   it('starts with loading=true and user=null before Firebase responds', () => {
@@ -46,5 +50,11 @@ describe('useAuth', () => {
     const { unmount } = renderHook(() => useAuth())
     unmount()
     expect(mockUnsubscribe).toHaveBeenCalledTimes(1)
+  })
+
+  it('calls getAuthInstance to get the auth object', () => {
+    mockOnAuthStateChanged.mockImplementation(() => {})
+    renderHook(() => useAuth())
+    expect(mockGetAuthInstance).toHaveBeenCalledTimes(1)
   })
 })
