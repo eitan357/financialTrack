@@ -67,6 +67,7 @@ export interface IncomeEntry {
   month: string // YYYY-MM
   sourceName: string
   amount: number
+  currency: string // defaults to 'ILS' in practice
   date: string // ISO date string
   notes?: string
 }
@@ -117,8 +118,9 @@ export interface BankReconciliation {
   notes?: string
 }
 
+// Per-month override targets. Takes precedence over Category.monthlyTarget (which serves as default).
 export interface MonthlySettings {
   id: string
   month: string // YYYY-MM
-  categoryTargets: Record<string, number> // categoryId → target amount
+  categoryTargets: Record<string, number> // categoryId → override target amount
 }

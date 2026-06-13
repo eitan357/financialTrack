@@ -1,8 +1,10 @@
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth'
 import { app } from './config'
 
-export const auth = getAuth(app)
-export const googleProvider = new GoogleAuthProvider()
+export const signInWithGoogle = () =>
+  signInWithPopup(getAuth(app), new GoogleAuthProvider())
 
-export const signInWithGoogle = () => signInWithPopup(auth, googleProvider)
-export const signOutUser = () => signOut(auth)
+export const signOutUser = () => signOut(getAuth(app))
+
+// Lazy getter — use only in 'use client' components
+export const getAuthInstance = () => getAuth(app)
