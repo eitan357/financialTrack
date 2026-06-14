@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 
 const mockPush = jest.fn()
 jest.mock('next/navigation', () => ({
@@ -20,17 +20,18 @@ describe('LoginPage', () => {
     mockUseAuth.mockReturnValue({ user: null, loading: false })
     mockPush.mockClear()
     mockSignInWithGoogle.mockClear()
+    mockSignInWithGoogle.mockResolvedValue(undefined)
   })
 
-  it('renders the Google sign-in button', () => {
+  it('renders the Google sign-in button with Hebrew label', () => {
     render(<LoginPage />)
-    expect(screen.getByRole('button', { name: /google/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /כניסה עם Google/i })).toBeInTheDocument()
   })
 
-  it('calls signInWithGoogle when button is clicked', () => {
+  it('calls signInWithGoogle when button is clicked', async () => {
     render(<LoginPage />)
-    fireEvent.click(screen.getByRole('button', { name: /google/i }))
-    expect(mockSignInWithGoogle).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByRole('button', { name: /כניסה עם Google/i }))
+    await waitFor(() => expect(mockSignInWithGoogle).toHaveBeenCalledTimes(1))
   })
 
   it('redirects to /dashboard when already signed in', () => {
@@ -43,5 +44,14 @@ describe('LoginPage', () => {
     mockUseAuth.mockReturnValue({ user: null, loading: true })
     render(<LoginPage />)
     expect(mockPush).not.toHaveBeenCalled()
+  })
+
+  it('shows Hebrew error message when sign-in fails', async () => {
+    mockSignInWithGoogle.mockRejectedValue(new Error('popup closed'))
+    render(<LoginPage />)
+    fireEvent.click(screen.getByRole('button', { name: /כניסה עם Google/i }))
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent('הכניסה נכשלה. אנא נסה שוב.')
+    )
   })
 })
