@@ -1,16 +1,11 @@
 import { initializeApp, getApps } from 'firebase/app'
 
-const requiredEnvVars = [
-  'NEXT_PUBLIC_FIREBASE_API_KEY',
-  'NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN',
-  'NEXT_PUBLIC_FIREBASE_PROJECT_ID',
-  'NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID',
-  'NEXT_PUBLIC_FIREBASE_APP_ID',
-] as const
-
-for (const key of requiredEnvVars) {
-  if (!process.env[key]) throw new Error(`Missing required env var: ${key}`)
-}
+// Turbopack replaces NEXT_PUBLIC_* vars statically — must use literal property access, not dynamic bracket notation
+if (!process.env.NEXT_PUBLIC_FIREBASE_API_KEY) throw new Error('Missing env var: NEXT_PUBLIC_FIREBASE_API_KEY')
+if (!process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN) throw new Error('Missing env var: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN')
+if (!process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID) throw new Error('Missing env var: NEXT_PUBLIC_FIREBASE_PROJECT_ID')
+if (!process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID) throw new Error('Missing env var: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID')
+if (!process.env.NEXT_PUBLIC_FIREBASE_APP_ID) throw new Error('Missing env var: NEXT_PUBLIC_FIREBASE_APP_ID')
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
