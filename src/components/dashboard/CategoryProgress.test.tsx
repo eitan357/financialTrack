@@ -35,7 +35,7 @@ describe('CategoryProgress', () => {
   it('marks over-budget category bar as red', () => {
     render(<CategoryProgress categories={cats} />)
     const bars = document.querySelectorAll('[data-testid="progress-bar"]')
-    const overBudget = Array.from(bars).find(b => b.className.includes('bg-red'))
+    const overBudget = Array.from(bars).find(b => b.className.includes('bg-red-400'))
     expect(overBudget).toBeTruthy()
   })
 
