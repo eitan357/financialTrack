@@ -1,7 +1,4 @@
 import type { Config } from 'jest'
-import nextJest from 'next/jest.js'
-
-const createJestConfig = nextJest({ dir: './' })
 
 const config: Config = {
   testEnvironment: 'jsdom',
@@ -9,6 +6,9 @@ const config: Config = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
+  transform: {
+    '^.+\\.(ts|tsx)$': ['@swc/jest'],
+  },
 }
 
-export default createJestConfig(config)
+export default config
