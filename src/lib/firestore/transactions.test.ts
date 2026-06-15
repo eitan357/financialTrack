@@ -31,7 +31,7 @@ jest.mock('firebase/firestore', () => ({
 }))
 jest.mock('@/lib/firebase/config', () => ({ app: {} }))
 
-import { getTransactions, getTransactionsByMerchant, addTransactions, updateTransaction } from './transactions'
+import { getTransactions, getTransactionsByMerchant, addTransactions, updateTransaction, deleteTransaction } from './transactions'
 
 beforeEach(() => jest.clearAllMocks())
 
@@ -74,5 +74,14 @@ describe('updateTransaction', () => {
     mockUpdateDoc.mockResolvedValue(undefined)
     await updateTransaction('t1', { categoryId: 'c1' })
     expect(mockUpdateDoc).toHaveBeenCalledWith('doc-ref', { categoryId: 'c1' })
+  })
+})
+
+describe('deleteTransaction', () => {
+  it('calls deleteDoc on the correct document', async () => {
+    mockDeleteDoc.mockResolvedValue(undefined)
+    await deleteTransaction('tx1')
+    expect(mockDoc).toHaveBeenCalledWith({}, 'transactions', 'tx1')
+    expect(mockDeleteDoc).toHaveBeenCalledWith('doc-ref')
   })
 })

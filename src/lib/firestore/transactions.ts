@@ -1,4 +1,4 @@
-import { getFirestore, collection, getDocs, writeBatch, updateDoc, doc, query, where, orderBy } from 'firebase/firestore'
+import { getFirestore, collection, getDocs, writeBatch, updateDoc, deleteDoc, doc, query, where, orderBy } from 'firebase/firestore'
 import { app } from '../firebase/config'
 import type { Transaction } from '../types'
 
@@ -36,4 +36,8 @@ export async function addTransactions(transactions: Omit<Transaction, 'id'>[]): 
 
 export async function updateTransaction(id: string, updates: Partial<Omit<Transaction, 'id'>>): Promise<void> {
   await updateDoc(doc(getDb(), 'transactions', id), updates)
+}
+
+export async function deleteTransaction(id: string): Promise<void> {
+  await deleteDoc(doc(getDb(), 'transactions', id))
 }
