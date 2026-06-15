@@ -4,8 +4,13 @@ const mockUsePathname = jest.fn()
 jest.mock('next/navigation', () => ({ usePathname: () => mockUsePathname() }))
 jest.mock('next/link', () => ({
   __esModule: true,
-  default: ({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) => (
-    <a href={href} className={className}>{children}</a>
+  default: ({ href, children, className, 'aria-current': ariaCurrent }: {
+    href: string
+    children: React.ReactNode
+    className?: string
+    'aria-current'?: React.AriaAttributes['aria-current']
+  }) => (
+    <a href={href} className={className} aria-current={ariaCurrent}>{children}</a>
   ),
 }))
 
@@ -44,5 +49,20 @@ describe('BottomNav', () => {
     expect(screen.getByText('ייבוא').closest('a')).toHaveAttribute('href', '/import')
     expect(screen.getByText('השקעות').closest('a')).toHaveAttribute('href', '/investments')
     expect(screen.getByText('דוחות').closest('a')).toHaveAttribute('href', '/reports')
+  })
+
+  it('marks active link with aria-current="page"', () => {
+    mockUsePathname.mockReturnValue('/transactions')
+    render(<BottomNav />)
+    expect(screen.getByText('עסקאות').closest('a')).toHaveAttribute('aria-current', 'page')
+    expect(screen.getByText('ראשי').closest('a')).not.toHaveAttribute('aria-current')
+  })
+
+  it('treats sub-routes as active for the parent nav item', () => {
+    mockUsePathname.mockReturnValue('/transactions/123')
+    render(<BottomNav />)
+    const activeLink = screen.getByText('עסקאות').closest('a')
+    expect(activeLink).toHaveClass('text-accent')
+    expect(activeLink).toHaveAttribute('aria-current', 'page')
   })
 })

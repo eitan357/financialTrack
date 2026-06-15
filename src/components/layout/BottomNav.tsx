@@ -22,15 +22,15 @@ export function BottomNav() {
   const pathname = usePathname()
 
   return (
-    <nav className="fixed bottom-0 inset-x-0 bg-surface border-t border-slate-700 flex">
+    <nav aria-label="ניווט ראשי" className="fixed bottom-0 inset-x-0 bg-surface border-t border-slate-700 flex">
       {navItems.map(({ href, label, Icon }) => {
-        const isActive = pathname === href
+        const isActive = pathname === href || pathname.startsWith(href + '/')
         return (
           <Link
             key={href}
             href={href}
-            className={`flex-1 flex flex-col items-center justify-center py-3 gap-1 text-xs transition-colors
-              ${isActive ? 'text-accent' : 'text-slate-400'}`}
+            aria-current={isActive ? 'page' : undefined}
+            className={`flex-1 flex flex-col items-center justify-center py-3 gap-1 text-xs transition-colors ${isActive ? 'text-accent' : 'text-slate-400'}`}
           >
             <Icon size={20} />
             <span>{label}</span>
