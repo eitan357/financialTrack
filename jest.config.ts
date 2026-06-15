@@ -7,7 +7,13 @@ const config: Config = {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
   transform: {
-    '^.+\\.(ts|tsx)$': ['@swc/jest'],
+    '^.+\\.(ts|tsx)$': ['@swc/jest', {
+      jsc: {
+        transform: {
+          react: { runtime: 'automatic' },
+        },
+      },
+    }],
   },
 }
 
