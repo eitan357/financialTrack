@@ -56,4 +56,11 @@ describe('upsertMonthlySettings', () => {
     await upsertMonthlySettings(settingsData)
     expect(mockSetDoc).toHaveBeenCalledWith('doc-ref', settingsData, { merge: true })
   })
+
+  it('calls setDoc with the provided id when id is given', async () => {
+    mockSetDoc.mockResolvedValue(undefined)
+    await upsertMonthlySettings({ id: 's1', ...settingsData })
+    expect(mockDoc).toHaveBeenCalledWith({}, 'monthly_settings', 's1')
+    expect(mockSetDoc).toHaveBeenCalledWith('doc-ref', settingsData, { merge: true })
+  })
 })
