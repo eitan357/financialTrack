@@ -82,6 +82,7 @@ export interface InvestmentType {
 export interface InvestmentEntry {
   id: string
   date: string // ISO date string
+  month: string // YYYY-MM, derived from date, used for Firestore queries
   investmentTypeId: string
   amount: number
   currency: string
