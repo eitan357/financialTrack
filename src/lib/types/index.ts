@@ -124,3 +124,20 @@ export interface MonthlySettings {
   month: string // YYYY-MM
   categoryTargets: Record<string, number> // categoryId → override target amount
 }
+
+// Intermediate type produced by transaction-mapper from a CSV/XLSX row
+export interface RawTransaction {
+  date: string         // ISO YYYY-MM-DD
+  merchantName: string
+  bankCategory: string // the bank's own category string (used as fallback suggestion)
+  amount: number
+  currency: string
+  isImmediate: boolean // true when סוג עסקה === 'חיוב עסקות מיידי'
+  notes: string
+}
+
+// RawTransaction after the categorization engine has run
+export interface ImportedTransaction extends RawTransaction {
+  categoryId: string | null
+  categorizationSource: 'rule' | 'history' | 'manual' | null
+}
