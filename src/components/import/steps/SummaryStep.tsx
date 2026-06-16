@@ -7,9 +7,14 @@ import { addIncomeEntry } from '@/lib/firestore/income'
 import type { ImportedTransaction, SalaryEntry, IncomeEntry, Transaction, TransactionSource } from '@/lib/types'
 import type { CashExpense } from '../ImportWizard'
 
-interface WizardData {
-  step1Transactions: ImportedTransaction[]
-  step2Transactions: ImportedTransaction[]
+export interface CreditAccountData {
+  accountId: string
+  accountName: string
+  transactions: ImportedTransaction[]
+}
+
+export interface WizardData {
+  creditAccounts: CreditAccountData[]
   salary: Omit<SalaryEntry, 'id'> | null
   incomeEntries: Omit<IncomeEntry, 'id'>[]
   cashExpenses: CashExpense[]
@@ -18,8 +23,6 @@ interface WizardData {
 interface Props {
   month: string
   data: WizardData
-  hatzlaadaAccountId: string
-  oneZeroAccountId: string
   cashAccountId: string
   onDone: () => void
 }
@@ -32,7 +35,7 @@ function toTx(t: ImportedTransaction, accountId: string, month: string, source: 
   }
 }
 
-export function SummaryStep({ month, data, hatzlaadaAccountId, oneZeroAccountId, cashAccountId, onDone }: Props) {
+export function SummaryStep({ month, data, cashAccountId, onDone }: Props) {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -41,8 +44,9 @@ export function SummaryStep({ month, data, hatzlaadaAccountId, oneZeroAccountId,
     setSaving(true); setError(null)
     try {
       const allTxs: Omit<Transaction, 'id'>[] = [
-        ...data.step1Transactions.map(t => toTx(t, hatzlaadaAccountId, month, 'xlsx_import')),
-        ...data.step2Transactions.map(t => toTx(t, oneZeroAccountId, month, 'xlsx_import')),
+        ...data.creditAccounts.flatMap(ca =>
+          ca.transactions.map(t => toTx(t, ca.accountId, month, 'xlsx_import'))
+        ),
         ...data.cashExpenses.map(e => ({
           date: e.date, merchantName: e.description, amount: e.amount, currency: 'ILS',
           accountId: cashAccountId, categoryId: e.categoryId ?? undefined,
@@ -61,12 +65,13 @@ export function SummaryStep({ month, data, hatzlaadaAccountId, oneZeroAccountId,
   }
 
   if (saved) {
+    const totalCreditTxs = data.creditAccounts.reduce((s, ca) => s + ca.transactions.length, 0)
     return (
       <div className="text-center py-8">
         <CheckCircle size={48} className="mx-auto text-green-400 mb-4" />
         <h2 className="text-xl font-bold mb-2">הנתונים נשמרו בהצלחה!</h2>
         <p className="text-slate-400 text-sm mb-6">
-          {data.step1Transactions.length + data.step2Transactions.length + data.cashExpenses.length} עסקאות יובאו
+          {totalCreditTxs + data.cashExpenses.length} עסקאות יובאו
         </p>
         <button onClick={onDone} className="w-full py-3 bg-accent rounded-xl font-semibold">חזור לייבוא</button>
       </div>
@@ -77,13 +82,17 @@ export function SummaryStep({ month, data, hatzlaadaAccountId, oneZeroAccountId,
     <div>
       <h2 className="text-lg font-semibold mb-6">סיכום — מה ייובא?</h2>
       <div className="space-y-2 mb-6">
+        {data.creditAccounts.map(ca => (
+          <div key={ca.accountId} className="flex justify-between bg-surface rounded-xl px-4 py-3">
+            <span className="text-sm">עסקאות {ca.accountName}</span>
+            <span className="text-sm text-slate-400">{ca.transactions.length} פריטים</span>
+          </div>
+        ))}
         {[
-          ['עסקאות אשראי בהצדעה',  data.step1Transactions.length],
-          ['עסקאות אשראי One Zero', data.step2Transactions.length],
-          ['הכנסות נוספות',         data.incomeEntries.length],
-          ['הוצאות מזומן',          data.cashExpenses.length],
+          ['הכנסות נוספות', data.incomeEntries.length] as const,
+          ['הוצאות מזומן', data.cashExpenses.length] as const,
         ].map(([label, count]) => (
-          <div key={label as string} className="flex justify-between bg-surface rounded-xl px-4 py-3">
+          <div key={label} className="flex justify-between bg-surface rounded-xl px-4 py-3">
             <span className="text-sm">{label}</span>
             <span className="text-sm text-slate-400">{count} פריטים</span>
           </div>

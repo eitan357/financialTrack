@@ -5,13 +5,22 @@ jest.mock('@/lib/firestore/transactions', () => ({ addTransactions: jest.fn().mo
 jest.mock('@/lib/firestore/salary', () => ({ upsertSalaryEntry: jest.fn().mockResolvedValue(undefined) }))
 jest.mock('@/lib/firestore/income', () => ({ addIncomeEntry: jest.fn().mockResolvedValue({ id: 'i1' }) }))
 
-const mockImportedTx = { date: '2026-06-01', merchantName: 'שופרסל', bankCategory: '', amount: 150, currency: 'ILS', isImmediate: false, notes: '', categoryId: 'c1', categorizationSource: 'rule' as const }
+const mockImportedTx = {
+  date: '2026-06-01', merchantName: 'שופרסל', bankCategory: '', amount: 150,
+  currency: 'ILS', isImmediate: false, notes: '', categoryId: 'c1', categorizationSource: 'rule' as const,
+}
 
 const baseProps = {
   month: '2026-06',
-  data: { step1Transactions: [mockImportedTx], step2Transactions: [], salary: null, incomeEntries: [], cashExpenses: [] },
-  hatzlaadaAccountId: 'a1',
-  oneZeroAccountId: 'a2',
+  data: {
+    creditAccounts: [
+      { accountId: 'a1', accountName: 'אשראי בהצדעה', transactions: [mockImportedTx] },
+      { accountId: 'a2', accountName: 'אשראי One Zero', transactions: [] },
+    ],
+    salary: null,
+    incomeEntries: [],
+    cashExpenses: [],
+  },
   cashAccountId: 'a5',
   onDone: jest.fn(),
 }
@@ -19,10 +28,14 @@ const baseProps = {
 describe('SummaryStep', () => {
   beforeEach(() => jest.clearAllMocks())
 
-  it('displays summary rows for each import category', () => {
+  it('displays a row for each credit account', () => {
     render(<SummaryStep {...baseProps} />)
     expect(screen.getByText('עסקאות אשראי בהצדעה')).toBeInTheDocument()
     expect(screen.getByText('עסקאות אשראי One Zero')).toBeInTheDocument()
+  })
+
+  it('displays fixed rows for income and cash', () => {
+    render(<SummaryStep {...baseProps} />)
     expect(screen.getByText('הכנסות נוספות')).toBeInTheDocument()
     expect(screen.getByText('הוצאות מזומן')).toBeInTheDocument()
   })
@@ -32,7 +45,7 @@ describe('SummaryStep', () => {
     expect(screen.getByText('שמור הכל')).toBeInTheDocument()
   })
 
-  it('calls addTransactions when saved', async () => {
+  it('calls addTransactions with correct accountId per credit account', async () => {
     const { addTransactions } = require('@/lib/firestore/transactions')
     render(<SummaryStep {...baseProps} />)
     fireEvent.click(screen.getByText('שמור הכל'))
