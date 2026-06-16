@@ -56,16 +56,7 @@ export function RulesModal({ isOpen, onClose, rules, categories, onAdd, onDelete
             </div>
             <div>
               <label className="text-xs text-slate-400 block mb-1">קטגוריה</label>
-              <select
-                value={categoryId ?? ''}
-                onChange={e => setCategoryId(e.target.value || undefined)}
-                className="bg-slate-800 border border-slate-700 rounded-lg text-xs px-2 py-1 text-foreground"
-              >
-                <option value="">ללא קטגוריה</option>
-                {categories.map(c => (
-                  <option key={c.id} value={c.id}>{`​${c.name}`}</option>
-                ))}
-              </select>
+              <CategorySelect value={categoryId} categories={categories} onChange={setCategoryId} />
             </div>
             <button
               type="submit"

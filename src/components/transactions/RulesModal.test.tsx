@@ -35,7 +35,7 @@ describe('RulesModal', () => {
   it('shows existing rule keyword and category name', () => {
     render(<RulesModal {...defaultProps} />)
     expect(screen.getByText('שופרסל')).toBeInTheDocument()
-    expect(screen.getByText('אוכל')).toBeInTheDocument()
+    expect(screen.getAllByText('אוכל').length).toBeGreaterThan(0)
   })
 
   it('shows empty state when rules list is empty', () => {
