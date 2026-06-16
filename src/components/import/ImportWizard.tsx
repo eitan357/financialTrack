@@ -10,6 +10,7 @@ import { SalaryStep } from './steps/SalaryStep'
 import { IncomeStep } from './steps/IncomeStep'
 import { CashStep } from './steps/CashStep'
 import { SummaryStep } from './steps/SummaryStep'
+import type { WizardData, CreditAccountData } from './steps/SummaryStep'
 import type { Account, Category, CategorizationRule, ImportedTransaction, SalaryEntry, IncomeEntry, Transaction } from '@/lib/types'
 
 const HE_MONTHS = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר']
@@ -30,8 +31,6 @@ function prevMonthStr(m: string): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
 
-type WizardStep = 1 | 2 | 3 | 4 | 5 | 6
-
 export interface CashExpense {
   description: string
   amount: number
@@ -39,47 +38,44 @@ export interface CashExpense {
   categoryId: string | null
 }
 
-interface WizardData {
-  step1Transactions: ImportedTransaction[]
-  step2Transactions: ImportedTransaction[]
-  salary: Omit<SalaryEntry, 'id'> | null
-  incomeEntries: Omit<IncomeEntry, 'id'>[]
-  cashExpenses: CashExpense[]
-}
+const EMPTY_DATA: WizardData = { creditAccounts: [], salary: null, incomeEntries: [], cashExpenses: [] }
 
 export function ImportWizard() {
   const [month, setMonth] = useState(currentMonth)
-  const [step, setStep] = useState<WizardStep>(1)
+  const [step, setStep] = useState<number>(1)
   const [loading, setLoading] = useState(true)
   const [accounts, setAccounts] = useState<Account[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [rules, setRules] = useState<CategorizationRule[]>([])
   const [previousTransactions, setPreviousTransactions] = useState<Transaction[]>([])
   const [previousSalary, setPreviousSalary] = useState<Omit<SalaryEntry, 'id'> | null>(null)
-  const [data, setData] = useState<WizardData>({
-    step1Transactions: [], step2Transactions: [], salary: null, incomeEntries: [], cashExpenses: [],
-  })
+  const [data, setData] = useState<WizardData>(EMPTY_DATA)
 
   useEffect(() => {
     setLoading(true)
     async function init() {
-      await Promise.all([seedDefaultAccounts(), seedDefaultCategories()])
-      const [accs, cats, rls, txs, prevSal] = await Promise.all([
-        getAccounts(),
-        getCategories(),
-        getRules(),
-        getTransactions(month),
-        getSalaryEntry(prevMonthStr(month)),
-      ])
-      setAccounts(accs)
-      setCategories(cats)
-      setRules(rls)
-      setPreviousTransactions(txs)
-      if (prevSal) {
-        const { id: _id, ...rest } = prevSal
-        setPreviousSalary(rest)
+      try {
+        await Promise.all([seedDefaultAccounts(), seedDefaultCategories()])
+        const [accs, cats, rls, txs, prevSal] = await Promise.all([
+          getAccounts(),
+          getCategories(),
+          getRules(),
+          getTransactions(month),
+          getSalaryEntry(prevMonthStr(month)),
+        ])
+        setAccounts(accs)
+        setCategories(cats)
+        setRules(rls)
+        setPreviousTransactions(txs)
+        if (prevSal) {
+          const { id: _id, ...rest } = prevSal
+          setPreviousSalary(rest)
+        }
+      } catch (e) {
+        console.error('Failed to initialize import wizard', e)
+      } finally {
+        setLoading(false)
       }
-      setLoading(false)
     }
     init()
   }, [month])
@@ -89,12 +85,17 @@ export function ImportWizard() {
     const d = new Date(y, m - 1 + delta)
     setMonth(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
     setStep(1)
-    setData({ step1Transactions: [], step2Transactions: [], salary: null, incomeEntries: [], cashExpenses: [] })
+    setData(EMPTY_DATA)
   }
 
-  const hatzlaada = accounts.find(a => a.name === 'אשראי בהצדעה')
-  const oneZero   = accounts.find(a => a.name === 'אשראי One Zero')
-  const cash      = accounts.find(a => a.name === 'מזומן')
+  const creditAccounts = accounts.filter(a => a.type === 'credit' && a.isActive)
+  const cash = accounts.find(a => a.name === 'מזומן')
+
+  const SALARY_STEP  = creditAccounts.length + 1
+  const INCOME_STEP  = creditAccounts.length + 2
+  const CASH_STEP    = creditAccounts.length + 3
+  const SUMMARY_STEP = creditAccounts.length + 4
+  const TOTAL_STEPS  = creditAccounts.length + 4
 
   if (loading) {
     return <main className="p-4 flex justify-center items-center min-h-40"><p className="text-slate-400">טוען...</p></main>
@@ -108,41 +109,49 @@ export function ImportWizard() {
         <button onClick={() => changeMonth(1)} aria-label="חודש הבא" className="text-slate-400 text-2xl w-10 text-center">›</button>
       </div>
 
-      {step < 6 && <p className="text-center text-sm text-slate-400 mb-4">שלב {step} מתוך 5</p>}
+      {step < SUMMARY_STEP && <p className="text-center text-sm text-slate-400 mb-4">שלב {step} מתוך {TOTAL_STEPS - 1}</p>}
 
-      {step === 1 && (
-        <CreditImportStep stepNumber={1} accountName="אשראי בהצדעה" accountId={hatzlaada?.id ?? ''}
-          categories={categories} rules={rules} previousTransactions={previousTransactions}
-          initialTransactions={data.step1Transactions}
-          onComplete={txs => { setData(d => ({ ...d, step1Transactions: txs })); setStep(2) }}
-          onSkip={() => setStep(2)} />
+      {creditAccounts.map((account, idx) =>
+        step === idx + 1 ? (
+          <CreditImportStep
+            key={account.id}
+            stepNumber={idx + 1}
+            accountName={account.name}
+            accountId={account.id}
+            categories={categories}
+            rules={rules}
+            previousTransactions={previousTransactions}
+            initialTransactions={data.creditAccounts[idx]?.transactions ?? []}
+            onComplete={txs => {
+              const next: CreditAccountData[] = [...data.creditAccounts]
+              next[idx] = { accountId: account.id, accountName: account.name, transactions: txs }
+              setData(d => ({ ...d, creditAccounts: next }))
+              setStep(idx + 2)
+            }}
+            onSkip={() => setStep(idx + 2)}
+            onBack={idx > 0 ? () => setStep(idx) : undefined}
+          />
+        ) : null
       )}
-      {step === 2 && (
-        <CreditImportStep stepNumber={2} accountName="אשראי One Zero" accountId={oneZero?.id ?? ''}
-          categories={categories} rules={rules} previousTransactions={previousTransactions}
-          initialTransactions={data.step2Transactions}
-          onComplete={txs => { setData(d => ({ ...d, step2Transactions: txs })); setStep(3) }}
-          onSkip={() => setStep(3)} onBack={() => setStep(1)} />
-      )}
-      {step === 3 && (
+
+      {step === SALARY_STEP && (
         <SalaryStep month={month} initialSalary={data.salary ?? previousSalary}
-          onComplete={sal => { setData(d => ({ ...d, salary: sal })); setStep(4) }}
-          onSkip={() => setStep(4)} onBack={() => setStep(2)} />
+          onComplete={sal => { setData(d => ({ ...d, salary: sal })); setStep(INCOME_STEP) }}
+          onSkip={() => setStep(INCOME_STEP)} onBack={() => setStep(creditAccounts.length)} />
       )}
-      {step === 4 && (
+      {step === INCOME_STEP && (
         <IncomeStep month={month} initialEntries={data.incomeEntries}
-          onComplete={entries => { setData(d => ({ ...d, incomeEntries: entries })); setStep(5) }}
-          onBack={() => setStep(3)} />
+          onComplete={entries => { setData(d => ({ ...d, incomeEntries: entries })); setStep(CASH_STEP) }}
+          onBack={() => setStep(SALARY_STEP)} />
       )}
-      {step === 5 && (
+      {step === CASH_STEP && (
         <CashStep month={month} categories={categories} initialExpenses={data.cashExpenses}
-          onComplete={expenses => { setData(d => ({ ...d, cashExpenses: expenses })); setStep(6) }}
-          onBack={() => setStep(4)} />
+          onComplete={expenses => { setData(d => ({ ...d, cashExpenses: expenses })); setStep(SUMMARY_STEP) }}
+          onBack={() => setStep(INCOME_STEP)} />
       )}
-      {step === 6 && (
-        <SummaryStep month={month} data={data}
-          hatzlaadaAccountId={hatzlaada?.id ?? ''} oneZeroAccountId={oneZero?.id ?? ''} cashAccountId={cash?.id ?? ''}
-          onDone={() => { setStep(1); setData({ step1Transactions: [], step2Transactions: [], salary: null, incomeEntries: [], cashExpenses: [] }) }} />
+      {step === SUMMARY_STEP && (
+        <SummaryStep month={month} data={data} cashAccountId={cash?.id ?? ''}
+          onDone={() => { setStep(1); setData(EMPTY_DATA) }} />
       )}
     </main>
   )
