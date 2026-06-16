@@ -41,3 +41,13 @@ export async function updateTransaction(id: string, updates: Partial<Omit<Transa
 export async function deleteTransaction(id: string): Promise<void> {
   await deleteDoc(doc(getDb(), 'transactions', id))
 }
+
+export async function getTransactionsForMonths(months: string[]): Promise<Transaction[]> {
+  if (months.length === 0) return []
+  const q = query(
+    collection(getDb(), 'transactions'),
+    where('month', 'in', months)
+  )
+  const snap = await getDocs(q)
+  return snap.docs.map(d => ({ id: d.id, ...d.data() } as Transaction))
+}

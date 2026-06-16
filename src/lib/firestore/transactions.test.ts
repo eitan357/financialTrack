@@ -31,7 +31,7 @@ jest.mock('firebase/firestore', () => ({
 }))
 jest.mock('@/lib/firebase/config', () => ({ app: {} }))
 
-import { getTransactions, getTransactionsByMerchant, addTransactions, updateTransaction, deleteTransaction } from './transactions'
+import { getTransactions, getTransactionsByMerchant, addTransactions, updateTransaction, deleteTransaction, getTransactionsForMonths } from './transactions'
 
 beforeEach(() => jest.clearAllMocks())
 
@@ -83,5 +83,20 @@ describe('deleteTransaction', () => {
     await deleteTransaction('tx1')
     expect(mockDoc).toHaveBeenCalledWith({}, 'transactions', 'tx1')
     expect(mockDeleteDoc).toHaveBeenCalledWith('doc-ref')
+  })
+})
+
+describe('getTransactionsForMonths', () => {
+  it('returns empty array for empty months list without calling Firestore', async () => {
+    const result = await getTransactionsForMonths([])
+    expect(result).toEqual([])
+    expect(mockGetDocs).not.toHaveBeenCalled()
+  })
+
+  it('queries with in operator for multiple months', async () => {
+    mockGetDocs.mockResolvedValue({ docs: [{ id: 't1', data: () => mockTxData }] })
+    const result = await getTransactionsForMonths(['2026-05', '2026-06'])
+    expect(mockWhere).toHaveBeenCalledWith('month', 'in', ['2026-05', '2026-06'])
+    expect(result[0]).toEqual({ id: 't1', ...mockTxData })
   })
 })
