@@ -5,6 +5,7 @@ import { getDividends, addDividend } from '@/lib/firestore/dividends'
 import { AddInvestmentEntryForm } from '@/components/investments/AddInvestmentEntryForm'
 import { AddDividendForm } from '@/components/investments/AddDividendForm'
 import { AddInvestmentTypeForm } from '@/components/investments/AddInvestmentTypeForm'
+import { MonthPicker } from '@/components/MonthPicker'
 import type { InvestmentType, InvestmentEntry, Dividend } from '@/lib/types'
 
 const HE_MONTHS = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר']
@@ -34,6 +35,7 @@ export default function InvestmentsPage() {
   const [showAddEntry, setShowAddEntry] = useState(false)
   const [showAddDividend, setShowAddDividend] = useState(false)
   const [showAddType, setShowAddType] = useState(false)
+  const [pickerOpen, setPickerOpen] = useState(false)
 
   useEffect(() => {
     setLoading(true)
@@ -78,9 +80,22 @@ export default function InvestmentsPage() {
     <main className="p-4 max-w-lg mx-auto pb-24 space-y-6">
       <div className="flex items-center justify-between">
         <button onClick={() => setMonth(m => addMonths(m, -1))} aria-label="חודש קודם" className="text-slate-400 text-2xl w-10 text-center">‹</button>
-        <h1 className="text-lg font-bold">{formatMonth(month)}</h1>
+        <button
+          onClick={() => setPickerOpen(p => !p)}
+          aria-label="בחר חודש"
+          className="text-base font-semibold hover:text-accent transition-colors"
+        >
+          {formatMonth(month)}
+        </button>
         <button onClick={() => setMonth(m => addMonths(m, 1))} aria-label="חודש הבא" className="text-slate-400 text-2xl w-10 text-center">›</button>
       </div>
+      {pickerOpen && (
+        <MonthPicker
+          value={month}
+          onChange={m => { setMonth(m); setPickerOpen(false) }}
+          onClose={() => setPickerOpen(false)}
+        />
+      )}
 
       {loading ? (
         <div className="flex justify-center items-center min-h-40">
