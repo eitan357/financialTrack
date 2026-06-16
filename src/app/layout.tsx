@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="he" dir="rtl" className={`${rubik.variable} font-sans`}>
-      <body className="bg-background min-h-screen">
+      <body className="bg-background min-h-screen" suppressHydrationWarning>
         {children}
       </body>
     </html>

@@ -75,18 +75,19 @@ export default function SeedPage() {
         for (const t of monthData.transactions) {
           const accountId = accMap[t.accountName]
           if (!accountId) continue
-          allTxs.push({
+          const tx: Omit<Transaction, 'id'> = {
             date: t.date,
             merchantName: t.merchantName,
-            description: t.description || undefined,
             amount: t.amount,
             currency: 'ILS',
             accountId,
-            categoryId: catMap[t.categoryName] ?? undefined,
             source: 'csv_import',
             isImmediate: false,
             month: t.month,
-          })
+          }
+          if (t.description) tx.description = t.description
+          if (catMap[t.categoryName]) tx.categoryId = catMap[t.categoryName]
+          allTxs.push(tx)
         }
         if (monthData.salary) {
           const s = monthData.salary

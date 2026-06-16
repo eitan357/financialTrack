@@ -37,6 +37,11 @@ yarn-error.log*
 # vercel
 .vercel
 
+# private data and tooling
+/examples/
+/.claude/
+/.superpowers/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
