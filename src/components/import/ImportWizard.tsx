@@ -5,6 +5,7 @@ import { seedDefaultCategories, getCategories } from '@/lib/firestore/categories
 import { getRules } from '@/lib/firestore/categorization-rules'
 import { getTransactions } from '@/lib/firestore/transactions'
 import { getSalaryEntry } from '@/lib/firestore/salary'
+import { MonthPicker } from '@/components/MonthPicker'
 import { CreditImportStep } from './steps/CreditImportStep'
 import { SalaryStep } from './steps/SalaryStep'
 import { IncomeStep } from './steps/IncomeStep'
@@ -50,6 +51,7 @@ export function ImportWizard() {
   const [previousTransactions, setPreviousTransactions] = useState<Transaction[]>([])
   const [previousSalary, setPreviousSalary] = useState<Omit<SalaryEntry, 'id'> | null>(null)
   const [data, setData] = useState<WizardData>(EMPTY_DATA)
+  const [pickerOpen, setPickerOpen] = useState(false)
 
   useEffect(() => {
     setLoading(true)
@@ -105,9 +107,22 @@ export function ImportWizard() {
     <main className="p-4 max-w-lg mx-auto">
       <div className="flex items-center justify-between mb-6">
         <button onClick={() => changeMonth(-1)} aria-label="חודש קודם" className="text-slate-400 text-2xl w-10 text-center">‹</button>
-        <h1 className="text-lg font-bold">{formatMonth(month)}</h1>
+        <button
+          onClick={() => setPickerOpen(p => !p)}
+          aria-label="בחר חודש"
+          className="text-lg font-bold hover:text-accent transition-colors"
+        >
+          {formatMonth(month)}
+        </button>
         <button onClick={() => changeMonth(1)} aria-label="חודש הבא" className="text-slate-400 text-2xl w-10 text-center">›</button>
       </div>
+      {pickerOpen && (
+        <MonthPicker
+          value={month}
+          onChange={m => { setMonth(m); setStep(1); setData(EMPTY_DATA); setPickerOpen(false) }}
+          onClose={() => setPickerOpen(false)}
+        />
+      )}
 
       {step < SUMMARY_STEP && <p className="text-center text-sm text-slate-400 mb-4">שלב {step} מתוך {TOTAL_STEPS - 1}</p>}
 
