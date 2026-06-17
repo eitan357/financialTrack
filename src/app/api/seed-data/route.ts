@@ -26,11 +26,13 @@ export async function GET() {
 
   const totalTransactions = results.reduce((s, r) => s + r.transactions.length, 0)
   const totalSalaries = results.filter(r => r.salary !== null).length
+  const totalIncomeEntries = results.reduce((s, r) => s + r.incomeEntries.length, 0)
 
   return NextResponse.json({
     months: results.map(r => r.month),
     totalTransactions,
     totalSalaries,
+    totalIncomeEntries,
     data: results,
   })
 }

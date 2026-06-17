@@ -43,37 +43,33 @@ function EditRow({ transaction, categories, onUpdate, onDelete, onClose }: {
 
   return (
     <div className="py-3 border-b border-slate-800 last:border-0 space-y-2">
-      <div className="flex gap-2">
-        <input
-          type="date"
-          value={date}
-          onChange={e => setDate(e.target.value)}
-          className="bg-background rounded px-2 py-1 text-xs text-foreground outline-none focus:ring-1 ring-accent w-32 flex-shrink-0"
-        />
-        <input
-          value={name}
-          onChange={e => setName(e.target.value)}
-          placeholder="שם עסק"
-          className="bg-background rounded px-2 py-1 text-xs text-foreground outline-none focus:ring-1 ring-accent flex-1 min-w-0"
-        />
-      </div>
-      <div className="flex gap-2">
-        <input
-          type="number"
-          value={amount}
-          onChange={e => setAmount(e.target.value)}
-          step="0.01"
-          className="bg-background rounded px-2 py-1 text-xs text-foreground outline-none focus:ring-1 ring-accent w-24 flex-shrink-0 tabular-nums"
-        />
-        <select
-          value={categoryId}
-          onChange={e => setCategoryId(e.target.value)}
-          className="bg-background text-foreground text-xs rounded px-2 py-1 outline-none flex-1"
-        >
-          <option value="">— ללא —</option>
-          {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
-      </div>
+      <input
+        type="date"
+        value={date}
+        onChange={e => setDate(e.target.value)}
+        className="w-full bg-background rounded px-2 py-1.5 text-xs text-foreground outline-none focus:ring-1 ring-accent"
+      />
+      <input
+        value={name}
+        onChange={e => setName(e.target.value)}
+        placeholder="שם עסק"
+        className="w-full bg-background rounded px-2 py-1.5 text-xs text-foreground outline-none focus:ring-1 ring-accent"
+      />
+      <input
+        type="number"
+        value={amount}
+        onChange={e => setAmount(e.target.value)}
+        step="0.01"
+        className="w-full bg-background rounded px-2 py-1.5 text-xs text-foreground outline-none focus:ring-1 ring-accent tabular-nums"
+      />
+      <select
+        value={categoryId}
+        onChange={e => setCategoryId(e.target.value)}
+        className="w-full bg-background text-foreground text-xs rounded px-2 py-1.5 outline-none"
+      >
+        <option value="">— ללא —</option>
+        {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+      </select>
       <div className="flex gap-2 pt-1">
         <button
           onClick={remove}

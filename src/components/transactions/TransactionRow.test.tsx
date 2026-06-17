@@ -36,7 +36,7 @@ describe('TransactionRow', () => {
 
   it('calls onCategoryChange with transactionId and new categoryId', () => {
     const onCategoryChange = jest.fn()
-    render(<TransactionRow transaction={tx} categories={cats} onCategoryChange={onCategoryChange} onDelete={jest.fn()} />)
+    render(<TransactionRow transaction={tx} categories={cats} onCategoryChange={onCategoryChange} onUpdate={jest.fn()} onDelete={jest.fn()} />)
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'c1' } })
     expect(onCategoryChange).toHaveBeenCalledWith('tx1', 'c1')
   })
@@ -44,14 +44,14 @@ describe('TransactionRow', () => {
   it('calls onCategoryChange with undefined when blank is selected', () => {
     const onCategoryChange = jest.fn()
     const txWithCat = { ...tx, categoryId: 'c1' }
-    render(<TransactionRow transaction={txWithCat} categories={cats} onCategoryChange={onCategoryChange} onDelete={jest.fn()} />)
+    render(<TransactionRow transaction={txWithCat} categories={cats} onCategoryChange={onCategoryChange} onUpdate={jest.fn()} onDelete={jest.fn()} />)
     fireEvent.change(screen.getByRole('combobox'), { target: { value: '' } })
     expect(onCategoryChange).toHaveBeenCalledWith('tx1', undefined)
   })
 
   it('calls onDelete with transactionId when delete button clicked', () => {
     const onDelete = jest.fn()
-    render(<TransactionRow transaction={tx} categories={cats} onCategoryChange={jest.fn()} onDelete={onDelete} />)
+    render(<TransactionRow transaction={tx} categories={cats} onCategoryChange={jest.fn()} onUpdate={jest.fn()} onDelete={onDelete} />)
     fireEvent.click(screen.getByRole('button', { name: 'מחק עסקה' }))
     expect(onDelete).toHaveBeenCalledWith('tx1')
   })

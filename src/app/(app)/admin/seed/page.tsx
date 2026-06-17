@@ -4,6 +4,7 @@ import { getCategories, cleanupDuplicateCategories } from '@/lib/firestore/categ
 import { getAccounts } from '@/lib/firestore/accounts'
 import { addTransactions } from '@/lib/firestore/transactions'
 import { upsertSalaryEntry } from '@/lib/firestore/salary'
+import { addIncomeEntry } from '@/lib/firestore/income'
 import type { Transaction, SalaryEntry } from '@/lib/types'
 
 interface ParsedTx {
@@ -27,16 +28,24 @@ interface ParsedSal {
   netAmount: number
 }
 
+interface ParsedIncome {
+  month: string
+  sourceName: string
+  amount: number
+}
+
 interface SeedData {
   month: string
   transactions: ParsedTx[]
   salary: ParsedSal | null
+  incomeEntries: ParsedIncome[]
 }
 
 interface SeedSummary {
   months: string[]
   totalTransactions: number
   totalSalaries: number
+  totalIncomeEntries: number
   data: SeedData[]
 }
 
@@ -44,7 +53,7 @@ export default function SeedPage() {
   const [loading, setLoading] = useState(false)
   const [summary, setSummary] = useState<SeedSummary | null>(null)
   const [importing, setImporting] = useState(false)
-  const [done, setDone] = useState<{ transactions: number; salaries: number } | null>(null)
+  const [done, setDone] = useState<{ transactions: number; salaries: number; incomeEntries: number } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [cleanupRunning, setCleanupRunning] = useState(false)
   const [cleanupResult, setCleanupResult] = useState<{ deleted: number; txsFixed: number } | null>(null)
@@ -130,7 +139,21 @@ export default function SeedPage() {
         await upsertSalaryEntry(entry)
       }
 
-      setDone({ transactions: allTxs.length, salaries: salaryEntries.length })
+      let incomeCount = 0
+      for (const monthData of summary.data) {
+        for (const inc of monthData.incomeEntries) {
+          await addIncomeEntry({
+            month: inc.month,
+            date: `${inc.month}-01`,
+            sourceName: inc.sourceName,
+            amount: inc.amount,
+            currency: 'ILS',
+          })
+          incomeCount++
+        }
+      }
+
+      setDone({ transactions: allTxs.length, salaries: salaryEntries.length, incomeEntries: incomeCount })
     } catch (e) {
       setError(String(e))
     } finally {
@@ -145,6 +168,7 @@ export default function SeedPage() {
         <div className="bg-surface rounded-2xl p-4 space-y-2">
           <p className="text-sm">עסקאות שיובאו: <span className="font-bold">{done.transactions}</span></p>
           <p className="text-sm">משכורות שיובאו: <span className="font-bold">{done.salaries}</span></p>
+          <p className="text-sm">הכנסות שיובאו: <span className="font-bold">{done.incomeEntries}</span></p>
         </div>
       </main>
     )
@@ -191,6 +215,7 @@ export default function SeedPage() {
             <p className="text-sm">חודשים שנמצאו: <span className="font-bold">{summary.months.length}</span></p>
             <p className="text-sm">עסקאות: <span className="font-bold">{summary.totalTransactions}</span></p>
             <p className="text-sm">משכורות: <span className="font-bold">{summary.totalSalaries}</span></p>
+            <p className="text-sm">הכנסות: <span className="font-bold">{summary.totalIncomeEntries}</span></p>
             <div className="text-xs text-slate-500 mt-2">
               {summary.months.sort().join(' • ')}
             </div>

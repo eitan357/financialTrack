@@ -28,33 +28,33 @@ export function MonthHeader({ month, onMonthChange, className = 'mb-6' }: Props)
 
   return (
     <div className={className}>
-      <div className="flex items-center">
-        <div className="flex items-center gap-0.5">
-          <Link
-            href="/settings"
-            aria-label="הגדרות"
-            className="p-1.5 text-slate-500 hover:text-foreground transition-colors"
-          >
-            <Settings size={16} />
-          </Link>
+      <div className="relative flex items-center justify-center">
+        <Link
+          href="/settings"
+          aria-label="הגדרות"
+          className="absolute left-0 p-1.5 text-slate-500 hover:text-foreground transition-colors"
+        >
+          <Settings size={16} />
+        </Link>
+        <div className="flex items-center gap-0.5" dir="ltr">
           <button
             onClick={() => onMonthChange(addMonths(month, -1))}
             aria-label="חודש קודם"
-            className="text-slate-400 text-2xl w-7 flex items-center justify-center leading-none"
+            className="text-slate-400 text-2xl w-6 flex items-center justify-center leading-none"
           >‹</button>
+          <button
+            onClick={() => setPickerOpen(p => !p)}
+            aria-label="בחר חודש"
+            className="text-lg font-bold hover:text-accent transition-colors px-1"
+          >
+            {formatMonth(month)}
+          </button>
+          <button
+            onClick={() => onMonthChange(addMonths(month, 1))}
+            aria-label="חודש הבא"
+            className="text-slate-400 text-2xl w-6 flex items-center justify-center leading-none"
+          >›</button>
         </div>
-        <button
-          onClick={() => setPickerOpen(p => !p)}
-          aria-label="בחר חודש"
-          className="flex-1 text-center text-lg font-bold hover:text-accent transition-colors"
-        >
-          {formatMonth(month)}
-        </button>
-        <button
-          onClick={() => onMonthChange(addMonths(month, 1))}
-          aria-label="חודש הבא"
-          className="text-slate-400 text-2xl w-7 flex items-center justify-center leading-none"
-        >›</button>
       </div>
       {pickerOpen && (
         <MonthPicker

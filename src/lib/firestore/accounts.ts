@@ -41,6 +41,7 @@ const DEFAULT_ACCOUNTS: Omit<Account, 'id'>[] = [
 ]
 
 export async function seedDefaultAccounts(): Promise<void> {
+  if (appCache.get<boolean>('_seed:accounts')) return
   const db = getDb()
   const sentinelRef = doc(db, 'accounts', '_seeded_v1')
   try {
@@ -55,6 +56,7 @@ export async function seedDefaultAccounts(): Promise<void> {
   } catch {
     // already seeded or race condition — safe to ignore
   }
+  appCache.set('_seed:accounts', true, 60 * 60_000)
 }
 
 export async function cleanupDuplicateAccounts(): Promise<{ deleted: number; txsFixed: number }> {

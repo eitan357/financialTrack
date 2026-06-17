@@ -21,10 +21,17 @@ export interface ParsedSalary {
   netAmount: number
 }
 
+export interface ParsedIncomeEntry {
+  month: string
+  sourceName: string
+  amount: number
+}
+
 export interface ParsedMonthData {
   month: string
   transactions: ParsedTransaction[]
   salary: ParsedSalary | null
+  incomeEntries: ParsedIncomeEntry[]
 }
 
 const HE_MONTH_MAP: Record<string, string> = {
@@ -107,6 +114,27 @@ function extractSalary(rows: string[][], month: string): ParsedSalary | null {
   return { month, grossAmount: gross, incomeTax, nationalInsurance, healthInsurance, pension, trainingFund, netAmount }
 }
 
+function extractIncomeEntries(rows: string[][], month: string, salaryAmount: number): ParsedIncomeEntry[] {
+  const result: ParsedIncomeEntry[] = []
+  let incomeStart = -1
+  for (let i = 0; i < Math.min(20, rows.length); i++) {
+    if ((rows[i]?.[0] ?? '').trim() === 'הכנסות') { incomeStart = i + 1; break }
+  }
+  if (incomeStart === -1) return result
+
+  for (let i = incomeStart; i < incomeStart + 10 && i < rows.length; i++) {
+    const label = (rows[i]?.[0] ?? '').trim()
+    if (!label) continue
+    if (label.includes('סה"כ') || label.includes('סה""כ')) break
+    const amount = parseAmount(rows[i]?.[1] ?? '')
+    if (amount <= 0) continue
+    // Skip One Zero bank — it's captured as salary
+    if (label.toLowerCase().includes('one zero') && Math.abs(amount - salaryAmount) < 1) continue
+    result.push({ month, sourceName: label, amount })
+  }
+  return result
+}
+
 export function parseExampleCsv(csvContent: string, filename: string): ParsedMonthData | null {
   const month = monthFromFilename(filename)
   if (!month) return null
@@ -126,10 +154,12 @@ export function parseExampleCsv(csvContent: string, filename: string): ParsedMon
   }
 
   const salary = extractSalary(rows, month)
+  const incomeEntries = extractIncomeEntries(rows, month, salary?.grossAmount ?? 0)
 
   return {
     month,
     transactions: [...hatzlaadaTxs, ...oneZeroTxs],
     salary,
+    incomeEntries,
   }
 }

@@ -56,6 +56,7 @@ const DEFAULT_CATEGORIES: Omit<Category, 'id'>[] = [
 ]
 
 export async function seedDefaultCategories(): Promise<void> {
+  if (appCache.get<boolean>('_seed:categories')) return
   const db = getDb()
   const sentinelRef = doc(db, 'categories', '_seeded_v1')
 
@@ -71,6 +72,7 @@ export async function seedDefaultCategories(): Promise<void> {
   } catch {
     // already seeded or race condition — safe to ignore
   }
+  appCache.set('_seed:categories', true, 60 * 60_000)
 }
 
 export async function cleanupDuplicateCategories(): Promise<{ deleted: number; txsFixed: number }> {

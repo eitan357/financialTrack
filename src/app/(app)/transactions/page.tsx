@@ -4,10 +4,11 @@ import { usePersistedMonth } from '@/hooks/usePersistedMonth'
 import { MonthHeader } from '@/components/layout/MonthHeader'
 import { getTransactions, updateTransaction, deleteTransaction } from '@/lib/firestore/transactions'
 import { getCategories } from '@/lib/firestore/categories'
+import { getAccounts } from '@/lib/firestore/accounts'
 import { getRules, addRule, deleteRule } from '@/lib/firestore/categorization-rules'
 import { TransactionRow } from '@/components/transactions/TransactionRow'
 import { RulesModal } from '@/components/transactions/RulesModal'
-import type { Transaction, Category, CategorizationRule } from '@/lib/types'
+import type { Transaction, Category, CategorizationRule, Account } from '@/lib/types'
 
 type Filter = 'all' | 'uncategorized'
 
@@ -16,22 +17,26 @@ export default function TransactionsPage() {
   const [loading, setLoading] = useState(true)
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [categories, setCategories] = useState<Category[]>([])
+  const [accounts, setAccounts] = useState<Account[]>([])
   const [rules, setRules] = useState<CategorizationRule[]>([])
   const [filter, setFilter] = useState<Filter>('all')
+  const [accountFilter, setAccountFilter] = useState<string>('all')
   const [rulesOpen, setRulesOpen] = useState(false)
 
   useEffect(() => {
     setLoading(true)
     async function load() {
       try {
-        const [txs, cats, rls] = await Promise.all([
+        const [txs, cats, rls, accs] = await Promise.all([
           getTransactions(month),
           getCategories(),
           getRules(),
+          getAccounts(),
         ])
         setTransactions(txs)
         setCategories(cats)
         setRules(rls)
+        setAccounts(accs)
       } finally {
         setLoading(false)
       }
@@ -66,22 +71,45 @@ export default function TransactionsPage() {
     setRules(prev => prev.filter(r => r.id !== ruleId))
   }
 
-  const uncategorizedCount = transactions.filter(t => !t.categoryId).length
+  const accountsWithTxs = accounts.filter(a =>
+    a.isActive && transactions.some(t => t.accountId === a.id)
+  )
+  const byAccount = accountFilter === 'all'
+    ? transactions
+    : transactions.filter(t => t.accountId === accountFilter)
+  const uncategorizedCount = byAccount.filter(t => !t.categoryId).length
   const displayed = filter === 'uncategorized'
-    ? transactions.filter(t => !t.categoryId)
-    : transactions
+    ? byAccount.filter(t => !t.categoryId)
+    : byAccount
   const total = displayed.reduce((s, t) => s + t.amount, 0)
 
   return (
     <main className="p-4 max-w-lg mx-auto pb-24">
       <MonthHeader month={month} onMonthChange={setMonth} />
 
+      {accountsWithTxs.length > 1 && (
+        <div className="flex gap-2 overflow-x-auto pb-1 mb-3 no-scrollbar" dir="ltr">
+          <button
+            onClick={() => setAccountFilter('all')}
+            className={`text-xs px-3 py-1.5 rounded-full flex-shrink-0 ${accountFilter === 'all' ? 'bg-slate-600 text-white' : 'bg-surface text-slate-400'}`}
+          >הכל</button>
+          {accountsWithTxs.map(acc => (
+            <button
+              key={acc.id}
+              onClick={() => setAccountFilter(acc.id)}
+              className={`text-xs px-3 py-1.5 rounded-full flex-shrink-0 transition-colors ${accountFilter === acc.id ? 'text-white' : 'bg-surface text-slate-400'}`}
+              style={accountFilter === acc.id ? { backgroundColor: acc.color } : undefined}
+            >{acc.name}</button>
+          ))}
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-4">
         <div className="flex gap-2">
           <button
             onClick={() => setFilter('all')}
             className={`text-xs px-3 py-1.5 rounded-full ${filter === 'all' ? 'bg-accent text-white' : 'bg-surface text-slate-400'}`}
-          >הכל ({transactions.length})</button>
+          >הכל ({byAccount.length})</button>
           <button
             onClick={() => setFilter('uncategorized')}
             className={`text-xs px-3 py-1.5 rounded-full ${filter === 'uncategorized' ? 'bg-amber-600 text-white' : 'bg-surface text-slate-400'}`}
