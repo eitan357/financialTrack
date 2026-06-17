@@ -17,21 +17,23 @@ interface Props {
   month: string
   accounts: Account[]
   categories: Category[]
+  defaultAccountId?: string
   onSaved: () => void
   onClose: () => void
 }
 
-export function AddTransactionForm({ month, accounts, categories, onSaved, onClose }: Props) {
+export function AddTransactionForm({ month, accounts, categories, defaultAccountId, onSaved, onClose }: Props) {
   const today = new Date().toISOString().slice(0, 10)
   const [date, setDate] = useState(today)
   const [name, setName] = useState('')
   const [amount, setAmount] = useState('')
   const [direction, setDirection] = useState<'expense' | 'income'>('expense')
-  const [accountId, setAccountId] = useState(accounts.find(a => a.isActive)?.id ?? '')
+  const [accountId, setAccountId] = useState(defaultAccountId ?? accounts.find(a => a.isActive)?.id ?? '')
   const [categoryId, setCategoryId] = useState('')
   const [showSalary, setShowSalary] = useState(false)
   const [deductions, setDeductions] = useState<SalaryDeductions>(EMPTY_DEDUCTIONS)
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const totalDeductions = Object.values(deductions).reduce((s, v) => s + v, 0)
   const grossAmount = parseFloat(amount) || 0
@@ -44,9 +46,9 @@ export function AddTransactionForm({ month, accounts, categories, onSaved, onClo
   async function save() {
     if (!name.trim() || !amount || !accountId) return
     setSaving(true)
+    setError(null)
     try {
       const finalAmount = direction === 'income' && showSalary ? netAmount : grossAmount
-      const txMonth = date.slice(0, 7)
       await addTransactions([{
         date,
         merchantName: name.trim(),
@@ -56,7 +58,7 @@ export function AddTransactionForm({ month, accounts, categories, onSaved, onClo
         categoryId: direction === 'expense' ? (categoryId || undefined) : undefined,
         source: 'manual',
         isImmediate: true,
-        month: txMonth,
+        month,
         direction,
         ...(direction === 'income' && showSalary ? {
           salaryDetails: {
@@ -68,6 +70,8 @@ export function AddTransactionForm({ month, accounts, categories, onSaved, onClo
         } : {}),
       }])
       onSaved()
+    } catch {
+      setError('שגיאה בשמירה. נסה שוב.')
     } finally {
       setSaving(false)
     }
@@ -151,10 +155,12 @@ export function AddTransactionForm({ month, accounts, categories, onSaved, onClo
           ))}
           <div className="flex justify-between items-center pt-2 border-t border-slate-700">
             <span className="text-xs text-slate-400">נטו</span>
-            <span className="text-sm font-bold tabular-nums text-green-400">{netAmount.toLocaleString('he-IL')} ₪</span>
+            <span className="text-sm font-bold tabular-nums text-green-400" dir="ltr">{netAmount.toLocaleString('he-IL')} ₪</span>
           </div>
         </div>
       )}
+
+      {error && <p className="text-red-400 text-xs">{error}</p>}
 
       <div className="flex gap-2 pt-1">
         <button onClick={onClose}

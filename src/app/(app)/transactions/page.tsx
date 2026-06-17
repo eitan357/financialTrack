@@ -68,9 +68,15 @@ export default function TransactionsPage() {
       ? byAccount.filter(t => !t.categoryId)
       : byAccount.filter(t => t.categoryId === categoryFilter)
 
-  const uncategorizedCount = byAccount.filter(t => !t.categoryId && t.direction !== 'income').length
-  const incomeTotal = displayed.filter(t => t.direction === 'income').reduce((s, t) => s + t.amount, 0)
-  const expenseTotal = displayed.filter(t => t.direction !== 'income').reduce((s, t) => s + t.amount, 0)
+  const uncategorizedCount = byAccount.filter(t => !t.categoryId && t.direction !== 'income' && t.amount > 0).length
+  // income = direction:income transactions (positive) + refunds (negative amounts on expenses)
+  const incomeTotal = displayed
+    .filter(t => t.direction === 'income')
+    .reduce((s, t) => s + t.amount, 0)
+  // expenses = non-income transactions with positive amount; refunds (negative) reduce the expense total
+  const expenseTotal = displayed
+    .filter(t => t.direction !== 'income')
+    .reduce((s, t) => s + t.amount, 0)
   const net = incomeTotal - expenseTotal
   const hasIncome = incomeTotal > 0
 
@@ -125,6 +131,7 @@ export default function TransactionsPage() {
           month={month}
           accounts={accounts}
           categories={categories}
+          defaultAccountId={accountFilter !== 'all' ? accountFilter : undefined}
           onSaved={() => { setShowAddForm(false); setReloadKey(k => k + 1) }}
           onClose={() => setShowAddForm(false)}
         />
