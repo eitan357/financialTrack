@@ -17,6 +17,7 @@ export async function getAccounts(): Promise<Account[]> {
   const accs = snap.docs
     .map(d => ({ id: d.id, ...d.data() } as Account))
     .filter(a => a.id !== '_seeded_v1')
+    .sort((a, b) => (a.sortOrder ?? 9999) - (b.sortOrder ?? 9999))
   appCache.set(CACHE_KEY, accs)
   return accs
 }

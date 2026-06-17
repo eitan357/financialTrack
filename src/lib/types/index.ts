@@ -8,6 +8,7 @@ export interface Account {
   color: string
   isActive: boolean
   csvIdentifier?: string // keyword to search in CSV file to auto-detect this card's section
+  sortOrder?: number
 }
 
 export interface Category {
@@ -16,6 +17,7 @@ export interface Category {
   monthlyTarget?: number
   color: string
   isActive: boolean
+  sortOrder?: number
 }
 
 export type MatchType = 'contains' | 'exact' | 'startsWith'

@@ -125,6 +125,23 @@ function AccountsSection() {
     setAccounts(prev => prev.map(a => a.id === acc.id ? { ...a, isActive: !a.isActive } : a))
   }
 
+  async function moveAccount(id: string, dir: -1 | 1) {
+    const active = accounts.filter(a => a.isActive)
+    const idx = active.findIndex(a => a.id === id)
+    const newIdx = idx + dir
+    if (newIdx < 0 || newIdx >= active.length) return
+    const updated = [...active]
+    ;[updated[idx], updated[newIdx]] = [updated[newIdx], updated[idx]]
+    await Promise.all(updated.map((a, i) => updateAccount(a.id, { sortOrder: i })))
+    setAccounts(prev => {
+      const inactive = prev.filter(a => !a.isActive)
+      return [...updated.map((a, i) => ({ ...a, sortOrder: i })), ...inactive]
+    })
+  }
+
+  const active = accounts.filter(a => a.isActive)
+  const inactive = accounts.filter(a => !a.isActive)
+
   if (loading) return <p className="text-slate-400 text-sm text-center py-6">טוען...</p>
 
   return (
@@ -138,7 +155,7 @@ function AccountsSection() {
       {showAdd && <AccountForm onSubmit={handleAdd} onCancel={() => setShowAdd(false)} />}
 
       <div className="bg-surface rounded-2xl divide-y divide-slate-800">
-        {accounts.map(acc => (
+        {active.map((acc, idx) => (
           editId === acc.id ? (
             <div key={acc.id} className="p-2">
               <AccountForm initial={acc}
@@ -149,20 +166,34 @@ function AccountsSection() {
             <div key={acc.id} className="flex items-center px-4 py-3 gap-3">
               <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: acc.color }} />
               <div className="flex-1 min-w-0">
-                <span className={`text-sm ${!acc.isActive ? 'line-through text-slate-500' : ''}`}>{acc.name}</span>
+                <span className="text-sm">{acc.name}</span>
                 <span className="text-xs text-slate-500 mr-2">{ACCOUNT_TYPE_LABELS[acc.type]}</span>
                 {acc.last4digits && <span className="text-xs text-slate-600">****{acc.last4digits}</span>}
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <div className="flex flex-col gap-0" dir="ltr">
+                  <button onClick={() => moveAccount(acc.id, -1)} disabled={idx === 0}
+                    className="text-slate-500 hover:text-foreground disabled:opacity-20 text-xs leading-tight">▲</button>
+                  <button onClick={() => moveAccount(acc.id, 1)} disabled={idx === active.length - 1}
+                    className="text-slate-500 hover:text-foreground disabled:opacity-20 text-xs leading-tight">▼</button>
+                </div>
                 <button onClick={() => { setEditId(acc.id); setShowAdd(false) }}
                   className="text-xs text-slate-400 hover:text-accent">ערוך</button>
                 <button onClick={() => handleToggle(acc)}
-                  className={`text-xs ${acc.isActive ? 'text-slate-400 hover:text-amber-400' : 'text-green-400'}`}>
-                  {acc.isActive ? 'הסתר' : 'הצג'}
-                </button>
+                  className="text-xs text-slate-400 hover:text-amber-400">הסתר</button>
               </div>
             </div>
           )
+        ))}
+        {inactive.map(acc => (
+          <div key={acc.id} className="flex items-center px-4 py-3 gap-3 opacity-50">
+            <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: acc.color }} />
+            <div className="flex-1 min-w-0">
+              <span className="text-sm line-through text-slate-500">{acc.name}</span>
+              <span className="text-xs text-slate-500 mr-2">{ACCOUNT_TYPE_LABELS[acc.type]}</span>
+            </div>
+            <button onClick={() => handleToggle(acc)} className="text-xs text-green-400">הצג</button>
+          </div>
         ))}
       </div>
     </div>
@@ -238,6 +269,20 @@ function CategoriesSection() {
     setCategories(prev => prev.map(c => c.id === cat.id ? { ...c, isActive: !c.isActive } : c))
   }
 
+  async function moveCategory(id: string, dir: -1 | 1) {
+    const activeList = categories.filter(c => c.isActive)
+    const idx = activeList.findIndex(c => c.id === id)
+    const newIdx = idx + dir
+    if (newIdx < 0 || newIdx >= activeList.length) return
+    const updated = [...activeList]
+    ;[updated[idx], updated[newIdx]] = [updated[newIdx], updated[idx]]
+    await Promise.all(updated.map((c, i) => updateCategory(c.id, { sortOrder: i })))
+    setCategories(prev => {
+      const inactive = prev.filter(c => !c.isActive)
+      return [...updated.map((c, i) => ({ ...c, sortOrder: i })), ...inactive]
+    })
+  }
+
   if (loading) return <p className="text-slate-400 text-sm text-center py-6">טוען...</p>
 
   const active = categories.filter(c => c.isActive)
@@ -254,7 +299,7 @@ function CategoriesSection() {
       {showAdd && <CategoryForm onSubmit={handleAdd} onCancel={() => setShowAdd(false)} />}
 
       <div className="bg-surface rounded-2xl divide-y divide-slate-800">
-        {active.map(cat => (
+        {active.map((cat, idx) => (
           editId === cat.id ? (
             <div key={cat.id} className="p-2">
               <CategoryForm initial={cat}
@@ -265,7 +310,13 @@ function CategoriesSection() {
             <div key={cat.id} className="flex items-center px-4 py-3 gap-3">
               <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: cat.color }} />
               <span className="flex-1 text-sm">{cat.name}</span>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <div className="flex flex-col gap-0" dir="ltr">
+                  <button onClick={() => moveCategory(cat.id, -1)} disabled={idx === 0}
+                    className="text-slate-500 hover:text-foreground disabled:opacity-20 text-xs leading-tight">▲</button>
+                  <button onClick={() => moveCategory(cat.id, 1)} disabled={idx === active.length - 1}
+                    className="text-slate-500 hover:text-foreground disabled:opacity-20 text-xs leading-tight">▼</button>
+                </div>
                 <button onClick={() => { setEditId(cat.id); setShowAdd(false) }}
                   className="text-xs text-slate-400 hover:text-accent">ערוך</button>
                 <button onClick={() => handleToggle(cat)}

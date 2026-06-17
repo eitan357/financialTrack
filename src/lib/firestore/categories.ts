@@ -17,6 +17,7 @@ export async function getCategories(): Promise<Category[]> {
   const cats = snap.docs
     .map(d => ({ id: d.id, ...d.data() } as Category))
     .filter(c => c.id !== '_seeded_v1')
+    .sort((a, b) => (a.sortOrder ?? 9999) - (b.sortOrder ?? 9999))
   appCache.set(CACHE_KEY, cats)
   return cats
 }

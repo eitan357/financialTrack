@@ -108,7 +108,10 @@ function DetailView({ transaction, categories, onEdit, onClose }: {
   const categoryName = categories.find(c => c.id === transaction.categoryId)?.name
 
   return (
-    <div className="py-3 border-b border-slate-800 last:border-0">
+    <div
+      className="py-3 border-b border-slate-800 last:border-0 cursor-pointer"
+      onClick={onClose}
+    >
       <div className="flex justify-between items-start mb-3">
         <div>
           <div className="text-xs text-slate-500 mb-0.5">{dd}/{mm}/{yyyy}</div>
@@ -126,12 +129,7 @@ function DetailView({ transaction, categories, onEdit, onClose }: {
           )}
         </div>
       </div>
-      <div className="flex items-center gap-2">
-        <button
-          onClick={onClose}
-          className="text-sm text-slate-500 hover:text-slate-300 py-1 px-2"
-        >סגור</button>
-        <div className="flex-1" />
+      <div className="flex justify-end" onClick={e => e.stopPropagation()}>
         <button
           onClick={onEdit}
           className="text-sm py-1.5 px-4 border border-accent text-accent rounded-lg hover:bg-accent hover:text-white transition-colors"
