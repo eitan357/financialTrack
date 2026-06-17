@@ -2,9 +2,9 @@
 import { useState } from 'react'
 import { getCategories, cleanupDuplicateCategories } from '@/lib/firestore/categories'
 import { getAccounts } from '@/lib/firestore/accounts'
-import { addTransactions } from '@/lib/firestore/transactions'
-import { upsertSalaryEntry } from '@/lib/firestore/salary'
-import { addIncomeEntry } from '@/lib/firestore/income'
+import { addTransactions, deleteAllTransactions } from '@/lib/firestore/transactions'
+import { upsertSalaryEntry, deleteAllSalaryEntries } from '@/lib/firestore/salary'
+import { addIncomeEntry, deleteAllIncomeEntries } from '@/lib/firestore/income'
 import type { Transaction, SalaryEntry } from '@/lib/types'
 
 interface ParsedTx {
@@ -15,6 +15,16 @@ interface ParsedTx {
   categoryName: string
   accountName: string
   month: string
+}
+
+interface ParsedBankTx {
+  date: string
+  merchantName: string
+  description: string
+  amount: number
+  accountName: string
+  month: string
+  direction: 'income' | 'expense'
 }
 
 interface ParsedSal {
@@ -37,6 +47,7 @@ interface ParsedIncome {
 interface SeedData {
   month: string
   transactions: ParsedTx[]
+  bankTransactions: ParsedBankTx[]
   salary: ParsedSal | null
   incomeEntries: ParsedIncome[]
 }
@@ -44,6 +55,7 @@ interface SeedData {
 interface SeedSummary {
   months: string[]
   totalTransactions: number
+  totalBankTransactions: number
   totalSalaries: number
   totalIncomeEntries: number
   data: SeedData[]
@@ -53,6 +65,7 @@ export default function SeedPage() {
   const [loading, setLoading] = useState(false)
   const [summary, setSummary] = useState<SeedSummary | null>(null)
   const [importing, setImporting] = useState(false)
+  const [clearing, setClearing] = useState(false)
   const [done, setDone] = useState<{ transactions: number; salaries: number; incomeEntries: number } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [cleanupRunning, setCleanupRunning] = useState(false)
@@ -83,6 +96,22 @@ export default function SeedPage() {
     }
   }
 
+  async function clearAll() {
+    if (!window.confirm('מחיקת כל העסקאות, המשכורות וההכנסות מהדאטה בייס. האם להמשיך?')) return
+    setClearing(true); setError(null)
+    try {
+      await Promise.all([
+        deleteAllTransactions(),
+        deleteAllSalaryEntries(),
+        deleteAllIncomeEntries(),
+      ])
+    } catch (e) {
+      setError(String(e))
+    } finally {
+      setClearing(false)
+    }
+  }
+
   async function importAll() {
     if (!summary) return
     setImporting(true); setError(null)
@@ -95,6 +124,7 @@ export default function SeedPage() {
       const salaryEntries: Omit<SalaryEntry, 'id'>[] = []
 
       for (const monthData of summary.data) {
+        // Credit card transactions
         for (const t of monthData.transactions) {
           const accountId = accMap[t.accountName]
           if (!accountId) continue
@@ -112,6 +142,26 @@ export default function SeedPage() {
           if (catMap[t.categoryName]) tx.categoryId = catMap[t.categoryName]
           allTxs.push(tx)
         }
+
+        // Bank transactions (expenses and income)
+        for (const bt of monthData.bankTransactions) {
+          const accountId = accMap[bt.accountName]
+          if (!accountId) continue
+          const tx: Omit<Transaction, 'id'> = {
+            date: bt.date,
+            merchantName: bt.merchantName,
+            amount: bt.amount,
+            currency: 'ILS',
+            accountId,
+            source: 'csv_import',
+            isImmediate: false,
+            month: bt.month,
+            direction: bt.direction,
+          }
+          if (bt.description) tx.description = bt.description
+          allTxs.push(tx)
+        }
+
         if (monthData.salary) {
           const s = monthData.salary
           salaryEntries.push({
@@ -161,6 +211,25 @@ export default function SeedPage() {
     }
   }
 
+  async function clearAndImport() {
+    if (!summary) return
+    if (!window.confirm('פעולה זו תמחק את כל הנתונים הקיימים ותייבא מחדש. האם להמשיך?')) return
+    setClearing(true); setError(null)
+    try {
+      await Promise.all([
+        deleteAllTransactions(),
+        deleteAllSalaryEntries(),
+        deleteAllIncomeEntries(),
+      ])
+    } catch (e) {
+      setError(String(e))
+      setClearing(false)
+      return
+    }
+    setClearing(false)
+    await importAll()
+  }
+
   if (done) {
     return (
       <main className="p-4 max-w-lg mx-auto">
@@ -198,37 +267,45 @@ export default function SeedPage() {
       </section>
 
       <section>
-      <h2 className="text-lg font-bold mb-2">ייבוא נתונים היסטוריים</h2>
-      <p className="text-slate-400 text-sm mb-4">טוען נתונים מקבצי הדוגמה בתיקיית examples/</p>
+        <h2 className="text-lg font-bold mb-2">ייבוא נתונים היסטוריים</h2>
+        <p className="text-slate-400 text-sm mb-4">טוען נתונים מקבצי הדוגמה בתיקיית examples/</p>
 
-      {!summary ? (
-        <button
-          onClick={loadData}
-          disabled={loading}
-          className="w-full py-3 bg-accent rounded-xl font-semibold disabled:opacity-50"
-        >
-          {loading ? 'טוען...' : 'טען נתונים'}
-        </button>
-      ) : (
-        <div className="space-y-4">
-          <div className="bg-surface rounded-2xl p-4 space-y-2">
-            <p className="text-sm">חודשים שנמצאו: <span className="font-bold">{summary.months.length}</span></p>
-            <p className="text-sm">עסקאות: <span className="font-bold">{summary.totalTransactions}</span></p>
-            <p className="text-sm">משכורות: <span className="font-bold">{summary.totalSalaries}</span></p>
-            <p className="text-sm">הכנסות: <span className="font-bold">{summary.totalIncomeEntries}</span></p>
-            <div className="text-xs text-slate-500 mt-2">
-              {summary.months.sort().join(' • ')}
-            </div>
-          </div>
+        {!summary ? (
           <button
-            onClick={importAll}
-            disabled={importing}
+            onClick={loadData}
+            disabled={loading}
             className="w-full py-3 bg-accent rounded-xl font-semibold disabled:opacity-50"
           >
-            {importing ? 'מייבא...' : 'ייבא הכל לדאטה בייס'}
+            {loading ? 'טוען...' : 'טען נתונים'}
           </button>
-        </div>
-      )}
+        ) : (
+          <div className="space-y-4">
+            <div className="bg-surface rounded-2xl p-4 space-y-2">
+              <p className="text-sm">חודשים שנמצאו: <span className="font-bold">{summary.months.length}</span></p>
+              <p className="text-sm">עסקאות אשראי: <span className="font-bold">{summary.totalTransactions}</span></p>
+              <p className="text-sm">עסקאות בנק: <span className="font-bold">{summary.totalBankTransactions}</span></p>
+              <p className="text-sm">משכורות: <span className="font-bold">{summary.totalSalaries}</span></p>
+              <p className="text-sm">הכנסות: <span className="font-bold">{summary.totalIncomeEntries}</span></p>
+              <div className="text-xs text-slate-500 mt-2">
+                {summary.months.sort().join(' • ')}
+              </div>
+            </div>
+            <button
+              onClick={clearAndImport}
+              disabled={importing || clearing}
+              className="w-full py-3 bg-red-600 hover:bg-red-500 rounded-xl font-semibold disabled:opacity-50"
+            >
+              {clearing ? 'מוחק...' : importing ? 'מייבא...' : 'נקה הכל וייבא מחדש'}
+            </button>
+            <button
+              onClick={importAll}
+              disabled={importing || clearing}
+              className="w-full py-3 bg-accent rounded-xl font-semibold disabled:opacity-50"
+            >
+              {importing ? 'מייבא...' : 'הוסף לדאטה בייס (ללא מחיקה)'}
+            </button>
+          </div>
+        )}
       </section>
     </main>
   )

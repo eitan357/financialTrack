@@ -10,6 +10,16 @@ export interface ParsedTransaction {
   month: string       // YYYY-MM (from filename, NOT transaction date)
 }
 
+export interface ParsedBankTransaction {
+  date: string
+  merchantName: string
+  description: string
+  amount: number
+  accountName: string
+  month: string
+  direction: 'income' | 'expense'
+}
+
 export interface ParsedSalary {
   month: string
   grossAmount: number
@@ -30,6 +40,7 @@ export interface ParsedIncomeEntry {
 export interface ParsedMonthData {
   month: string
   transactions: ParsedTransaction[]
+  bankTransactions: ParsedBankTransaction[]
   salary: ParsedSalary | null
   incomeEntries: ParsedIncomeEntry[]
 }
@@ -135,6 +146,82 @@ function extractIncomeEntries(rows: string[][], month: string, salaryAmount: num
   return result
 }
 
+function extractBankSection(
+  rows: string[][],
+  colOffset: number,
+  accountName: string,
+  month: string
+): ParsedBankTransaction[] {
+  const nameCol = colOffset
+  const amtCol = colOffset + 1
+  const descCol = colOffset + 2
+  const dateCol = colOffset + 3
+
+  let expenseStart = -1
+  let incomeStart = -1
+
+  for (let i = 0; i < rows.length; i++) {
+    const cell = (rows[i]?.[nameCol] ?? '').trim()
+    if (cell === 'הוצאות' && expenseStart === -1) {
+      expenseStart = i
+    }
+    if (cell === 'הכנסות' && expenseStart !== -1 && incomeStart === -1) {
+      incomeStart = i
+    }
+    if (incomeStart !== -1 && cell.startsWith('סכום לפי')) break
+  }
+
+  if (expenseStart === -1) return []
+
+  const result: ParsedBankTransaction[] = []
+
+  // Extract expense entries
+  const expenseEndBound = incomeStart !== -1 ? incomeStart : expenseStart + 25
+  for (let i = expenseStart + 2; i < Math.min(expenseEndBound, rows.length); i++) {
+    const name = (rows[i]?.[nameCol] ?? '').trim()
+    if (!name) continue
+    if (name.includes('סה"כ') || name.includes('סה""כ') || name === 'הכנסות') break
+    // Skip credit card payments and internal bank transfers
+    if (name.includes('אשראי') || name.includes('העברה')) continue
+    const amtRaw = (rows[i]?.[amtCol] ?? '').trim()
+    if (!amtRaw) continue
+    const amount = parseAmount(amtRaw)
+    if (amount <= 0) continue
+    const desc = (rows[i]?.[descCol] ?? '').trim()
+    const dateRaw = (rows[i]?.[dateCol] ?? '').trim()
+    const date = dateRaw ? parseDate(dateRaw) : `${month}-01`
+    if (!date) continue
+    result.push({ date, merchantName: name, description: desc, amount, accountName, month, direction: 'expense' })
+  }
+
+  // Extract income entries
+  if (incomeStart !== -1) {
+    for (let i = incomeStart + 2; i < Math.min(incomeStart + 30, rows.length); i++) {
+      const name = (rows[i]?.[nameCol] ?? '').trim()
+      if (!name) continue
+      if (
+        name.includes('סה"כ') || name.includes('סה""כ') ||
+        name.startsWith('סכום לפי') || name.startsWith('הפרש')
+      ) break
+      // Skip meta-labels, credit refunds, and internal transfers
+      if (name === 'הכנסה נוספת') continue
+      if (name.includes('אשראי') || name.includes('העברה')) continue
+      const amtRaw = (rows[i]?.[amtCol] ?? '').trim()
+      if (!amtRaw) continue
+      const amount = parseAmount(amtRaw)
+      if (amount <= 0) continue
+      const desc = (rows[i]?.[descCol] ?? '').trim()
+      // Skip salary deposits — already tracked via SalaryEntry
+      if (desc === 'משכורת') continue
+      const dateRaw = (rows[i]?.[dateCol] ?? '').trim()
+      const date = dateRaw ? parseDate(dateRaw) : `${month}-01`
+      result.push({ date, merchantName: name, description: desc, amount, accountName, month, direction: 'income' })
+    }
+  }
+
+  return result
+}
+
 export function parseExampleCsv(csvContent: string, filename: string): ParsedMonthData | null {
   const month = monthFromFilename(filename)
   if (!month) return null
@@ -156,9 +243,21 @@ export function parseExampleCsv(csvContent: string, filename: string): ParsedMon
   const salary = extractSalary(rows, month)
   const incomeEntries = extractIncomeEntries(rows, month, salary?.grossAmount ?? 0)
 
+  // Detect which bank is at col 18 vs col 23 (layout varies by month)
+  const row1 = rows[1] || []
+  const col18IsOneZero = (row1[18] ?? '').toLowerCase().includes('one zero')
+  const oneZeroCol = col18IsOneZero ? 18 : 23
+  const leumiCol = col18IsOneZero ? 23 : 18
+
+  const bankTransactions: ParsedBankTransaction[] = [
+    ...extractBankSection(rows, oneZeroCol, 'בנק One Zero', month),
+    ...extractBankSection(rows, leumiCol, 'בנק לאומי', month),
+  ]
+
   return {
     month,
     transactions: [...hatzlaadaTxs, ...oneZeroTxs],
+    bankTransactions,
     salary,
     incomeEntries,
   }

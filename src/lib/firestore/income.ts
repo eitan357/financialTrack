@@ -1,4 +1,4 @@
-import { getFirestore, collection, getDocs, addDoc, deleteDoc, doc, query, where } from 'firebase/firestore'
+import { getFirestore, collection, getDocs, addDoc, deleteDoc, doc, query, where, writeBatch } from 'firebase/firestore'
 import { app } from '../firebase/config'
 import type { IncomeEntry } from '../types'
 
@@ -17,4 +17,14 @@ export async function addIncomeEntry(entry: Omit<IncomeEntry, 'id'>): Promise<In
 
 export async function deleteIncomeEntry(id: string): Promise<void> {
   await deleteDoc(doc(getDb(), 'income_entries', id))
+}
+
+export async function deleteAllIncomeEntries(): Promise<number> {
+  const db = getDb()
+  const snap = await getDocs(collection(db, 'income_entries'))
+  if (snap.empty) return 0
+  const batch = writeBatch(db)
+  snap.docs.forEach(d => batch.delete(d.ref))
+  await batch.commit()
+  return snap.size
 }

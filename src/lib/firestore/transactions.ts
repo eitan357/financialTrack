@@ -56,6 +56,20 @@ export async function deleteTransaction(id: string): Promise<void> {
   appCache.delPrefix('transactions:')
 }
 
+export async function deleteAllTransactions(): Promise<number> {
+  const db = getDb()
+  const snap = await getDocs(collection(db, 'transactions'))
+  let deleted = 0
+  for (let i = 0; i < snap.docs.length; i += 400) {
+    const batch = writeBatch(db)
+    snap.docs.slice(i, i + 400).forEach(d => batch.delete(d.ref))
+    await batch.commit()
+    deleted += snap.docs.slice(i, i + 400).length
+  }
+  appCache.delPrefix('transactions:')
+  return deleted
+}
+
 export async function getTransactionsForMonths(months: string[]): Promise<Transaction[]> {
   if (months.length === 0) return []
   const q = query(

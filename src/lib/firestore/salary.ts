@@ -1,4 +1,4 @@
-import { getFirestore, collection, getDocs, setDoc, doc, query, where } from 'firebase/firestore'
+import { getFirestore, collection, getDocs, setDoc, doc, query, where, writeBatch } from 'firebase/firestore'
 import { app } from '../firebase/config'
 import { appCache } from '../cache'
 import type { SalaryEntry } from '../types'
@@ -14,6 +14,17 @@ export async function getSalaryEntry(month: string): Promise<SalaryEntry | null>
   const result = snap.empty ? null : ({ id: snap.docs[0].id, ...snap.docs[0].data() } as SalaryEntry)
   appCache.set(key, result)
   return result
+}
+
+export async function deleteAllSalaryEntries(): Promise<number> {
+  const db = getDb()
+  const snap = await getDocs(collection(db, 'salary_entries'))
+  if (snap.empty) return 0
+  const batch = writeBatch(db)
+  snap.docs.forEach(d => batch.delete(d.ref))
+  await batch.commit()
+  appCache.delPrefix('salary:')
+  return snap.size
 }
 
 export async function upsertSalaryEntry(entry: Omit<SalaryEntry, 'id'> & { id?: string }): Promise<void> {
