@@ -25,7 +25,7 @@ export async function updateCategory(id: string, updates: Partial<Omit<Category,
 }
 
 export async function deleteCategory(id: string): Promise<void> {
-  await deleteDoc(doc(getDb(), 'categories', id))
+  await updateCategory(id, { isActive: false })
 }
 
 const DEFAULT_CATEGORIES: Omit<Category, 'id'>[] = [

@@ -1,4 +1,4 @@
-import { getFirestore, collection, getDocs, addDoc, query, limit } from 'firebase/firestore'
+import { getFirestore, collection, getDocs, addDoc, doc, updateDoc, query, limit } from 'firebase/firestore'
 import { app } from '../firebase/config'
 import type { Account } from '../types'
 
@@ -14,9 +14,13 @@ export async function addAccount(account: Omit<Account, 'id'>): Promise<Account>
   return { id: ref.id, ...account }
 }
 
+export async function updateAccount(id: string, updates: Partial<Omit<Account, 'id'>>): Promise<void> {
+  await updateDoc(doc(getDb(), 'accounts', id), updates)
+}
+
 const DEFAULT_ACCOUNTS: Omit<Account, 'id'>[] = [
-  { name: 'אשראי בהצדעה',  type: 'credit', last4digits: '8729', color: '#f59e0b', isActive: true },
-  { name: 'אשראי One Zero', type: 'credit',                      color: '#3b82f6', isActive: true },
+  { name: 'אשראי בהצדעה',  type: 'credit', last4digits: '8729', color: '#f59e0b', isActive: true, csvIdentifier: 'הצדעה' },
+  { name: 'אשראי One Zero', type: 'credit',                      color: '#3b82f6', isActive: true, csvIdentifier: 'one zero' },
   { name: 'בנק One Zero',   type: 'bank',                        color: '#10b981', isActive: true },
   { name: 'בנק לאומי',      type: 'bank',                        color: '#6366f1', isActive: true },
   { name: 'מזומן',          type: 'cash',                        color: '#94a3b8', isActive: true },

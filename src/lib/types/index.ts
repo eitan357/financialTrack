@@ -7,6 +7,7 @@ export interface Account {
   last4digits?: string
   color: string
   isActive: boolean
+  csvIdentifier?: string // keyword to search in CSV file to auto-detect this card's section
 }
 
 export interface Category {
