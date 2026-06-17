@@ -1,26 +1,13 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { usePersistedMonth } from '@/hooks/usePersistedMonth'
+import { MonthHeader } from '@/components/layout/MonthHeader'
 import { getTransactions, updateTransaction, deleteTransaction } from '@/lib/firestore/transactions'
 import { getCategories } from '@/lib/firestore/categories'
 import { getRules, addRule, deleteRule } from '@/lib/firestore/categorization-rules'
 import { TransactionRow } from '@/components/transactions/TransactionRow'
 import { RulesModal } from '@/components/transactions/RulesModal'
-import { MonthPicker } from '@/components/MonthPicker'
 import type { Transaction, Category, CategorizationRule } from '@/lib/types'
-
-const HE_MONTHS = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר']
-
-function formatMonth(m: string): string {
-  const [y, mo] = m.split('-')
-  return `${HE_MONTHS[parseInt(mo, 10) - 1]} ${y}`
-}
-
-function addMonths(m: string, delta: number): string {
-  const [y, mo] = m.split('-').map(Number)
-  const d = new Date(y, mo - 1 + delta)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-}
 
 type Filter = 'all' | 'uncategorized'
 
@@ -32,7 +19,6 @@ export default function TransactionsPage() {
   const [rules, setRules] = useState<CategorizationRule[]>([])
   const [filter, setFilter] = useState<Filter>('all')
   const [rulesOpen, setRulesOpen] = useState(false)
-  const [pickerOpen, setPickerOpen] = useState(false)
 
   useEffect(() => {
     setLoading(true)
@@ -58,6 +44,13 @@ export default function TransactionsPage() {
     setTransactions(prev => prev.map(t => t.id === transactionId ? { ...t, categoryId } : t))
   }
 
+  async function handleUpdate(transactionId: string, updates: Partial<Omit<Transaction, 'id'>>) {
+    // Keep month in sync when date changes
+    if (updates.date) updates.month = updates.date.slice(0, 7)
+    await updateTransaction(transactionId, updates)
+    setTransactions(prev => prev.map(t => t.id === transactionId ? { ...t, ...updates } : t))
+  }
+
   async function handleDelete(transactionId: string) {
     await deleteTransaction(transactionId)
     setTransactions(prev => prev.filter(t => t.id !== transactionId))
@@ -81,24 +74,7 @@ export default function TransactionsPage() {
 
   return (
     <main className="p-4 max-w-lg mx-auto pb-24">
-      <div className="flex items-center justify-between mb-4">
-        <button onClick={() => setMonth(addMonths(month, -1))} aria-label="חודש קודם" className="text-slate-400 text-2xl w-10 text-center">‹</button>
-        <button
-          onClick={() => setPickerOpen(p => !p)}
-          aria-label="בחר חודש"
-          className="text-base font-semibold hover:text-accent transition-colors"
-        >
-          {formatMonth(month)}
-        </button>
-        <button onClick={() => setMonth(addMonths(month, 1))} aria-label="חודש הבא" className="text-slate-400 text-2xl w-10 text-center">›</button>
-      </div>
-      {pickerOpen && (
-        <MonthPicker
-          value={month}
-          onChange={m => { setMonth(m); setPickerOpen(false) }}
-          onClose={() => setPickerOpen(false)}
-        />
-      )}
+      <MonthHeader month={month} onMonthChange={setMonth} />
 
       <div className="flex items-center justify-between mb-4">
         <div className="flex gap-2">
@@ -130,6 +106,7 @@ export default function TransactionsPage() {
               transaction={tx}
               categories={categories}
               onCategoryChange={handleCategoryChange}
+              onUpdate={handleUpdate}
               onDelete={handleDelete}
             />
           ))}

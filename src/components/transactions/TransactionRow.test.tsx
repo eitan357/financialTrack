@@ -20,17 +20,17 @@ const tx: Transaction = {
 
 describe('TransactionRow', () => {
   it('renders date in DD/MM format', () => {
-    render(<TransactionRow transaction={tx} categories={cats} onCategoryChange={jest.fn()} onDelete={jest.fn()} />)
+    render(<TransactionRow transaction={tx} categories={cats} onCategoryChange={jest.fn()} onUpdate={jest.fn()} onDelete={jest.fn()} />)
     expect(screen.getByText('15/06')).toBeInTheDocument()
   })
 
   it('renders merchant name', () => {
-    render(<TransactionRow transaction={tx} categories={cats} onCategoryChange={jest.fn()} onDelete={jest.fn()} />)
+    render(<TransactionRow transaction={tx} categories={cats} onCategoryChange={jest.fn()} onUpdate={jest.fn()} onDelete={jest.fn()} />)
     expect(screen.getByText('שופרסל')).toBeInTheDocument()
   })
 
   it('renders formatted amount with ₪', () => {
-    render(<TransactionRow transaction={tx} categories={cats} onCategoryChange={jest.fn()} onDelete={jest.fn()} />)
+    render(<TransactionRow transaction={tx} categories={cats} onCategoryChange={jest.fn()} onUpdate={jest.fn()} onDelete={jest.fn()} />)
     expect(screen.getByText(/250/)).toBeInTheDocument()
   })
 
@@ -58,7 +58,7 @@ describe('TransactionRow', () => {
 
   it('shows the current category in the select', () => {
     const txWithCat = { ...tx, categoryId: 'c1' }
-    render(<TransactionRow transaction={txWithCat} categories={cats} onCategoryChange={jest.fn()} onDelete={jest.fn()} />)
+    render(<TransactionRow transaction={txWithCat} categories={cats} onCategoryChange={jest.fn()} onUpdate={jest.fn()} onDelete={jest.fn()} />)
     expect(screen.getByRole('combobox')).toHaveValue('c1')
   })
 })

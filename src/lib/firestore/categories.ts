@@ -3,23 +3,32 @@ import {
   query, limit, where, writeBatch, runTransaction,
 } from 'firebase/firestore'
 import { app } from '../firebase/config'
+import { appCache } from '../cache'
 import type { Category } from '../types'
+
+const CACHE_KEY = 'categories'
 
 function getDb() { return getFirestore(app) }
 
 export async function getCategories(): Promise<Category[]> {
+  const cached = appCache.get<Category[]>(CACHE_KEY)
+  if (cached) return cached
   const snap = await getDocs(collection(getDb(), 'categories'))
-  return snap.docs
+  const cats = snap.docs
     .map(d => ({ id: d.id, ...d.data() } as Category))
     .filter(c => c.id !== '_seeded_v1')
+  appCache.set(CACHE_KEY, cats)
+  return cats
 }
 
 export async function addCategory(category: Omit<Category, 'id'>): Promise<Category> {
+  appCache.del(CACHE_KEY)
   const ref = await addDoc(collection(getDb(), 'categories'), category)
   return { id: ref.id, ...category }
 }
 
 export async function updateCategory(id: string, updates: Partial<Omit<Category, 'id'>>): Promise<void> {
+  appCache.del(CACHE_KEY)
   const { doc: firestoreDoc, updateDoc } = await import('firebase/firestore')
   await updateDoc(firestoreDoc(getDb(), 'categories', id), updates)
 }
@@ -66,6 +75,7 @@ export async function seedDefaultCategories(): Promise<void> {
 
 export async function cleanupDuplicateCategories(): Promise<{ deleted: number; txsFixed: number }> {
   const db = getDb()
+  appCache.del(CACHE_KEY)
   const allCats = await getCategories()
 
   const byName: Record<string, Category[]> = {}
@@ -104,5 +114,7 @@ export async function cleanupDuplicateCategories(): Promise<{ deleted: number; t
     await setDoc(sentinelRef, { seeded: true })
   }
 
+  appCache.del(CACHE_KEY)
+  appCache.delPrefix('transactions:')
   return { deleted, txsFixed }
 }

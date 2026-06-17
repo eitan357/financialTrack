@@ -1,26 +1,13 @@
 'use client'
 import { useState, useEffect } from 'react'
 import { usePersistedMonth } from '@/hooks/usePersistedMonth'
+import { MonthHeader } from '@/components/layout/MonthHeader'
 import { getInvestmentTypes, addInvestmentType, getInvestmentEntries, addInvestmentEntry } from '@/lib/firestore/investments'
 import { getDividends, addDividend } from '@/lib/firestore/dividends'
 import { AddInvestmentEntryForm } from '@/components/investments/AddInvestmentEntryForm'
 import { AddDividendForm } from '@/components/investments/AddDividendForm'
 import { AddInvestmentTypeForm } from '@/components/investments/AddInvestmentTypeForm'
-import { MonthPicker } from '@/components/MonthPicker'
 import type { InvestmentType, InvestmentEntry, Dividend } from '@/lib/types'
-
-const HE_MONTHS = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר']
-
-function formatMonth(m: string): string {
-  const [y, mo] = m.split('-')
-  return `${HE_MONTHS[parseInt(mo, 10) - 1]} ${y}`
-}
-
-function addMonths(m: string, delta: number): string {
-  const [y, mo] = m.split('-').map(Number)
-  const d = new Date(y, mo - 1 + delta)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-}
 
 export default function InvestmentsPage() {
   const [month, setMonth] = usePersistedMonth()
@@ -31,7 +18,6 @@ export default function InvestmentsPage() {
   const [showAddEntry, setShowAddEntry] = useState(false)
   const [showAddDividend, setShowAddDividend] = useState(false)
   const [showAddType, setShowAddType] = useState(false)
-  const [pickerOpen, setPickerOpen] = useState(false)
 
   useEffect(() => {
     setLoading(true)
@@ -74,24 +60,7 @@ export default function InvestmentsPage() {
 
   return (
     <main className="p-4 max-w-lg mx-auto pb-24 space-y-6">
-      <div className="flex items-center justify-between">
-        <button onClick={() => setMonth(addMonths(month, -1))} aria-label="חודש קודם" className="text-slate-400 text-2xl w-10 text-center">‹</button>
-        <button
-          onClick={() => setPickerOpen(p => !p)}
-          aria-label="בחר חודש"
-          className="text-base font-semibold hover:text-accent transition-colors"
-        >
-          {formatMonth(month)}
-        </button>
-        <button onClick={() => setMonth(addMonths(month, 1))} aria-label="חודש הבא" className="text-slate-400 text-2xl w-10 text-center">›</button>
-      </div>
-      {pickerOpen && (
-        <MonthPicker
-          value={month}
-          onChange={m => { setMonth(m); setPickerOpen(false) }}
-          onClose={() => setPickerOpen(false)}
-        />
-      )}
+      <MonthHeader month={month} onMonthChange={setMonth} />
 
       {loading ? (
         <div className="flex justify-center items-center min-h-40">
@@ -102,11 +71,9 @@ export default function InvestmentsPage() {
           <section>
             <div className="flex justify-between items-center mb-2">
               <h2 className="font-semibold text-sm">תרומות החודש</h2>
-              <div className="flex items-center gap-3">
-                <button onClick={() => setShowAddEntry(v => !v)} aria-label="הוסף תרומה" className="text-xs text-accent">
-                  {showAddEntry ? 'ביטול' : '+ הוסף תרומה'}
-                </button>
-              </div>
+              <button onClick={() => setShowAddEntry(v => !v)} className="text-xs text-accent">
+                {showAddEntry ? 'ביטול' : '+ הוסף תרומה'}
+              </button>
             </div>
             {showAddEntry && (
               <div className="mb-3">
@@ -131,11 +98,9 @@ export default function InvestmentsPage() {
           <section>
             <div className="flex justify-between items-center mb-2">
               <h2 className="font-semibold text-sm">דיבידנדים החודש</h2>
-              <div className="flex items-center gap-3">
-                <button onClick={() => setShowAddDividend(v => !v)} aria-label="הוסף דיבידנד" className="text-xs text-accent">
-                  {showAddDividend ? 'ביטול' : '+ הוסף דיבידנד'}
-                </button>
-              </div>
+              <button onClick={() => setShowAddDividend(v => !v)} className="text-xs text-accent">
+                {showAddDividend ? 'ביטול' : '+ הוסף דיבידנד'}
+              </button>
             </div>
             {showAddDividend && (
               <div className="mb-3">
@@ -163,7 +128,7 @@ export default function InvestmentsPage() {
           <section>
             <div className="flex justify-between items-center mb-2">
               <h2 className="font-semibold text-sm">סוגי השקעות</h2>
-              <button onClick={() => setShowAddType(v => !v)} aria-label="הוסף סוג" className="text-xs text-accent">
+              <button onClick={() => setShowAddType(v => !v)} className="text-xs text-accent">
                 {showAddType ? 'ביטול' : '+ הוסף סוג'}
               </button>
             </div>

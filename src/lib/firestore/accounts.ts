@@ -1,25 +1,34 @@
 import {
-  getFirestore, collection, getDocs, addDoc, doc, updateDoc,
+  getFirestore, collection, getDocs, addDoc, doc, updateDoc, setDoc,
   query, where, writeBatch, runTransaction,
 } from 'firebase/firestore'
 import { app } from '../firebase/config'
+import { appCache } from '../cache'
 import type { Account } from '../types'
+
+const CACHE_KEY = 'accounts'
 
 function getDb() { return getFirestore(app) }
 
 export async function getAccounts(): Promise<Account[]> {
+  const cached = appCache.get<Account[]>(CACHE_KEY)
+  if (cached) return cached
   const snap = await getDocs(collection(getDb(), 'accounts'))
-  return snap.docs
+  const accs = snap.docs
     .map(d => ({ id: d.id, ...d.data() } as Account))
     .filter(a => a.id !== '_seeded_v1')
+  appCache.set(CACHE_KEY, accs)
+  return accs
 }
 
 export async function addAccount(account: Omit<Account, 'id'>): Promise<Account> {
+  appCache.del(CACHE_KEY)
   const ref = await addDoc(collection(getDb(), 'accounts'), account)
   return { id: ref.id, ...account }
 }
 
 export async function updateAccount(id: string, updates: Partial<Omit<Account, 'id'>>): Promise<void> {
+  appCache.del(CACHE_KEY)
   await updateDoc(doc(getDb(), 'accounts', id), updates)
 }
 
@@ -50,6 +59,7 @@ export async function seedDefaultAccounts(): Promise<void> {
 
 export async function cleanupDuplicateAccounts(): Promise<{ deleted: number; txsFixed: number }> {
   const db = getDb()
+  appCache.del(CACHE_KEY)
   const allAccounts = await getAccounts()
 
   const byName: Record<string, Account[]> = {}
@@ -78,9 +88,8 @@ export async function cleanupDuplicateAccounts(): Promise<{ deleted: number; txs
     }
   }
 
-  const sentinelRef = doc(db, 'accounts', '_seeded_v1')
-  const { setDoc } = await import('firebase/firestore')
-  await setDoc(sentinelRef, { seeded: true })
-
+  await setDoc(doc(db, 'accounts', '_seeded_v1'), { seeded: true })
+  appCache.del(CACHE_KEY)
+  appCache.delPrefix('transactions:')
   return { deleted, txsFixed }
 }
