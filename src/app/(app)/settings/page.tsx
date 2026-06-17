@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { getAccounts, addAccount, updateAccount } from '@/lib/firestore/accounts'
+import { getAccounts, addAccount, updateAccount, cleanupDuplicateAccounts } from '@/lib/firestore/accounts'
 import { getCategories, addCategory, updateCategory, cleanupDuplicateCategories } from '@/lib/firestore/categories'
 import { getRules, addRule, deleteRule } from '@/lib/firestore/categorization-rules'
 import type { Account, AccountType, Category, CategorizationRule, MatchType } from '@/lib/types'
@@ -411,41 +411,54 @@ function RulesSection() {
 }
 
 // ---- Maintenance section ----
-function MaintenanceSection() {
+function CleanupCard({ title, description, onRun }: {
+  title: string
+  description: string
+  onRun: () => Promise<{ deleted: number; txsFixed: number }>
+}) {
   const [running, setRunning] = useState(false)
   const [result, setResult] = useState<{ deleted: number; txsFixed: number } | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  async function runCleanup() {
+  async function run() {
     setRunning(true); setError(null)
-    try {
-      setResult(await cleanupDuplicateCategories())
-    } catch (e) {
-      setError(String(e))
-    } finally {
-      setRunning(false)
-    }
+    try { setResult(await onRun()) }
+    catch (e) { setError(String(e)) }
+    finally { setRunning(false) }
   }
 
   return (
+    <div className="bg-surface rounded-2xl p-4 space-y-3">
+      <h3 className="font-semibold text-sm">{title}</h3>
+      <p className="text-xs text-slate-400">{description}</p>
+      {error && <p className="text-red-400 text-xs">{error}</p>}
+      {result ? (
+        <p className="text-sm text-green-400">
+          הושלם: נמחקו {result.deleted} כפילויות, עודכנו {result.txsFixed} רשומות
+        </p>
+      ) : (
+        <button onClick={run} disabled={running}
+          className="w-full py-2 bg-red-700 hover:bg-red-600 rounded-xl text-sm font-semibold disabled:opacity-50">
+          {running ? 'מנקה...' : 'נקה כפולות'}
+        </button>
+      )}
+    </div>
+  )
+}
+
+function MaintenanceSection() {
+  return (
     <div className="space-y-4">
-      {error && <p className="text-red-400 text-sm">{error}</p>}
-
-      <div className="bg-surface rounded-2xl p-4 space-y-3">
-        <h3 className="font-semibold text-sm">ניקוי קטגוריות כפולות</h3>
-        <p className="text-xs text-slate-400">מאחד קטגוריות עם אותו שם ומעדכן עסקאות לקטגוריה הנכונה</p>
-        {result ? (
-          <p className="text-sm text-green-400">
-            הושלם: נמחקו {result.deleted} כפילויות, עודכנו {result.txsFixed} עסקאות
-          </p>
-        ) : (
-          <button onClick={runCleanup} disabled={running}
-            className="w-full py-2 bg-red-700 hover:bg-red-600 rounded-xl text-sm font-semibold disabled:opacity-50">
-            {running ? 'מנקה...' : 'נקה קטגוריות כפולות'}
-          </button>
-        )}
-      </div>
-
+      <CleanupCard
+        title="ניקוי חשבונות כפולים"
+        description="מאחד חשבונות עם אותו שם ומעדכן עסקאות לחשבון הנכון"
+        onRun={cleanupDuplicateAccounts}
+      />
+      <CleanupCard
+        title="ניקוי קטגוריות כפולות"
+        description="מאחד קטגוריות עם אותו שם ומעדכן עסקאות לקטגוריה הנכונה"
+        onRun={cleanupDuplicateCategories}
+      />
       <div className="bg-surface rounded-2xl p-4">
         <h3 className="font-semibold text-sm mb-1">ייבוא היסטורי</h3>
         <p className="text-xs text-slate-400 mb-3">ייבוא נתונים מקבצי הדוגמה</p>
