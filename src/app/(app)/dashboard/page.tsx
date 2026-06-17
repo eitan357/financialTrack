@@ -37,6 +37,7 @@ function addMonths(m: string, delta: number): string {
 export default function DashboardPage() {
   const [month, setMonth] = useState(currentMonth)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [summary, setSummary] = useState<DashboardSummary | null>(null)
   const [reconciliation, setReconciliation] = useState<BankReconciliation | null>(null)
   const [dividends, setDividends] = useState<Dividend[]>([])
@@ -44,26 +45,33 @@ export default function DashboardPage() {
 
   useEffect(() => {
     setLoading(true)
+    setError(null)
     async function load() {
-      const [txs, salary, income, divs, invEntries, invTypes, recs, cats, settings] = await Promise.all([
-        getTransactions(month),
-        getSalaryEntry(month),
-        getIncomeEntries(month),
-        getDividends(month),
-        getInvestmentEntries(month),
-        getInvestmentTypes(),
-        getBankReconciliations(month),
-        getCategories(),
-        getMonthlySettings(month),
-      ])
-      setSummary(computeDashboard({
-        transactions: txs, salaryEntry: salary, incomeEntries: income,
-        dividends: divs, investmentEntries: invEntries, categories: cats, monthlySettings: settings,
-      }))
-      setReconciliation(recs[0] ?? null)
-      setDividends(divs)
-      setInvestmentTypes(invTypes)
-      setLoading(false)
+      try {
+        const [txs, salary, income, divs, invEntries, invTypes, recs, cats, settings] = await Promise.all([
+          getTransactions(month),
+          getSalaryEntry(month),
+          getIncomeEntries(month),
+          getDividends(month),
+          getInvestmentEntries(month),
+          getInvestmentTypes(),
+          getBankReconciliations(month),
+          getCategories(),
+          getMonthlySettings(month),
+        ])
+        setSummary(computeDashboard({
+          transactions: txs, salaryEntry: salary, incomeEntries: income,
+          dividends: divs, investmentEntries: invEntries, categories: cats, monthlySettings: settings,
+        }))
+        setReconciliation(recs[0] ?? null)
+        setDividends(divs)
+        setInvestmentTypes(invTypes)
+      } catch (e) {
+        setError('שגיאה בטעינת הנתונים. בדוק שה-Firestore מוגדר בפרויקט Firebase.')
+        console.error(e)
+      } finally {
+        setLoading(false)
+      }
     }
     load()
   }, [month])
@@ -80,6 +88,8 @@ export default function DashboardPage() {
         <div className="flex justify-center items-center min-h-40">
           <p className="text-slate-400">טוען...</p>
         </div>
+      ) : error ? (
+        <div className="bg-red-900/20 border border-red-800 rounded-2xl p-4 text-red-400 text-sm">{error}</div>
       ) : summary && (
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
