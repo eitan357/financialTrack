@@ -6,6 +6,7 @@ import { getTransactions, updateTransaction, deleteTransaction } from '@/lib/fir
 import { getCategories } from '@/lib/firestore/categories'
 import { getAccounts } from '@/lib/firestore/accounts'
 import { TransactionRow } from '@/components/transactions/TransactionRow'
+import { AddTransactionForm } from '@/components/transactions/AddTransactionForm'
 import type { Transaction, Category, Account } from '@/lib/types'
 
 export default function TransactionsPage() {
@@ -16,6 +17,8 @@ export default function TransactionsPage() {
   const [accounts, setAccounts] = useState<Account[]>([])
   const [accountFilter, setAccountFilter] = useState<string>('all')
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
+  const [showAddForm, setShowAddForm] = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
     setLoading(true)
@@ -34,7 +37,7 @@ export default function TransactionsPage() {
       }
     }
     load()
-  }, [month])
+  }, [month, reloadKey])
 
   async function handleCategoryChange(transactionId: string, categoryId: string | undefined) {
     await updateTransaction(transactionId, { categoryId })
@@ -65,8 +68,11 @@ export default function TransactionsPage() {
       ? byAccount.filter(t => !t.categoryId)
       : byAccount.filter(t => t.categoryId === categoryFilter)
 
-  const uncategorizedCount = byAccount.filter(t => !t.categoryId).length
-  const total = displayed.reduce((s, t) => s + t.amount, 0)
+  const uncategorizedCount = byAccount.filter(t => !t.categoryId && t.direction !== 'income').length
+  const incomeTotal = displayed.filter(t => t.direction === 'income').reduce((s, t) => s + t.amount, 0)
+  const expenseTotal = displayed.filter(t => t.direction !== 'income').reduce((s, t) => s + t.amount, 0)
+  const net = incomeTotal - expenseTotal
+  const hasIncome = incomeTotal > 0
 
   return (
     <main className="p-4 max-w-lg mx-auto pb-24">
@@ -114,6 +120,16 @@ export default function TransactionsPage() {
         })}
       </div>
 
+      {showAddForm && (
+        <AddTransactionForm
+          month={month}
+          accounts={accounts}
+          categories={categories}
+          onSaved={() => { setShowAddForm(false); setReloadKey(k => k + 1) }}
+          onClose={() => setShowAddForm(false)}
+        />
+      )}
+
       {loading ? (
         <div className="flex justify-center items-center min-h-40">
           <p className="text-slate-400">טוען...</p>
@@ -134,11 +150,34 @@ export default function TransactionsPage() {
               onDelete={handleDelete}
             />
           ))}
-          <div className="py-3 flex justify-between text-sm font-semibold border-t border-slate-700">
-            <span>סה&quot;כ</span>
-            <span className="tabular-nums">₪{total.toLocaleString('he-IL')}</span>
+          <div className="py-3 border-t border-slate-700 space-y-1.5">
+            {hasIncome && (
+              <>
+                <div className="flex justify-between text-xs text-slate-400">
+                  <span>הכנסות</span>
+                  <span className="tabular-nums text-green-400">+₪{incomeTotal.toLocaleString('he-IL')}</span>
+                </div>
+                <div className="flex justify-between text-xs text-slate-400">
+                  <span>הוצאות</span>
+                  <span className="tabular-nums text-red-400">-₪{expenseTotal.toLocaleString('he-IL')}</span>
+                </div>
+              </>
+            )}
+            <div className="flex justify-between text-sm font-semibold">
+              <span>{hasIncome ? 'נטו' : 'סה"כ'}</span>
+              <span className={`tabular-nums ${hasIncome ? (net >= 0 ? 'text-green-400' : 'text-red-400') : ''}`}>
+                {hasIncome ? (net >= 0 ? '+' : '-') + '₪' + Math.abs(net).toLocaleString('he-IL') : '₪' + expenseTotal.toLocaleString('he-IL')}
+              </span>
+            </div>
           </div>
         </div>
+      )}
+
+      {!showAddForm && (
+        <button
+          onClick={() => setShowAddForm(true)}
+          className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-accent text-white text-sm font-semibold px-5 py-2.5 rounded-full shadow-lg"
+        >+ הוסף עסקה</button>
       )}
     </main>
   )

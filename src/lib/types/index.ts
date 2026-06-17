@@ -33,6 +33,21 @@ export interface CategorizationRule {
 
 export type TransactionSource = 'csv_import' | 'xlsx_import' | 'manual'
 
+export interface SalaryDeductions {
+  incomeTax: number
+  nationalInsurance: number
+  healthInsurance: number
+  pension: number
+  trainingFund: number
+}
+
+export interface SalaryDetails {
+  grossAmount: number
+  deductions: SalaryDeductions
+  netAmount: number
+  employerName?: string
+}
+
 export interface Transaction {
   id: string
   date: string // ISO date string
@@ -45,14 +60,8 @@ export interface Transaction {
   source: TransactionSource
   isImmediate: boolean
   month: string // YYYY-MM
-}
-
-export interface SalaryDeductions {
-  incomeTax: number
-  nationalInsurance: number
-  healthInsurance: number
-  pension: number
-  trainingFund: number
+  direction?: 'income' | 'expense' // undefined = 'expense' for backward compat
+  salaryDetails?: SalaryDetails
 }
 
 export interface SalaryEntry {

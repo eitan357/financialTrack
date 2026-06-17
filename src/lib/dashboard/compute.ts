@@ -33,15 +33,17 @@ export function computeDashboard(input: DashboardInput): DashboardSummary {
   const salaryNet = salaryEntry?.netAmount ?? 0
   const incomeTotal = incomeEntries.reduce((s, e) => s + e.amount, 0)
   const dividendTotal = dividends.reduce((s, d) => s + (d.ilsEquivalent ?? 0), 0)
-  const totalIncome = salaryNet + incomeTotal + dividendTotal
+  const txIncomeTotal = transactions.filter(t => t.direction === 'income').reduce((s, t) => s + t.amount, 0)
+  const totalIncome = salaryNet + incomeTotal + dividendTotal + txIncomeTotal
 
-  const totalExpenses = transactions.reduce((s, t) => s + t.amount, 0)
+  const totalExpenses = transactions.filter(t => t.direction !== 'income').reduce((s, t) => s + t.amount, 0)
   const totalSavings = totalIncome - totalExpenses
   const totalInvestments = investmentEntries.reduce((s, e) => s + e.amount, 0)
 
   const amountByCategory: Record<string, number> = {}
   let uncategorizedTotal = 0
   for (const tx of transactions) {
+    if (tx.direction === 'income') continue
     if (tx.categoryId) {
       amountByCategory[tx.categoryId] = (amountByCategory[tx.categoryId] ?? 0) + tx.amount
     } else {

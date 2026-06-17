@@ -16,6 +16,7 @@ export interface CreditAccountData {
 export interface WizardData {
   creditAccounts: CreditAccountData[]
   salary: Omit<SalaryEntry, 'id'> | null
+  salaryAccountId: string | null
   incomeEntries: Omit<IncomeEntry, 'id'>[]
   cashExpenses: CashExpense[]
 }
@@ -53,6 +54,25 @@ export function SummaryStep({ month, data, cashAccountId, onDone }: Props) {
           source: 'manual' as TransactionSource, isImmediate: true, month,
         })),
       ]
+      if (data.salary && data.salaryAccountId) {
+        allTxs.push({
+          date: `${month}-01`,
+          merchantName: data.salary.employerName || 'משכורת',
+          amount: data.salary.netAmount,
+          currency: 'ILS',
+          accountId: data.salaryAccountId,
+          source: 'manual',
+          isImmediate: true,
+          month,
+          direction: 'income',
+          salaryDetails: {
+            grossAmount: data.salary.grossAmount,
+            deductions: data.salary.deductions,
+            netAmount: data.salary.netAmount,
+            employerName: data.salary.employerName,
+          },
+        })
+      }
       await addTransactions(allTxs)
       if (data.salary) await upsertSalaryEntry(data.salary)
       for (const entry of data.incomeEntries) await addIncomeEntry(entry)

@@ -4,6 +4,7 @@ import { SalaryStep } from './SalaryStep'
 const defaultProps = {
   month: '2026-06',
   initialSalary: null,
+  bankAccounts: [],
   onComplete: jest.fn(),
   onSkip: jest.fn(),
   onBack: jest.fn(),
@@ -54,7 +55,7 @@ describe('SalaryStep', () => {
     fireEvent.change(screen.getByLabelText('שם מעסיק'), { target: { value: 'חברה' } })
     fireEvent.change(screen.getByLabelText('ברוטו'), { target: { value: '10000' } })
     fireEvent.click(screen.getByText('הבא →'))
-    expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({ grossAmount: 10000, netAmount: 10000, employerName: 'חברה' }))
+    expect(onComplete).toHaveBeenCalledWith(expect.objectContaining({ grossAmount: 10000, netAmount: 10000, employerName: 'חברה' }), null)
   })
 
   it('calls onSkip when skip clicked', () => {

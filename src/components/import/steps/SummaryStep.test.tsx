@@ -18,6 +18,7 @@ const baseProps = {
       { accountId: 'a2', accountName: 'אשראי One Zero', transactions: [] },
     ],
     salary: null,
+    salaryAccountId: null,
     incomeEntries: [],
     cashExpenses: [],
   },

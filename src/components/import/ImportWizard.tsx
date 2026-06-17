@@ -28,7 +28,7 @@ export interface CashExpense {
   categoryId: string | null
 }
 
-const EMPTY_DATA: WizardData = { creditAccounts: [], salary: null, incomeEntries: [], cashExpenses: [] }
+const EMPTY_DATA: WizardData = { creditAccounts: [], salary: null, salaryAccountId: null, incomeEntries: [], cashExpenses: [] }
 
 export function ImportWizard() {
   const [month, setMonth] = usePersistedMonth()
@@ -77,6 +77,7 @@ export function ImportWizard() {
   }
 
   const creditAccounts = accounts.filter(a => a.type === 'credit' && a.isActive)
+  const bankAccounts = accounts.filter(a => a.type === 'bank' && a.isActive)
   const cash = accounts.find(a => a.name === 'מזומן')
 
   const SALARY_STEP  = creditAccounts.length + 1
@@ -119,8 +120,8 @@ export function ImportWizard() {
       )}
 
       {step === SALARY_STEP && (
-        <SalaryStep month={month} initialSalary={data.salary ?? previousSalary}
-          onComplete={sal => { setData(d => ({ ...d, salary: sal })); setStep(INCOME_STEP) }}
+        <SalaryStep month={month} initialSalary={data.salary ?? previousSalary} bankAccounts={bankAccounts}
+          onComplete={(sal, accId) => { setData(d => ({ ...d, salary: sal, salaryAccountId: accId })); setStep(INCOME_STEP) }}
           onSkip={() => setStep(INCOME_STEP)} onBack={() => setStep(creditAccounts.length)} />
       )}
       {step === INCOME_STEP && (

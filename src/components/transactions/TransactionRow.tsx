@@ -20,6 +20,7 @@ function EditForm({ transaction, categories, onUpdate, onDelete, onClose }: {
   const [date, setDate] = useState(transaction.date)
   const [name, setName] = useState(transaction.merchantName)
   const [amount, setAmount] = useState(String(transaction.amount))
+  const [direction, setDirection] = useState<'expense' | 'income'>(transaction.direction === 'income' ? 'income' : 'expense')
   const [categoryId, setCategoryId] = useState(transaction.categoryId ?? '')
   const [saving, setSaving] = useState(false)
 
@@ -29,7 +30,8 @@ function EditForm({ transaction, categories, onUpdate, onDelete, onClose }: {
       date,
       merchantName: name.trim(),
       amount: parseFloat(amount) || transaction.amount,
-      categoryId: categoryId || undefined,
+      direction,
+      categoryId: direction === 'expense' ? (categoryId || undefined) : undefined,
     })
     setSaving(false)
     onClose()
@@ -37,6 +39,16 @@ function EditForm({ transaction, categories, onUpdate, onDelete, onClose }: {
 
   return (
     <div className="py-3 border-b border-slate-800 last:border-0 space-y-3">
+      <div className="flex rounded-lg overflow-hidden border border-slate-700">
+        <button
+          onClick={() => setDirection('expense')}
+          className={`flex-1 py-1.5 text-xs font-medium transition-colors ${direction === 'expense' ? 'bg-red-500/20 text-red-400' : 'text-slate-400'}`}
+        >הוצאה</button>
+        <button
+          onClick={() => setDirection('income')}
+          className={`flex-1 py-1.5 text-xs font-medium transition-colors ${direction === 'income' ? 'bg-green-500/20 text-green-400' : 'text-slate-400'}`}
+        >הכנסה</button>
+      </div>
       <div>
         <label className="text-xs text-slate-400 block mb-1">תאריך</label>
         <input
@@ -65,19 +77,21 @@ function EditForm({ transaction, categories, onUpdate, onDelete, onClose }: {
           className="w-full bg-background rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 ring-accent tabular-nums"
         />
       </div>
-      <div>
-        <label className="text-xs text-slate-400 block mb-1">קטגוריה</label>
-        <select
-          value={categoryId}
-          onChange={e => setCategoryId(e.target.value)}
-          className="w-full bg-background text-foreground text-sm rounded-lg px-3 py-2 outline-none focus:ring-1 ring-accent"
-        >
-          <option value="">— ללא —</option>
-          {categories.filter(c => c.isActive).map(c => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </select>
-      </div>
+      {direction === 'expense' && (
+        <div>
+          <label className="text-xs text-slate-400 block mb-1">קטגוריה</label>
+          <select
+            value={categoryId}
+            onChange={e => setCategoryId(e.target.value)}
+            className="w-full bg-background text-foreground text-sm rounded-lg px-3 py-2 outline-none focus:ring-1 ring-accent"
+          >
+            <option value="">— ללא —</option>
+            {categories.filter(c => c.isActive).map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
       <div className="flex gap-2 pt-1">
         <button
           onClick={() => { onDelete(transaction.id); onClose() }}
@@ -107,6 +121,8 @@ function DetailView({ transaction, categories, onEdit, onClose }: {
   const [yyyy, mm, dd] = transaction.date.split('-')
   const categoryName = categories.find(c => c.id === transaction.categoryId)?.name
 
+  const isIncome = transaction.direction === 'income'
+
   return (
     <div
       className="py-3 border-b border-slate-800 last:border-0 cursor-pointer"
@@ -121,14 +137,29 @@ function DetailView({ transaction, categories, onEdit, onClose }: {
           )}
         </div>
         <div className="text-left">
-          <div className="text-base font-semibold tabular-nums">₪{transaction.amount.toLocaleString('he-IL')}</div>
-          {categoryName ? (
+          <div className={`text-base font-semibold tabular-nums ${isIncome ? 'text-green-400' : 'text-red-400'}`}>
+            {isIncome ? '+' : '-'}₪{transaction.amount.toLocaleString('he-IL')}
+          </div>
+          {isIncome ? (
+            <div className="text-xs text-green-500/70 mt-0.5">הכנסה</div>
+          ) : categoryName ? (
             <div className="text-xs text-slate-400 mt-0.5">{categoryName}</div>
           ) : (
             <div className="text-xs text-amber-400 mt-0.5">ללא קטגוריה</div>
           )}
         </div>
       </div>
+      {transaction.salaryDetails && (
+        <div className="text-xs text-slate-500 mb-3 space-y-0.5" onClick={e => e.stopPropagation()}>
+          <div className="flex justify-between"><span>ברוטו</span><span className="tabular-nums">₪{transaction.salaryDetails.grossAmount.toLocaleString('he-IL')}</span></div>
+          {transaction.salaryDetails.deductions.incomeTax > 0 && <div className="flex justify-between"><span>מס הכנסה</span><span className="tabular-nums text-red-400/70">-₪{transaction.salaryDetails.deductions.incomeTax.toLocaleString('he-IL')}</span></div>}
+          {transaction.salaryDetails.deductions.nationalInsurance > 0 && <div className="flex justify-between"><span>ביטוח לאומי</span><span className="tabular-nums text-red-400/70">-₪{transaction.salaryDetails.deductions.nationalInsurance.toLocaleString('he-IL')}</span></div>}
+          {transaction.salaryDetails.deductions.healthInsurance > 0 && <div className="flex justify-between"><span>ביטוח בריאות</span><span className="tabular-nums text-red-400/70">-₪{transaction.salaryDetails.deductions.healthInsurance.toLocaleString('he-IL')}</span></div>}
+          {transaction.salaryDetails.deductions.pension > 0 && <div className="flex justify-between"><span>פנסיה</span><span className="tabular-nums text-red-400/70">-₪{transaction.salaryDetails.deductions.pension.toLocaleString('he-IL')}</span></div>}
+          {transaction.salaryDetails.deductions.trainingFund > 0 && <div className="flex justify-between"><span>קרן השתלמות</span><span className="tabular-nums text-red-400/70">-₪{transaction.salaryDetails.deductions.trainingFund.toLocaleString('he-IL')}</span></div>}
+          <div className="flex justify-between font-medium text-slate-400 border-t border-slate-800 pt-0.5 mt-0.5"><span>נטו</span><span className="tabular-nums text-green-400/80">₪{transaction.salaryDetails.netAmount.toLocaleString('he-IL')}</span></div>
+        </div>
+      )}
       <div className="flex justify-end" onClick={e => e.stopPropagation()}>
         <button
           onClick={onEdit}
@@ -143,6 +174,7 @@ export function TransactionRow({ transaction, categories, onCategoryChange: _onC
   const [mode, setMode] = useState<'row' | 'detail' | 'edit'>('row')
   const [, mm, dd] = transaction.date.split('-')
   const hasCategory = !!transaction.categoryId
+  const isIncome = transaction.direction === 'income'
 
   if (mode === 'edit') {
     return (
@@ -173,10 +205,12 @@ export function TransactionRow({ transaction, categories, onCategoryChange: _onC
       onClick={() => setMode('detail')}
     >
       <span className="text-xs text-slate-500 w-10 flex-shrink-0 tabular-nums">{dd}/{mm}</span>
-      <span className={`flex-1 text-sm truncate ${!hasCategory ? 'text-amber-400' : 'text-foreground'}`}>
+      <span className={`flex-1 text-sm truncate ${isIncome ? 'text-foreground' : !hasCategory ? 'text-amber-400' : 'text-foreground'}`}>
         {transaction.merchantName}
       </span>
-      <span className="text-sm tabular-nums flex-shrink-0">₪{transaction.amount.toLocaleString('he-IL')}</span>
+      <span className={`text-sm tabular-nums flex-shrink-0 ${isIncome ? 'text-green-400' : 'text-red-400'}`}>
+        {isIncome ? '+' : '-'}₪{transaction.amount.toLocaleString('he-IL')}
+      </span>
     </div>
   )
 }

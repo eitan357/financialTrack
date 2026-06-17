@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import type { SalaryEntry, SalaryDeductions } from '@/lib/types'
+import type { SalaryEntry, SalaryDeductions, Account } from '@/lib/types'
 
 const EMPTY_DEDUCTIONS: SalaryDeductions = { incomeTax: 0, nationalInsurance: 0, healthInsurance: 0, pension: 0, trainingFund: 0 }
 
@@ -15,15 +15,17 @@ const DEDUCTION_LABELS: [keyof SalaryDeductions, string][] = [
 interface Props {
   month: string
   initialSalary: Omit<SalaryEntry, 'id'> | null
-  onComplete: (salary: Omit<SalaryEntry, 'id'>) => void
+  bankAccounts: Account[]
+  onComplete: (salary: Omit<SalaryEntry, 'id'>, bankAccountId: string | null) => void
   onSkip: () => void
   onBack: () => void
 }
 
-export function SalaryStep({ month, initialSalary, onComplete, onSkip, onBack }: Props) {
+export function SalaryStep({ month, initialSalary, bankAccounts, onComplete, onSkip, onBack }: Props) {
   const [employerName, setEmployerName] = useState(initialSalary?.employerName ?? '')
   const [grossAmount, setGrossAmount] = useState(initialSalary?.grossAmount ?? 0)
   const [deductions, setDeductions] = useState<SalaryDeductions>(initialSalary?.deductions ?? EMPTY_DEDUCTIONS)
+  const [bankAccountId, setBankAccountId] = useState<string>(bankAccounts[0]?.id ?? '')
 
   const totalDeductions = Object.values(deductions).reduce((s, v) => s + v, 0)
   const netAmount = Math.max(0, grossAmount - totalDeductions)
@@ -68,12 +70,28 @@ export function SalaryStep({ month, initialSalary, onComplete, onSkip, onBack }:
             {netAmount.toLocaleString('he-IL')} ₪
           </span>
         </div>
+
+        {bankAccounts.length > 0 && (
+          <div>
+            <label htmlFor="bank-account" className="block text-sm text-slate-400 mb-1">
+              חשבון בנק שהמשכורת נכנסה אליו
+            </label>
+            <select id="bank-account" value={bankAccountId} onChange={e => setBankAccountId(e.target.value)}
+              className="w-full bg-surface text-foreground text-sm rounded-lg px-3 py-2 outline-none focus:ring-1 ring-accent">
+              <option value="">— לא ליצור עסקה —</option>
+              {bankAccounts.map(a => (
+                <option key={a.id} value={a.id}>{a.name}</option>
+              ))}
+            </select>
+            <p className="text-xs text-slate-500 mt-1">בחירת חשבון תיצור עסקת הכנסה אוטומטית</p>
+          </div>
+        )}
       </div>
 
       <div className="flex gap-3 mt-6">
         <button onClick={onBack} className="flex-1 py-3 border border-slate-600 rounded-xl text-sm">← חזור</button>
         <button onClick={onSkip} className="flex-1 py-3 border border-slate-600 rounded-xl text-sm text-slate-400">דלג</button>
-        <button onClick={() => onComplete({ month, employerName, grossAmount, deductions, netAmount })}
+        <button onClick={() => onComplete({ month, employerName, grossAmount, deductions, netAmount }, bankAccountId || null)}
           className="flex-1 py-3 bg-accent rounded-xl text-sm font-semibold">הבא →</button>
       </div>
     </div>
