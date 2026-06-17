@@ -38,8 +38,8 @@ export function MonthHeader({ month, onMonthChange, className = 'mb-6' }: Props)
         </Link>
         <div className="flex items-center gap-0.5" dir="ltr">
           <button
-            onClick={() => onMonthChange(addMonths(month, -1))}
-            aria-label="חודש קודם"
+            onClick={() => onMonthChange(addMonths(month, +1))}
+            aria-label="חודש הבא"
             className="text-slate-400 text-2xl w-6 flex items-center justify-center leading-none"
           >‹</button>
           <button
@@ -50,8 +50,8 @@ export function MonthHeader({ month, onMonthChange, className = 'mb-6' }: Props)
             {formatMonth(month)}
           </button>
           <button
-            onClick={() => onMonthChange(addMonths(month, 1))}
-            aria-label="חודש הבא"
+            onClick={() => onMonthChange(addMonths(month, -1))}
+            aria-label="חודש קודם"
             className="text-slate-400 text-2xl w-6 flex items-center justify-center leading-none"
           >›</button>
         </div>

@@ -71,9 +71,7 @@ export default function TransactionsPage() {
     setRules(prev => prev.filter(r => r.id !== ruleId))
   }
 
-  const accountsWithTxs = accounts.filter(a =>
-    a.isActive && transactions.some(t => t.accountId === a.id)
-  )
+  const activeAccounts = accounts.filter(a => a.isActive)
   const byAccount = accountFilter === 'all'
     ? transactions
     : transactions.filter(t => t.accountId === accountFilter)
@@ -87,13 +85,13 @@ export default function TransactionsPage() {
     <main className="p-4 max-w-lg mx-auto pb-24">
       <MonthHeader month={month} onMonthChange={setMonth} />
 
-      {accountsWithTxs.length > 1 && (
+      {activeAccounts.length > 0 && (
         <div className="flex gap-2 overflow-x-auto pb-1 mb-3 no-scrollbar" dir="ltr">
           <button
             onClick={() => setAccountFilter('all')}
             className={`text-xs px-3 py-1.5 rounded-full flex-shrink-0 ${accountFilter === 'all' ? 'bg-slate-600 text-white' : 'bg-surface text-slate-400'}`}
           >הכל</button>
-          {accountsWithTxs.map(acc => (
+          {activeAccounts.map(acc => (
             <button
               key={acc.id}
               onClick={() => setAccountFilter(acc.id)}
