@@ -11,7 +11,7 @@ export async function getCategories(): Promise<Category[]> {
   const snap = await getDocs(collection(getDb(), 'categories'))
   return snap.docs
     .map(d => ({ id: d.id, ...d.data() } as Category))
-    .filter(c => c.id !== '__seeded__')
+    .filter(c => c.id !== '_seeded_v1')
 }
 
 export async function addCategory(category: Omit<Category, 'id'>): Promise<Category> {
@@ -48,7 +48,7 @@ const DEFAULT_CATEGORIES: Omit<Category, 'id'>[] = [
 
 export async function seedDefaultCategories(): Promise<void> {
   const db = getDb()
-  const sentinelRef = doc(db, 'categories', '__seeded__')
+  const sentinelRef = doc(db, 'categories', '_seeded_v1')
 
   try {
     await runTransaction(db, async (tx) => {
@@ -97,7 +97,7 @@ export async function cleanupDuplicateCategories(): Promise<{ deleted: number; t
   }
 
   // Write sentinel so the seed won't re-run and create more duplicates
-  const sentinelRef = doc(db, 'categories', '__seeded__')
+  const sentinelRef = doc(db, 'categories', '_seeded_v1')
   const sentinelSnap = await getDocs(query(collection(db, 'categories'), limit(1)))
   if (!sentinelSnap.empty) {
     const { setDoc } = await import('firebase/firestore')
