@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { usePersistedMonth } from '@/hooks/usePersistedMonth'
 import { seedDefaultAccounts, getAccounts } from '@/lib/firestore/accounts'
 import { seedDefaultCategories, getCategories } from '@/lib/firestore/categories'
 import { getRules } from '@/lib/firestore/categorization-rules'
@@ -42,7 +43,7 @@ export interface CashExpense {
 const EMPTY_DATA: WizardData = { creditAccounts: [], salary: null, incomeEntries: [], cashExpenses: [] }
 
 export function ImportWizard() {
-  const [month, setMonth] = useState(currentMonth)
+  const [month, setMonth] = usePersistedMonth()
   const [step, setStep] = useState<number>(1)
   const [loading, setLoading] = useState(true)
   const [accounts, setAccounts] = useState<Account[]>([])

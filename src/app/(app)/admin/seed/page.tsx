@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { getCategories } from '@/lib/firestore/categories'
+import { getCategories, cleanupDuplicateCategories } from '@/lib/firestore/categories'
 import { getAccounts } from '@/lib/firestore/accounts'
 import { addTransactions } from '@/lib/firestore/transactions'
 import { upsertSalaryEntry } from '@/lib/firestore/salary'
@@ -46,6 +46,20 @@ export default function SeedPage() {
   const [importing, setImporting] = useState(false)
   const [done, setDone] = useState<{ transactions: number; salaries: number } | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [cleanupRunning, setCleanupRunning] = useState(false)
+  const [cleanupResult, setCleanupResult] = useState<{ deleted: number; txsFixed: number } | null>(null)
+
+  async function runCleanup() {
+    setCleanupRunning(true); setError(null)
+    try {
+      const result = await cleanupDuplicateCategories()
+      setCleanupResult(result)
+    } catch (e) {
+      setError(String(e))
+    } finally {
+      setCleanupRunning(false)
+    }
+  }
 
   async function loadData() {
     setLoading(true); setError(null)
@@ -137,11 +151,31 @@ export default function SeedPage() {
   }
 
   return (
-    <main className="p-4 max-w-lg mx-auto">
-      <h1 className="text-xl font-bold mb-2">ייבוא נתונים היסטוריים</h1>
-      <p className="text-slate-400 text-sm mb-6">טוען נתונים מקבצי הדוגמה בתיקיית examples/</p>
+    <main className="p-4 max-w-lg mx-auto space-y-8">
+      <section>
+        <h1 className="text-xl font-bold mb-2">תחזוקת נתונים</h1>
+        {error && <p role="alert" className="text-red-400 text-sm mb-4">{error}</p>}
+        <div className="bg-surface rounded-2xl p-4 space-y-3">
+          <p className="text-sm text-slate-400">ניקוי קטגוריות כפולות — מאחד כפילויות ומעדכן עסקאות</p>
+          {cleanupResult ? (
+            <p className="text-sm text-green-400">
+              הושלם: נמחקו {cleanupResult.deleted} כפילויות, עודכנו {cleanupResult.txsFixed} עסקאות
+            </p>
+          ) : (
+            <button
+              onClick={runCleanup}
+              disabled={cleanupRunning}
+              className="w-full py-2 bg-red-700 hover:bg-red-600 rounded-xl text-sm font-semibold disabled:opacity-50"
+            >
+              {cleanupRunning ? 'מנקה...' : 'נקה קטגוריות כפולות'}
+            </button>
+          )}
+        </div>
+      </section>
 
-      {error && <p role="alert" className="text-red-400 text-sm mb-4">{error}</p>}
+      <section>
+      <h2 className="text-lg font-bold mb-2">ייבוא נתונים היסטוריים</h2>
+      <p className="text-slate-400 text-sm mb-4">טוען נתונים מקבצי הדוגמה בתיקיית examples/</p>
 
       {!summary ? (
         <button
@@ -170,6 +204,7 @@ export default function SeedPage() {
           </button>
         </div>
       )}
+      </section>
     </main>
   )
 }

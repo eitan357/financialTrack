@@ -7,24 +7,21 @@ import { MonthSummaryRow } from '@/components/reports/MonthSummaryRow'
 import type { Category } from '@/lib/types'
 import type { MonthlyExpenseSummary } from '@/lib/reports/compute'
 
-function lastNMonths(n: number): string[] {
-  const months: string[] = []
-  const now = new Date()
-  for (let i = 0; i < n; i++) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i)
-    months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
-  }
-  return months
+function monthsOfYear(year: number): string[] {
+  return Array.from({ length: 12 }, (_, i) =>
+    `${year}-${String(i + 1).padStart(2, '0')}`
+  )
 }
 
 export default function ReportsPage() {
+  const [year, setYear] = useState(() => new Date().getFullYear())
   const [loading, setLoading] = useState(true)
   const [summaries, setSummaries] = useState<MonthlyExpenseSummary[]>([])
   const [categories, setCategories] = useState<Category[]>([])
 
   useEffect(() => {
     setLoading(true)
-    const months = lastNMonths(6)
+    const months = monthsOfYear(year)
     async function load() {
       try {
         const [txs, cats] = await Promise.all([
@@ -38,14 +35,28 @@ export default function ReportsPage() {
       }
     }
     load()
-  }, [])
+  }, [year])
 
-  const totalAllMonths = summaries.reduce((s, m) => s + m.totalExpenses, 0)
-  const avgMonthly = summaries.length > 0 ? Math.round(totalAllMonths / summaries.length) : 0
+  const monthsWithData = summaries.filter(s => s.totalExpenses > 0)
+  const totalYear = summaries.reduce((s, m) => s + m.totalExpenses, 0)
+  const avgMonthly = monthsWithData.length > 0 ? Math.round(totalYear / monthsWithData.length) : 0
 
   return (
     <main className="p-4 max-w-lg mx-auto pb-24">
-      <h1 className="text-lg font-bold mb-4">דוחות</h1>
+      <div className="flex items-center justify-between mb-4">
+        <button
+          onClick={() => setYear(y => y - 1)}
+          aria-label="שנה קודמת"
+          className="text-slate-400 text-2xl w-10 text-center"
+        >‹</button>
+        <h1 className="text-lg font-bold">{year}</h1>
+        <button
+          onClick={() => setYear(y => y + 1)}
+          aria-label="שנה הבאה"
+          className="text-slate-400 text-2xl w-10 text-center"
+          disabled={year >= new Date().getFullYear()}
+        >›</button>
+      </div>
 
       {loading ? (
         <div className="flex justify-center items-center min-h-40">
@@ -59,8 +70,8 @@ export default function ReportsPage() {
               <p className="text-xl font-bold tabular-nums">₪{avgMonthly.toLocaleString('he-IL')}</p>
             </div>
             <div className="bg-surface rounded-2xl p-4">
-              <p className="text-xs text-slate-400 mb-1">סה&quot;כ 6 חודשים</p>
-              <p className="text-xl font-bold tabular-nums">₪{totalAllMonths.toLocaleString('he-IL')}</p>
+              <p className="text-xs text-slate-400 mb-1">סה&quot;כ {year}</p>
+              <p className="text-xl font-bold tabular-nums">₪{totalYear.toLocaleString('he-IL')}</p>
             </div>
           </div>
 

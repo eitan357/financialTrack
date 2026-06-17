@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { usePersistedMonth } from '@/hooks/usePersistedMonth'
 import { getTransactions } from '@/lib/firestore/transactions'
 import { getSalaryEntry } from '@/lib/firestore/salary'
 import { getIncomeEntries } from '@/lib/firestore/income'
@@ -18,11 +19,6 @@ import type { DashboardSummary } from '@/lib/dashboard/compute'
 
 const HE_MONTHS = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר']
 
-function currentMonth(): string {
-  const n = new Date()
-  return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}`
-}
-
 function formatMonth(m: string): string {
   const [y, mo] = m.split('-')
   return `${HE_MONTHS[parseInt(mo, 10) - 1]} ${y}`
@@ -35,7 +31,7 @@ function addMonths(m: string, delta: number): string {
 }
 
 export default function DashboardPage() {
-  const [month, setMonth] = useState(currentMonth)
+  const [month, setMonth] = usePersistedMonth()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [summary, setSummary] = useState<DashboardSummary | null>(null)
@@ -79,9 +75,9 @@ export default function DashboardPage() {
   return (
     <main className="p-4 max-w-lg mx-auto pb-24">
       <div className="flex items-center justify-between mb-6">
-        <button onClick={() => setMonth(m => addMonths(m, -1))} aria-label="חודש קודם" className="text-slate-400 text-2xl w-10 text-center">‹</button>
+        <button onClick={() => setMonth(addMonths(month, -1))} aria-label="חודש קודם" className="text-slate-400 text-2xl w-10 text-center">‹</button>
         <h1 className="text-lg font-bold">{formatMonth(month)}</h1>
-        <button onClick={() => setMonth(m => addMonths(m, 1))} aria-label="חודש הבא" className="text-slate-400 text-2xl w-10 text-center">›</button>
+        <button onClick={() => setMonth(addMonths(month, 1))} aria-label="חודש הבא" className="text-slate-400 text-2xl w-10 text-center">›</button>
       </div>
 
       {loading ? (
