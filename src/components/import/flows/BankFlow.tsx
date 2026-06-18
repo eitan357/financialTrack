@@ -54,16 +54,17 @@ const ACCEPT_LABEL: Record<BankType, string> = {
 export function BankFlow({ month, accountId, accountName, bankType, categories, rules = [], previousTransactions = [], existingTransactions, onDone, onBack }: Props) {
   const [transactions, setTransactions] = useState<ImportedTransaction[]>([])
   const [error, setError] = useState<string | null>(null)
-  const [duplicateWarning, setDuplicateWarning] = useState(0)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [parsing, setParsing] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const { duplicates: liveDuplicates } = detectDuplicates(transactions, existingTransactions)
+  const duplicateWarning = liveDuplicates.length
 
   function applyCategories(raw: RawTransaction[]): ImportedTransaction[] {
     return raw.map(r => {
       const res = categorize(r.merchantName, rules, previousTransactions)
-      const direction = (r.direction ?? 'expense') as 'income' | 'expense'
+      const direction: 'income' | 'expense' = r.direction ?? 'expense'
       return {
         ...r,
         direction,
@@ -83,20 +84,19 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
       const data = new Uint8Array(buf)
       let raw: RawTransaction[]
 
-      if (file.name.toLowerCase().endsWith('.pdf')) {
+      if (bankType === 'leumi' || file.name.toLowerCase().endsWith('.pdf')) {
         raw = await parseLeumiPdf(data)
       } else {
         raw = parseOneZeroXlsx(data)
       }
 
       const mapped = applyCategories(raw)
-      const { duplicates } = detectDuplicates(mapped, existingTransactions)
       setTransactions(mapped)
-      setDuplicateWarning(duplicates.length)
     } catch {
       setError('שגיאה בקריאת הקובץ. נסה שוב.')
     } finally {
       setParsing(false)
+      if (fileInputRef.current) fileInputRef.current.value = ''
     }
   }
 
@@ -177,7 +177,7 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
               </thead>
               <tbody>
                 {transactions.map((tx, i) => (
-                  <tr key={i} className={`border-b border-slate-700/40 ${!tx.categoryId && tx.direction !== 'income' ? 'ring-1 ring-inset ring-blue-400' : ''}`}>
+                  <tr key={`${tx.date}-${tx.merchantName}-${i}`} className={`border-b border-slate-700/40 ${!tx.categoryId && tx.direction !== 'income' ? 'ring-1 ring-inset ring-blue-400' : ''}`}>
                     <td className="py-1.5 px-2 text-slate-400 text-xs">{tx.date}</td>
                     <td className="py-1.5 px-2 text-xs">{tx.merchantName}</td>
                     <td className="py-1.5 px-2">
