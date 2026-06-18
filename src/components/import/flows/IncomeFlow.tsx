@@ -5,6 +5,7 @@ import { addTransactions, deleteTransaction } from '@/lib/firestore/transactions
 import type { Account, Transaction } from '@/lib/types'
 
 interface IncomeFormRow {
+  id: string
   sourceName: string
   amount: number
   date: string
@@ -12,7 +13,7 @@ interface IncomeFormRow {
 }
 
 function emptyRow(month: string, defaultBankId: string): IncomeFormRow {
-  return { sourceName: '', amount: 0, date: `${month}-01`, bankAccountId: defaultBankId }
+  return { id: crypto.randomUUID(), sourceName: '', amount: 0, date: `${month}-01`, bankAccountId: defaultBankId }
 }
 
 interface Props {
@@ -102,7 +103,7 @@ export function IncomeFlow({ month, existingTransactions, bankAccounts, onDone, 
             </div>
             <div className="flex items-center gap-3">
               <span className="tabular-nums text-sm text-green-400">₪{entry.amount.toLocaleString('he-IL')}</span>
-              <button onClick={() => deleteEntry(entry.id)} className="text-red-400 hover:text-red-300">
+              <button onClick={() => deleteEntry(entry.id)} disabled={saving} className="text-red-400 hover:text-red-300 disabled:opacity-50">
                 <Trash2 size={14} />
               </button>
             </div>
@@ -110,10 +111,10 @@ export function IncomeFlow({ month, existingTransactions, bankAccounts, onDone, 
         ))}
 
         {newRows.map((row, i) => (
-          <div key={i} className="bg-surface rounded-xl p-3 space-y-2">
+          <div key={row.id} className="bg-surface rounded-xl p-3 space-y-2">
             <div className="flex justify-between items-center">
               <span className="text-xs text-slate-400">הכנסה חדשה</span>
-              <button onClick={() => removeNewRow(i)} className="text-red-400"><Trash2 size={14} /></button>
+              <button onClick={() => removeNewRow(i)} disabled={saving} className="text-red-400 disabled:opacity-50"><Trash2 size={14} /></button>
             </div>
             <input type="text" placeholder="מקור ההכנסה" value={row.sourceName}
               onChange={e => updateRow(i, { sourceName: e.target.value })}
@@ -122,7 +123,7 @@ export function IncomeFlow({ month, existingTransactions, bankAccounts, onDone, 
             />
             <div className="flex gap-2">
               <input type="number" placeholder="סכום" value={row.amount || ''}
-                onChange={e => updateRow(i, { amount: parseFloat(e.target.value) || 0 })}
+                onChange={e => updateRow(i, { amount: Math.max(0, parseFloat(e.target.value) || 0) })}
                 className="flex-1 bg-background rounded px-3 py-2 text-sm tabular-nums"
                 aria-label={`סכום הכנסה ${i + 1}`}
               />
