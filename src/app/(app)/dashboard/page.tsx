@@ -15,21 +15,34 @@ import { SummaryCard } from '@/components/dashboard/SummaryCard'
 import { CategoryProgress } from '@/components/dashboard/CategoryProgress'
 import { BankReconciliationCard } from '@/components/dashboard/BankReconciliationCard'
 import { DividendsCard } from '@/components/dashboard/DividendsCard'
-import type { BankReconciliation, Dividend, InvestmentType } from '@/lib/types'
+import { BreakdownDrawer } from '@/components/dashboard/BreakdownDrawer'
+import type { BankReconciliation, Dividend, InvestmentType, Transaction, SalaryEntry, IncomeEntry, InvestmentEntry, Category } from '@/lib/types'
 import type { DashboardSummary } from '@/lib/dashboard/compute'
+import type { DrawerData } from '@/components/dashboard/BreakdownDrawer'
+
+interface RawData {
+  transactions: Transaction[]
+  salary: SalaryEntry | null
+  incomeEntries: IncomeEntry[]
+  investmentEntries: InvestmentEntry[]
+  categories: Category[]
+}
 
 export default function DashboardPage() {
   const [month, setMonth] = usePersistedMonth()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [summary, setSummary] = useState<DashboardSummary | null>(null)
+  const [rawData, setRawData] = useState<RawData | null>(null)
   const [reconciliation, setReconciliation] = useState<BankReconciliation | null>(null)
   const [dividends, setDividends] = useState<Dividend[]>([])
   const [investmentTypes, setInvestmentTypes] = useState<InvestmentType[]>([])
+  const [drawer, setDrawer] = useState<DrawerData | null>(null)
 
   useEffect(() => {
     setLoading(true)
     setError(null)
+    setDrawer(null)
     async function load() {
       try {
         const [txs, salary, income, divs, invEntries, invTypes, recs, cats, settings] = await Promise.all([
@@ -47,6 +60,7 @@ export default function DashboardPage() {
           transactions: txs, salaryEntry: salary, incomeEntries: income,
           dividends: divs, investmentEntries: invEntries, categories: cats, monthlySettings: settings,
         }))
+        setRawData({ transactions: txs, salary, incomeEntries: income, investmentEntries: invEntries, categories: cats })
         setReconciliation(recs[0] ?? null)
         setDividends(divs)
         setInvestmentTypes(invTypes)
@@ -59,6 +73,38 @@ export default function DashboardPage() {
     }
     load()
   }, [month])
+
+  function openIncome() {
+    if (!rawData || !summary) return
+    setDrawer({
+      type: 'income',
+      total: summary.totalIncome,
+      salary: rawData.salary,
+      incomeEntries: rawData.incomeEntries,
+      dividends,
+      incomeTransactions: rawData.transactions.filter(t => t.direction === 'income'),
+    })
+  }
+
+  function openExpenses() {
+    if (!rawData || !summary) return
+    setDrawer({
+      type: 'expenses',
+      total: summary.totalExpenses,
+      transactions: rawData.transactions.filter(t => t.direction !== 'income'),
+      categories: rawData.categories,
+    })
+  }
+
+  function openInvestments() {
+    if (!rawData || !summary) return
+    setDrawer({
+      type: 'investments',
+      total: summary.totalInvestments,
+      entries: rawData.investmentEntries,
+      types: investmentTypes,
+    })
+  }
 
   return (
     <main className="p-4 max-w-lg mx-auto pb-24">
@@ -73,16 +119,18 @@ export default function DashboardPage() {
       ) : summary && (
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
-            <SummaryCard label="הכנסות" amount={summary.totalIncome} color="text-green-400" />
-            <SummaryCard label="הוצאות" amount={summary.totalExpenses} color="text-red-400" />
+            <SummaryCard label="הכנסות" amount={summary.totalIncome} color="text-green-400" onClick={openIncome} />
+            <SummaryCard label="הוצאות" amount={summary.totalExpenses} color="text-red-400" onClick={openExpenses} />
             <SummaryCard label="חיסכון" amount={summary.totalSavings} />
-            <SummaryCard label="להשקעות" amount={summary.totalInvestments} color="text-accent" />
+            <SummaryCard label="להשקעות" amount={summary.totalInvestments} color="text-accent" onClick={openInvestments} />
           </div>
           <CategoryProgress categories={summary.categoryTotals} />
           <BankReconciliationCard reconciliation={reconciliation} />
           <DividendsCard dividends={dividends} investmentTypes={investmentTypes} />
         </div>
       )}
+
+      {drawer && <BreakdownDrawer data={drawer} onClose={() => setDrawer(null)} />}
     </main>
   )
 }
