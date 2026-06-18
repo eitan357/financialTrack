@@ -1,5 +1,5 @@
 'use client'
-import type { Transaction, SalaryEntry, IncomeEntry, Dividend, InvestmentEntry, InvestmentType, Category } from '@/lib/types'
+import type { Transaction, SalaryEntry, IncomeEntry, Dividend, InvestmentEntry, InvestmentType, Category, Account } from '@/lib/types'
 
 export type DrawerData =
   | {
@@ -15,6 +15,13 @@ export type DrawerData =
       total: number
       transactions: Transaction[]
       categories: Category[]
+      accounts: Account[]
+    }
+  | {
+      type: 'expenses-by-category'
+      total: number
+      transactions: Transaction[]
+      categories: Category[]
     }
   | {
       type: 'investments'
@@ -26,6 +33,7 @@ export type DrawerData =
 const TITLE: Record<DrawerData['type'], string> = {
   income: 'פירוט הכנסות',
   expenses: 'פירוט הוצאות',
+  'expenses-by-category': 'הוצאות לפי קטגוריה',
   investments: 'פירוט השקעות',
 }
 
@@ -42,6 +50,11 @@ function fmtIls(n: number) { return `₪${fmt(Math.abs(n))}` }
 function formatDate(d: string) {
   const [, mm, dd] = d.split('-')
   return `${dd}/${mm}`
+}
+
+function txAmount(tx: Transaction) {
+  if (tx.amount < 0) return <span className="text-green-400">₪{fmt(Math.abs(tx.amount))}<span className="text-xs text-green-500/70 mr-1">זיכוי</span></span>
+  return <span className="text-slate-200">{fmtIls(tx.amount)}</span>
 }
 
 function SectionBlock({ title, total, color, children }: {
@@ -135,6 +148,59 @@ function IncomeBreakdown({ data }: { data: Extract<DrawerData, { type: 'income' 
 }
 
 function ExpensesBreakdown({ data }: { data: Extract<DrawerData, { type: 'expenses' }> }) {
+  const { transactions, accounts } = data
+
+  const creditAccounts = accounts.filter(a => a.type === 'credit')
+  const bankAccountIds = new Set(accounts.filter(a => a.type === 'bank').map(a => a.id))
+  const cashAccountIds = new Set(accounts.filter(a => a.type === 'cash').map(a => a.id))
+
+  const creditSummaries = creditAccounts
+    .map(ca => ({
+      account: ca,
+      total: transactions.filter(t => t.accountId === ca.id).reduce((s, t) => s + t.amount, 0),
+    }))
+    .filter(cs => cs.total > 0)
+    .sort((a, b) => b.total - a.total)
+
+  const bankTxs = transactions.filter(t => bankAccountIds.has(t.accountId))
+  const cashTxs = transactions.filter(t => cashAccountIds.has(t.accountId))
+  const bankTotal = bankTxs.reduce((s, t) => s + t.amount, 0)
+  const cashTotal = cashTxs.reduce((s, t) => s + t.amount, 0)
+
+  const isEmpty = creditSummaries.length === 0 && bankTxs.length === 0 && cashTxs.length === 0
+
+  return (
+    <div className="space-y-3">
+      {creditSummaries.map(({ account, total }) => (
+        <SectionBlock key={account.id} title={account.name} total={total} color={account.color}>
+          {null}
+        </SectionBlock>
+      ))}
+
+      {bankTxs.length > 0 && (
+        <SectionBlock title="הוצאות בנק ישיר" total={bankTotal}>
+          {[...bankTxs].sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount)).map(t => (
+            <Row key={t.id} label={t.merchantName} sub={formatDate(t.date)} right={txAmount(t)} />
+          ))}
+        </SectionBlock>
+      )}
+
+      {cashTxs.length > 0 && (
+        <SectionBlock title="הוצאות מזומן" total={cashTotal}>
+          {[...cashTxs].sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount)).map(t => (
+            <Row key={t.id} label={t.merchantName} sub={formatDate(t.date)} right={txAmount(t)} />
+          ))}
+        </SectionBlock>
+      )}
+
+      {isEmpty && (
+        <p className="text-slate-500 text-sm text-center py-8">אין הוצאות לחודש זה</p>
+      )}
+    </div>
+  )
+}
+
+function CategoryBreakdown({ data }: { data: Extract<DrawerData, { type: 'expenses-by-category' }> }) {
   const { transactions, categories } = data
 
   const byCategory: Record<string, Transaction[]> = {}
@@ -155,11 +221,6 @@ function ExpensesBreakdown({ data }: { data: Extract<DrawerData, { type: 'expens
     .sort((a, b) => b.total - a.total)
 
   const uncatTotal = uncategorized.reduce((s, t) => s + t.amount, 0)
-
-  function txAmount(tx: Transaction) {
-    if (tx.amount < 0) return <span className="text-green-400">₪{fmt(Math.abs(tx.amount))}<span className="text-xs text-green-500/70 mr-1">זיכוי</span></span>
-    return <span className="text-slate-200">{fmtIls(tx.amount)}</span>
-  }
 
   return (
     <div className="space-y-3">
@@ -267,6 +328,7 @@ export function BreakdownDrawer({ data, onClose }: Props) {
         <div className="overflow-y-auto p-4 pb-8">
           {data.type === 'income' && <IncomeBreakdown data={data} />}
           {data.type === 'expenses' && <ExpensesBreakdown data={data} />}
+          {data.type === 'expenses-by-category' && <CategoryBreakdown data={data} />}
           {data.type === 'investments' && <InvestmentsBreakdown data={data} />}
         </div>
       </div>

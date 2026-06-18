@@ -9,6 +9,8 @@ export interface Account {
   isActive: boolean
   csvIdentifier?: string // keyword to search in CSV file to auto-detect this card's section
   sortOrder?: number
+  linkedBankAccountId?: string // credit only: which bank account pays this credit card
+  creditPaymentDay?: number    // credit only: day of month the bank pays (1-28)
 }
 
 export interface Category {

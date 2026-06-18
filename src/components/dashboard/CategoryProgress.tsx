@@ -2,13 +2,20 @@ import type { CategorySummary } from '@/lib/dashboard/compute'
 
 interface Props {
   categories: CategorySummary[]
+  onClick?: () => void
 }
 
-export function CategoryProgress({ categories }: Props) {
+export function CategoryProgress({ categories, onClick }: Props) {
   if (categories.length === 0) return null
   return (
-    <div className="bg-surface rounded-2xl p-4 space-y-3">
-      <h2 className="text-sm font-semibold text-slate-400">הוצאות לפי קטגוריה</h2>
+    <div
+      className={`bg-surface rounded-2xl p-4 space-y-3 ${onClick ? 'cursor-pointer active:scale-95 transition-transform' : ''}`}
+      onClick={onClick}
+    >
+      <div className="flex justify-between items-center">
+        <h2 className="text-sm font-semibold text-slate-400">הוצאות לפי קטגוריה</h2>
+        {onClick && <span className="text-xs text-slate-600">›</span>}
+      </div>
       {categories.map(cat => {
         const pct = cat.target ? Math.min(100, (cat.actual / cat.target) * 100) : null
         const isOver = cat.target !== null && cat.actual > cat.target

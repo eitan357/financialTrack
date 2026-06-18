@@ -10,13 +10,14 @@ import { getInvestmentEntries, getInvestmentTypes } from '@/lib/firestore/invest
 import { getBankReconciliations } from '@/lib/firestore/bank-reconciliations'
 import { getMonthlySettings } from '@/lib/firestore/monthly-settings'
 import { getCategories } from '@/lib/firestore/categories'
+import { getAccounts } from '@/lib/firestore/accounts'
 import { computeDashboard } from '@/lib/dashboard/compute'
 import { SummaryCard } from '@/components/dashboard/SummaryCard'
 import { CategoryProgress } from '@/components/dashboard/CategoryProgress'
 import { BankReconciliationCard } from '@/components/dashboard/BankReconciliationCard'
 import { DividendsCard } from '@/components/dashboard/DividendsCard'
 import { BreakdownDrawer } from '@/components/dashboard/BreakdownDrawer'
-import type { BankReconciliation, Dividend, InvestmentType, Transaction, SalaryEntry, IncomeEntry, InvestmentEntry, Category } from '@/lib/types'
+import type { BankReconciliation, Dividend, InvestmentType, Transaction, SalaryEntry, IncomeEntry, InvestmentEntry, Category, Account } from '@/lib/types'
 import type { DashboardSummary } from '@/lib/dashboard/compute'
 import type { DrawerData } from '@/components/dashboard/BreakdownDrawer'
 
@@ -26,6 +27,7 @@ interface RawData {
   incomeEntries: IncomeEntry[]
   investmentEntries: InvestmentEntry[]
   categories: Category[]
+  accounts: Account[]
 }
 
 export default function DashboardPage() {
@@ -45,7 +47,7 @@ export default function DashboardPage() {
     setDrawer(null)
     async function load() {
       try {
-        const [txs, salary, income, divs, invEntries, invTypes, recs, cats, settings] = await Promise.all([
+        const [txs, salary, income, divs, invEntries, invTypes, recs, cats, settings, accs] = await Promise.all([
           getTransactions(month),
           getSalaryEntry(month),
           getIncomeEntries(month),
@@ -55,12 +57,13 @@ export default function DashboardPage() {
           getBankReconciliations(month),
           getCategories(),
           getMonthlySettings(month),
+          getAccounts(),
         ])
         setSummary(computeDashboard({
           transactions: txs, salaryEntry: salary, incomeEntries: income,
           dividends: divs, investmentEntries: invEntries, categories: cats, monthlySettings: settings,
         }))
-        setRawData({ transactions: txs, salary, incomeEntries: income, investmentEntries: invEntries, categories: cats })
+        setRawData({ transactions: txs, salary, incomeEntries: income, investmentEntries: invEntries, categories: cats, accounts: accs })
         setReconciliation(recs[0] ?? null)
         setDividends(divs)
         setInvestmentTypes(invTypes)
@@ -90,6 +93,17 @@ export default function DashboardPage() {
     if (!rawData || !summary) return
     setDrawer({
       type: 'expenses',
+      total: summary.totalExpenses,
+      transactions: rawData.transactions.filter(t => t.direction !== 'income'),
+      categories: rawData.categories,
+      accounts: rawData.accounts,
+    })
+  }
+
+  function openCategoryBreakdown() {
+    if (!rawData || !summary) return
+    setDrawer({
+      type: 'expenses-by-category',
       total: summary.totalExpenses,
       transactions: rawData.transactions.filter(t => t.direction !== 'income'),
       categories: rawData.categories,
@@ -124,7 +138,7 @@ export default function DashboardPage() {
             <SummaryCard label="חיסכון" amount={summary.totalSavings} />
             <SummaryCard label="להשקעות" amount={summary.totalInvestments} color="text-accent" onClick={openInvestments} />
           </div>
-          <CategoryProgress categories={summary.categoryTotals} />
+          <CategoryProgress categories={summary.categoryTotals} onClick={openCategoryBreakdown} />
           <BankReconciliationCard reconciliation={reconciliation} />
           <DividendsCard dividends={dividends} investmentTypes={investmentTypes} />
         </div>

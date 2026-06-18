@@ -21,8 +21,9 @@ const ACCOUNT_TYPE_LABELS: Record<AccountType, string> = {
 }
 
 // ---- Account form ----
-function AccountForm({ initial, onSubmit, onCancel }: {
+function AccountForm({ initial, bankAccounts, onSubmit, onCancel }: {
   initial?: Account
+  bankAccounts: Account[]
   onSubmit: (data: Omit<Account, 'id'>) => Promise<void>
   onCancel: () => void
 }) {
@@ -31,19 +32,28 @@ function AccountForm({ initial, onSubmit, onCancel }: {
   const [color, setColor] = useState(initial?.color ?? '#6366f1')
   const [last4, setLast4] = useState(initial?.last4digits ?? '')
   const [csvId, setCsvId] = useState(initial?.csvIdentifier ?? '')
+  const [linkedBankId, setLinkedBankId] = useState(initial?.linkedBankAccountId ?? '')
+  const [paymentDay, setPaymentDay] = useState(initial?.creditPaymentDay ? String(initial.creditPaymentDay) : '')
   const [saving, setSaving] = useState(false)
   const [nameError, setNameError] = useState<string | null>(null)
+  const [linkedBankError, setLinkedBankError] = useState<string | null>(null)
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
-    if (!name.trim()) { setNameError('שדה חובה'); return }
+    let hasError = false
+    if (!name.trim()) { setNameError('שדה חובה'); hasError = true }
+    if (type === 'credit' && !linkedBankId) { setLinkedBankError('יש לבחור חשבון בנק מקושר'); hasError = true }
+    if (hasError) return
     setNameError(null)
+    setLinkedBankError(null)
     setSaving(true)
     const data: Omit<Account, 'id'> = {
       name: name.trim(), type, color,
       isActive: initial?.isActive ?? true,
       ...(last4.trim() && { last4digits: last4.trim() }),
       ...(type === 'credit' && csvId.trim() && { csvIdentifier: csvId.trim() }),
+      ...(type === 'credit' && linkedBankId && { linkedBankAccountId: linkedBankId }),
+      ...(type === 'credit' && paymentDay && { creditPaymentDay: Math.min(parseInt(paymentDay), 28) }),
     }
     await onSubmit(data)
     setSaving(false)
@@ -61,7 +71,7 @@ function AccountForm({ initial, onSubmit, onCancel }: {
       <div className="flex gap-3">
         <div className="flex-1">
           <label className="text-xs text-slate-400 block mb-1">סוג</label>
-          <select value={type} onChange={e => setType(e.target.value as AccountType)}
+          <select value={type} onChange={e => { setType(e.target.value as AccountType); setLinkedBankError(null) }}
             className="w-full bg-background rounded-lg px-3 py-2 text-sm outline-none">
             <option value="credit">אשראי</option>
             <option value="bank">בנק</option>
@@ -82,12 +92,31 @@ function AccountForm({ initial, onSubmit, onCancel }: {
         </div>
       )}
       {type === 'credit' && (
-        <div>
-          <label className="text-xs text-slate-400 block mb-1">מזהה CSV (לזיהוי אוטומטי)</label>
-          <input value={csvId} onChange={e => setCsvId(e.target.value)} placeholder='לדוגמה: one zero'
-            className="w-full bg-background rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 ring-accent" />
-          <p className="text-xs text-slate-500 mt-1">מילה שמופיעה בקובץ CSV לזיהוי הכרטיס</p>
-        </div>
+        <>
+          <div>
+            <label className="text-xs text-slate-400 block mb-1">חשבון בנק מקושר <span className="text-red-400">*</span></label>
+            <select value={linkedBankId}
+              onChange={e => { setLinkedBankId(e.target.value); if (linkedBankError && e.target.value) setLinkedBankError(null) }}
+              className={`w-full bg-background rounded-lg px-3 py-2 text-sm outline-none ${linkedBankError ? 'ring-1 ring-red-500' : 'focus:ring-1 ring-accent'}`}>
+              <option value="">בחר חשבון בנק...</option>
+              {bankAccounts.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+            </select>
+            {linkedBankError && <p className="text-xs text-red-400 mt-1">{linkedBankError}</p>}
+            {bankAccounts.length === 0 && <p className="text-xs text-slate-500 mt-1">יש ליצור חשבון בנק תחילה</p>}
+          </div>
+          <div>
+            <label className="text-xs text-slate-400 block mb-1">יום תשלום בחודש (1–28)</label>
+            <input type="number" min={1} max={28} value={paymentDay}
+              onChange={e => setPaymentDay(e.target.value)} placeholder="10"
+              className="w-full bg-background rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 ring-accent" />
+          </div>
+          <div>
+            <label className="text-xs text-slate-400 block mb-1">מזהה CSV (לזיהוי אוטומטי)</label>
+            <input value={csvId} onChange={e => setCsvId(e.target.value)} placeholder='לדוגמה: one zero'
+              className="w-full bg-background rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 ring-accent" />
+            <p className="text-xs text-slate-500 mt-1">מילה שמופיעה בקובץ CSV לזיהוי הכרטיס</p>
+          </div>
+        </>
       )}
       <div className="flex gap-2 pt-1">
         <button type="button" onClick={onCancel}
@@ -145,6 +174,7 @@ function AccountsSection() {
 
   const active = accounts.filter(a => a.isActive)
   const inactive = accounts.filter(a => !a.isActive)
+  const bankAccounts = accounts.filter(a => a.type === 'bank')
 
   if (loading) return <p className="text-slate-400 text-sm text-center py-6">טוען...</p>
 
@@ -156,13 +186,13 @@ function AccountsSection() {
           className="text-xs text-accent">{showAdd ? 'ביטול' : '+ הוסף חשבון'}</button>
       </div>
 
-      {showAdd && <AccountForm onSubmit={handleAdd} onCancel={() => setShowAdd(false)} />}
+      {showAdd && <AccountForm bankAccounts={bankAccounts} onSubmit={handleAdd} onCancel={() => setShowAdd(false)} />}
 
       <div className="bg-surface rounded-2xl divide-y divide-slate-800">
         {active.map((acc, idx) => (
           editId === acc.id ? (
             <div key={acc.id} className="p-2">
-              <AccountForm initial={acc}
+              <AccountForm initial={acc} bankAccounts={bankAccounts}
                 onSubmit={data => handleUpdate(acc.id, data)}
                 onCancel={() => setEditId(null)} />
             </div>
