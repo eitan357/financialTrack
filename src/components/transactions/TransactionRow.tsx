@@ -34,29 +34,33 @@ function EditForm({ transaction, categories, onUpdate, onDelete, onClose }: {
   const [direction, setDirection] = useState<'expense' | 'income'>(transaction.direction === 'income' ? 'income' : 'expense')
   const [categoryId, setCategoryId] = useState(transaction.categoryId ?? '')
   const [saving, setSaving] = useState(false)
-  const [errors, setErrors] = useState<{ name?: string; amount?: string }>({})
+  const [errors, setErrors] = useState<{ date?: string; name?: string; amount?: string }>({})
 
   async function save() {
-    const errs: { name?: string; amount?: string } = {}
+    const errs: { date?: string; name?: string; amount?: string } = {}
+    if (!date) errs.date = 'יש לבחור תאריך'
     if (!name.trim()) errs.name = 'שדה חובה'
     if (!amount || parseFloat(amount) <= 0) errs.amount = 'יש להזין סכום חיובי'
     if (Object.keys(errs).length > 0) { setErrors(errs); return }
     setErrors({})
     setSaving(true)
-    const rawAmount = parseFloat(amount)
-    const finalAmount = direction === 'income' ? rawAmount : (transaction.amount < 0 ? -rawAmount : rawAmount)
-    const updates: Parameters<Props['onUpdate']>[1] = {
-      date,
-      merchantName: name.trim(),
-      amount: finalAmount,
-      direction,
+    try {
+      const rawAmount = parseFloat(amount)
+      const finalAmount = direction === 'income' ? rawAmount : (transaction.amount < 0 ? -rawAmount : rawAmount)
+      const updates: Parameters<Props['onUpdate']>[1] = {
+        date,
+        merchantName: name.trim(),
+        amount: finalAmount,
+        direction,
+      }
+      if (description.trim()) updates.description = description.trim()
+      if (direction === 'expense' && categoryId) updates.categoryId = categoryId
+      if (direction === 'income') updates.categoryId = undefined
+      await onUpdate(transaction.id, updates)
+      onClose()
+    } finally {
+      setSaving(false)
     }
-    if (description.trim()) updates.description = description.trim()
-    if (direction === 'expense' && categoryId) updates.categoryId = categoryId
-    if (direction === 'income') updates.categoryId = undefined
-    await onUpdate(transaction.id, updates)
-    setSaving(false)
-    onClose()
   }
 
   return (
@@ -71,12 +75,12 @@ function EditForm({ transaction, categories, onUpdate, onDelete, onClose }: {
           className={`flex-1 py-1.5 text-xs font-medium transition-colors ${direction === 'income' ? 'bg-green-500/20 text-green-400' : 'text-slate-400'}`}
         >הכנסה</button>
       </div>
-      <FormField label="תאריך">
+      <FormField label="תאריך" error={errors.date}>
         <input
           type="date"
           value={date}
-          onChange={e => setDate(e.target.value)}
-          className="w-full bg-background rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 ring-accent"
+          onChange={e => { setDate(e.target.value); if (errors.date && e.target.value) setErrors(p => ({ ...p, date: undefined })) }}
+          className={`w-full bg-background rounded-lg px-3 py-2 text-sm outline-none ${errors.date ? 'ring-1 ring-red-500' : 'focus:ring-1 ring-accent'}`}
         />
       </FormField>
       <FormField label="שם עסק" error={errors.name}>

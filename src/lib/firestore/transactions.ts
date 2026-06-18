@@ -1,4 +1,4 @@
-import { getFirestore, collection, getDocs, writeBatch, updateDoc, deleteDoc, doc, query, where, orderBy } from 'firebase/firestore'
+import { getFirestore, collection, getDocs, writeBatch, updateDoc, deleteDoc, doc, query, where, orderBy, deleteField } from 'firebase/firestore'
 import { app } from '../firebase/config'
 import { appCache } from '../cache'
 import type { Transaction } from '../types'
@@ -46,7 +46,12 @@ export async function addTransactions(transactions: Omit<Transaction, 'id'>[]): 
 }
 
 export async function updateTransaction(id: string, updates: Partial<Omit<Transaction, 'id'>>): Promise<void> {
-  await updateDoc(doc(getDb(), 'transactions', id), updates)
+  const firestoreData: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(updates)) {
+    firestoreData[key] = value === undefined ? deleteField() : value
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await updateDoc(doc(getDb(), 'transactions', id), firestoreData as any)
   // Don't know which month without a lookup — clear all transaction caches
   appCache.delPrefix('transactions:')
 }
