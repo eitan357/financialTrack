@@ -1,5 +1,5 @@
-import { ImportWizard } from '@/components/import/ImportWizard'
+import { ImportHub } from '@/components/import/ImportHub'
 
 export default function ImportPage() {
-  return <ImportWizard />
+  return <ImportHub />
 }
