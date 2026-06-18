@@ -162,18 +162,20 @@ export default function TransactionsPage() {
               <>
                 <div className="flex justify-between text-xs text-slate-400">
                   <span>הכנסות</span>
-                  <span className="tabular-nums text-green-400">+₪{incomeTotal.toLocaleString('he-IL')}</span>
+                  <span className="tabular-nums text-green-400" dir="ltr">₪{incomeTotal.toLocaleString('he-IL')}</span>
                 </div>
                 <div className="flex justify-between text-xs text-slate-400">
                   <span>הוצאות</span>
-                  <span className="tabular-nums text-red-400">-₪{expenseTotal.toLocaleString('he-IL')}</span>
+                  <span className="tabular-nums text-red-400" dir="ltr">₪-{expenseTotal.toLocaleString('he-IL')}</span>
                 </div>
               </>
             )}
             <div className="flex justify-between text-sm font-semibold">
               <span>{hasIncome ? 'נטו' : 'סה"כ'}</span>
-              <span className={`tabular-nums ${hasIncome ? (net >= 0 ? 'text-green-400' : 'text-red-400') : ''}`}>
-                {hasIncome ? (net >= 0 ? '+' : '-') + '₪' + Math.abs(net).toLocaleString('he-IL') : '₪' + expenseTotal.toLocaleString('he-IL')}
+              <span className={`tabular-nums ${hasIncome ? (net >= 0 ? 'text-green-400' : 'text-red-400') : ''}`} dir="ltr">
+                {hasIncome
+                  ? (net >= 0 ? '₪' : '₪-') + Math.abs(net).toLocaleString('he-IL')
+                  : '₪' + expenseTotal.toLocaleString('he-IL')}
               </span>
             </div>
           </div>

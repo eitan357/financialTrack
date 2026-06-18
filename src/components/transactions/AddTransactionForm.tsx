@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { addTransactions } from '@/lib/firestore/transactions'
 import type { Account, Category, SalaryDeductions } from '@/lib/types'
+import { FormField } from '@/components/ui/FormField'
 
 const EMPTY_DEDUCTIONS: SalaryDeductions = { incomeTax: 0, nationalInsurance: 0, healthInsurance: 0, pension: 0, trainingFund: 0 }
 
@@ -34,6 +35,7 @@ export function AddTransactionForm({ month, accounts, categories, defaultAccount
   const [deductions, setDeductions] = useState<SalaryDeductions>(EMPTY_DEDUCTIONS)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [errors, setErrors] = useState<{ name?: string; amount?: string }>({})
 
   const totalDeductions = Object.values(deductions).reduce((s, v) => s + v, 0)
   const grossAmount = parseFloat(amount) || 0
@@ -44,7 +46,11 @@ export function AddTransactionForm({ month, accounts, categories, defaultAccount
   }
 
   async function save() {
-    if (!name.trim() || !amount || !accountId) return
+    const errs: { name?: string; amount?: string } = {}
+    if (!name.trim()) errs.name = 'שדה חובה'
+    if (!amount || parseFloat(amount) <= 0) errs.amount = 'יש להזין סכום חיובי'
+    if (Object.keys(errs).length > 0) { setErrors(errs); return }
+    setErrors({})
     setSaving(true)
     setError(null)
     try {
@@ -55,29 +61,23 @@ export function AddTransactionForm({ month, accounts, categories, defaultAccount
         amount: finalAmount,
         currency: 'ILS',
         accountId,
-        categoryId: direction === 'expense' ? (categoryId || undefined) : undefined,
         source: 'manual',
         isImmediate: true,
         month,
         direction,
+        ...(direction === 'expense' && categoryId ? { categoryId } : {}),
         ...(direction === 'income' && showSalary ? {
-          salaryDetails: {
-            grossAmount,
-            deductions,
-            netAmount,
-            employerName: name.trim(),
-          }
+          salaryDetails: { grossAmount, deductions, netAmount, employerName: name.trim() }
         } : {}),
       }])
       onSaved()
-    } catch {
+    } catch (e) {
+      console.error(e)
       setError('שגיאה בשמירה. נסה שוב.')
     } finally {
       setSaving(false)
     }
   }
-
-  const isValid = name.trim().length > 0 && parseFloat(amount) > 0 && accountId
 
   return (
     <div className="bg-surface rounded-2xl p-4 mb-4 space-y-3">
@@ -94,38 +94,36 @@ export function AddTransactionForm({ month, accounts, categories, defaultAccount
         >הכנסה</button>
       </div>
 
-      <div>
-        <label className="text-xs text-slate-400 block mb-1">תאריך</label>
+      <FormField label="תאריך">
         <input type="date" value={date} onChange={e => setDate(e.target.value)}
           className="w-full bg-background rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 ring-accent" />
-      </div>
+      </FormField>
 
-      <div>
-        <label className="text-xs text-slate-400 block mb-1">{direction === 'income' ? 'מקור ההכנסה' : 'שם עסק'}</label>
-        <input value={name} onChange={e => setName(e.target.value)}
+      <FormField label={direction === 'income' ? 'מקור ההכנסה' : 'שם עסק'} error={errors.name}>
+        <input value={name}
+          onChange={e => { setName(e.target.value); if (errors.name && e.target.value.trim()) setErrors(p => ({ ...p, name: undefined })) }}
           placeholder={direction === 'income' ? 'למשל: שם מעסיק' : 'שם עסק'}
-          className="w-full bg-background rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 ring-accent" />
-      </div>
+          className={`w-full bg-background rounded-lg px-3 py-2 text-sm outline-none ${errors.name ? 'ring-1 ring-red-500' : 'focus:ring-1 ring-accent'}`} />
+      </FormField>
 
-      <div>
-        <label className="text-xs text-slate-400 block mb-1">{direction === 'income' && showSalary ? 'ברוטו (₪)' : 'סכום (₪)'}</label>
-        <input type="number" value={amount} onChange={e => setAmount(e.target.value)} step="0.01" min="0"
-          className="w-full bg-background rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 ring-accent tabular-nums" />
-      </div>
+      <FormField label={direction === 'income' && showSalary ? 'ברוטו (₪)' : 'סכום (₪)'} error={errors.amount}>
+        <input type="number" value={amount}
+          onChange={e => { setAmount(e.target.value); if (errors.amount && parseFloat(e.target.value) > 0) setErrors(p => ({ ...p, amount: undefined })) }}
+          step="0.01" min="0"
+          className={`w-full bg-background rounded-lg px-3 py-2 text-sm outline-none tabular-nums ${errors.amount ? 'ring-1 ring-red-500' : 'focus:ring-1 ring-accent'}`} />
+      </FormField>
 
-      <div>
-        <label className="text-xs text-slate-400 block mb-1">חשבון</label>
+      <FormField label="חשבון">
         <select value={accountId} onChange={e => setAccountId(e.target.value)}
           className="w-full bg-background text-foreground text-sm rounded-lg px-3 py-2 outline-none focus:ring-1 ring-accent">
           {accounts.filter(a => a.isActive).map(a => (
             <option key={a.id} value={a.id}>{a.name}</option>
           ))}
         </select>
-      </div>
+      </FormField>
 
       {direction === 'expense' && (
-        <div>
-          <label className="text-xs text-slate-400 block mb-1">קטגוריה</label>
+        <FormField label="קטגוריה">
           <select value={categoryId} onChange={e => setCategoryId(e.target.value)}
             className="w-full bg-background text-foreground text-sm rounded-lg px-3 py-2 outline-none focus:ring-1 ring-accent">
             <option value="">— ללא —</option>
@@ -133,7 +131,7 @@ export function AddTransactionForm({ month, accounts, categories, defaultAccount
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
           </select>
-        </div>
+        </FormField>
       )}
 
       {direction === 'income' && (
@@ -155,7 +153,7 @@ export function AddTransactionForm({ month, accounts, categories, defaultAccount
           ))}
           <div className="flex justify-between items-center pt-2 border-t border-slate-700">
             <span className="text-xs text-slate-400">נטו</span>
-            <span className="text-sm font-bold tabular-nums text-green-400" dir="ltr">{netAmount.toLocaleString('he-IL')} ₪</span>
+            <span className="text-sm font-bold tabular-nums text-green-400" dir="ltr">₪{netAmount.toLocaleString('he-IL')}</span>
           </div>
         </div>
       )}
@@ -165,7 +163,7 @@ export function AddTransactionForm({ month, accounts, categories, defaultAccount
       <div className="flex gap-2 pt-1">
         <button onClick={onClose}
           className="flex-1 py-2.5 border border-slate-600 rounded-lg text-sm">ביטול</button>
-        <button onClick={save} disabled={saving || !isValid}
+        <button onClick={save} disabled={saving}
           className="flex-1 py-2.5 bg-accent rounded-lg text-sm font-semibold disabled:opacity-50">
           {saving ? 'שומר...' : 'שמור'}
         </button>

@@ -32,10 +32,12 @@ function AccountForm({ initial, onSubmit, onCancel }: {
   const [last4, setLast4] = useState(initial?.last4digits ?? '')
   const [csvId, setCsvId] = useState(initial?.csvIdentifier ?? '')
   const [saving, setSaving] = useState(false)
+  const [nameError, setNameError] = useState<string | null>(null)
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
-    if (!name.trim()) return
+    if (!name.trim()) { setNameError('שדה חובה'); return }
+    setNameError(null)
     setSaving(true)
     const data: Omit<Account, 'id'> = {
       name: name.trim(), type, color,
@@ -51,8 +53,10 @@ function AccountForm({ initial, onSubmit, onCancel }: {
     <form onSubmit={submit} className="bg-slate-800 rounded-xl p-4 space-y-3">
       <div>
         <label className="text-xs text-slate-400 block mb-1">שם חשבון</label>
-        <input value={name} onChange={e => setName(e.target.value)} required
-          className="w-full bg-background rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 ring-accent" />
+        <input value={name}
+          onChange={e => { setName(e.target.value); if (nameError && e.target.value.trim()) setNameError(null) }}
+          className={`w-full bg-background rounded-lg px-3 py-2 text-sm outline-none ${nameError ? 'ring-1 ring-red-500' : 'focus:ring-1 ring-accent'}`} />
+        {nameError && <p className="text-xs text-red-400 mt-1">{nameError}</p>}
       </div>
       <div className="flex gap-3">
         <div className="flex-1">
@@ -209,10 +213,12 @@ function CategoryForm({ initial, onSubmit, onCancel }: {
   const [name, setName] = useState(initial?.name ?? '')
   const [color, setColor] = useState(initial?.color ?? '#6366f1')
   const [saving, setSaving] = useState(false)
+  const [nameError, setNameError] = useState<string | null>(null)
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
-    if (!name.trim()) return
+    if (!name.trim()) { setNameError('שדה חובה'); return }
+    setNameError(null)
     setSaving(true)
     await onSubmit({ name: name.trim(), color, isActive: initial?.isActive ?? true })
     setSaving(false)
@@ -222,8 +228,11 @@ function CategoryForm({ initial, onSubmit, onCancel }: {
     <form onSubmit={submit} className="bg-slate-800 rounded-xl p-3 flex items-end gap-2">
       <div className="flex-1">
         <label className="text-xs text-slate-400 block mb-1">שם קטגוריה</label>
-        <input value={name} onChange={e => setName(e.target.value)} required autoFocus
-          className="w-full bg-background rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 ring-accent" />
+        <input value={name}
+          onChange={e => { setName(e.target.value); if (nameError && e.target.value.trim()) setNameError(null) }}
+          autoFocus
+          className={`w-full bg-background rounded-lg px-3 py-2 text-sm outline-none ${nameError ? 'ring-1 ring-red-500' : 'focus:ring-1 ring-accent'}`} />
+        {nameError && <p className="text-xs text-red-400 mt-1">{nameError}</p>}
       </div>
       <div>
         <label className="text-xs text-slate-400 block mb-1">צבע</label>
@@ -367,6 +376,7 @@ function RulesSection() {
   const [keyword, setKeyword] = useState('')
   const [matchType, setMatchType] = useState<MatchType>('contains')
   const [categoryId, setCategoryId] = useState('')
+  const [keywordError, setKeywordError] = useState<string | null>(null)
 
   useEffect(() => {
     Promise.all([getRules(), getCategories()]).then(([rls, cats]) => {
@@ -380,7 +390,9 @@ function RulesSection() {
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault()
-    if (!keyword.trim() || !categoryId) return
+    if (!keyword.trim()) { setKeywordError('שדה חובה'); return }
+    if (!categoryId) return
+    setKeywordError(null)
     const rule = await addRule({
       keyword: keyword.trim(), matchType, categoryId,
       priority: 50, createdAt: new Date().toISOString(),
@@ -412,8 +424,11 @@ function RulesSection() {
         <form onSubmit={handleAdd} className="bg-slate-800 rounded-xl p-4 space-y-3">
           <div>
             <label className="text-xs text-slate-400 block mb-1">מילת מפתח</label>
-            <input value={keyword} onChange={e => setKeyword(e.target.value)} required autoFocus
-              className="w-full bg-background rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 ring-accent" />
+            <input value={keyword}
+              onChange={e => { setKeyword(e.target.value); if (keywordError && e.target.value.trim()) setKeywordError(null) }}
+              autoFocus
+              className={`w-full bg-background rounded-lg px-3 py-2 text-sm outline-none ${keywordError ? 'ring-1 ring-red-500' : 'focus:ring-1 ring-accent'}`} />
+            {keywordError && <p className="text-xs text-red-400 mt-1">{keywordError}</p>}
           </div>
           <div className="flex gap-3">
             <div className="flex-1">

@@ -16,12 +16,18 @@ export function AddDividendForm({ types, onSubmit, onCancel }: Props) {
   const [amount, setAmount] = useState('')
   const [ilsEquivalent, setIlsEquivalent] = useState('')
   const [date, setDate] = useState(todayISO)
+  const [errors, setErrors] = useState<{ typeId?: string; amount?: string }>({})
 
   const selectedType = types.find(t => t.id === typeId)
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!typeId || !amount || !date || !selectedType) return
+    const errs: typeof errors = {}
+    if (!typeId) errs.typeId = 'יש לבחור ערך'
+    if (!amount || parseFloat(amount) <= 0) errs.amount = 'יש להזין סכום חיובי'
+    if (Object.keys(errs).length > 0) { setErrors(errs); return }
+    if (!date || !selectedType) return
+    setErrors({})
     const result: Omit<Dividend, 'id'> = {
       investmentTypeId: typeId,
       amount: parseFloat(amount),
@@ -40,14 +46,15 @@ export function AddDividendForm({ types, onSubmit, onCancel }: Props) {
         <select
           id="div-type"
           value={typeId}
-          onChange={e => setTypeId(e.target.value)}
-          className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-foreground"
+          onChange={e => { setTypeId(e.target.value); if (errors.typeId && e.target.value) setErrors(p => ({ ...p, typeId: undefined })) }}
+          className={`w-full bg-slate-700 border rounded-lg px-3 py-2 text-sm text-foreground ${errors.typeId ? 'border-red-500 ring-1 ring-red-500' : 'border-slate-600'}`}
         >
           <option value="">בחר סוג...</option>
           {types.map(t => (
             <option key={t.id} value={t.id}>{t.name}</option>
           ))}
         </select>
+        {errors.typeId && <p className="text-xs text-red-400 mt-1">{errors.typeId}</p>}
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
@@ -58,10 +65,11 @@ export function AddDividendForm({ types, onSubmit, onCancel }: Props) {
             min="0"
             step="0.01"
             value={amount}
-            onChange={e => setAmount(e.target.value)}
+            onChange={e => { setAmount(e.target.value); if (errors.amount && parseFloat(e.target.value) > 0) setErrors(p => ({ ...p, amount: undefined })) }}
             placeholder="0"
-            className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-foreground"
+            className={`w-full bg-slate-700 border rounded-lg px-3 py-2 text-sm text-foreground ${errors.amount ? 'border-red-500 ring-1 ring-red-500' : 'border-slate-600'}`}
           />
+          {errors.amount && <p className="text-xs text-red-400 mt-1">{errors.amount}</p>}
         </div>
         <div>
           <label htmlFor="div-ils" className="text-xs text-slate-400 block mb-1">שווי ב-₪</label>
@@ -89,7 +97,7 @@ export function AddDividendForm({ types, onSubmit, onCancel }: Props) {
       </div>
       <div className="flex gap-2 justify-end">
         <button type="button" onClick={onCancel} aria-label="ביטול" className="text-sm text-slate-400 px-4 py-2">ביטול</button>
-        <button type="submit" aria-label="הוסף" className="bg-accent text-white text-sm px-4 py-2 rounded-lg disabled:opacity-40" disabled={!typeId || !amount}>הוסף</button>
+        <button type="submit" aria-label="הוסף" className="bg-accent text-white text-sm px-4 py-2 rounded-lg">הוסף</button>
       </div>
     </form>
   )

@@ -9,10 +9,13 @@ interface Props {
 export function AddInvestmentTypeForm({ onSubmit, onCancel }: Props) {
   const [name, setName] = useState('')
   const [currency, setCurrency] = useState('USD')
+  const [nameError, setNameError] = useState<string | null>(null)
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!name.trim() || !currency.trim()) return
+    if (!name.trim()) { setNameError('שדה חובה'); return }
+    if (!currency.trim()) return
+    setNameError(null)
     onSubmit({ name: name.trim(), currency: currency.trim() })
   }
 
@@ -25,10 +28,11 @@ export function AddInvestmentTypeForm({ onSubmit, onCancel }: Props) {
             id="type-name"
             type="text"
             value={name}
-            onChange={e => setName(e.target.value)}
+            onChange={e => { setName(e.target.value); if (nameError && e.target.value.trim()) setNameError(null) }}
             placeholder="למשל: MSTY"
-            className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-foreground placeholder-slate-500"
+            className={`w-full bg-slate-700 border rounded-lg px-3 py-2 text-sm text-foreground placeholder-slate-500 ${nameError ? 'border-red-500 ring-1 ring-red-500' : 'border-slate-600'}`}
           />
+          {nameError && <p className="text-xs text-red-400 mt-1">{nameError}</p>}
         </div>
         <div>
           <label htmlFor="type-currency" className="text-xs text-slate-400 block mb-1">מטבע</label>

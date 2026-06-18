@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import type { Transaction, Category } from '@/lib/types'
+import { FormField } from '@/components/ui/FormField'
 
 interface Props {
   transaction: Transaction
@@ -10,15 +11,13 @@ interface Props {
   onDelete: (transactionId: string) => void
 }
 
-function amountDisplay(transaction: Transaction): { sign: '+' | '-'; abs: number; colorClass: string } {
-  if (transaction.direction === 'income') {
-    return { sign: '+', abs: transaction.amount, colorClass: 'text-green-400' }
-  }
-  if (transaction.amount < 0) {
-    // refund / credit
-    return { sign: '+', abs: Math.abs(transaction.amount), colorClass: 'text-green-400' }
-  }
-  return { sign: '-', abs: transaction.amount, colorClass: 'text-red-400' }
+function amountDisplay(transaction: Transaction): { text: string; colorClass: string } {
+  const fmt = (n: number) => n.toLocaleString('he-IL')
+  if (transaction.direction === 'income')
+    return { text: `₪${fmt(transaction.amount)}`, colorClass: 'text-green-400' }
+  if (transaction.amount < 0)
+    return { text: `₪${fmt(Math.abs(transaction.amount))}`, colorClass: 'text-green-400' }
+  return { text: `₪-${fmt(transaction.amount)}`, colorClass: 'text-red-400' }
 }
 
 function EditForm({ transaction, categories, onUpdate, onDelete, onClose }: {
@@ -35,20 +34,27 @@ function EditForm({ transaction, categories, onUpdate, onDelete, onClose }: {
   const [direction, setDirection] = useState<'expense' | 'income'>(transaction.direction === 'income' ? 'income' : 'expense')
   const [categoryId, setCategoryId] = useState(transaction.categoryId ?? '')
   const [saving, setSaving] = useState(false)
+  const [errors, setErrors] = useState<{ name?: string; amount?: string }>({})
 
   async function save() {
+    const errs: { name?: string; amount?: string } = {}
+    if (!name.trim()) errs.name = 'שדה חובה'
+    if (!amount || parseFloat(amount) <= 0) errs.amount = 'יש להזין סכום חיובי'
+    if (Object.keys(errs).length > 0) { setErrors(errs); return }
+    setErrors({})
     setSaving(true)
-    const rawAmount = parseFloat(amount) || Math.abs(transaction.amount)
-    // preserve negative sign for refunds when staying as expense
+    const rawAmount = parseFloat(amount)
     const finalAmount = direction === 'income' ? rawAmount : (transaction.amount < 0 ? -rawAmount : rawAmount)
-    await onUpdate(transaction.id, {
+    const updates: Parameters<Props['onUpdate']>[1] = {
       date,
       merchantName: name.trim(),
-      description: description.trim() || undefined,
       amount: finalAmount,
       direction,
-      categoryId: direction === 'expense' ? (categoryId || undefined) : undefined,
-    })
+    }
+    if (description.trim()) updates.description = description.trim()
+    if (direction === 'expense' && categoryId) updates.categoryId = categoryId
+    if (direction === 'income') updates.categoryId = undefined
+    await onUpdate(transaction.id, updates)
     setSaving(false)
     onClose()
   }
@@ -65,47 +71,42 @@ function EditForm({ transaction, categories, onUpdate, onDelete, onClose }: {
           className={`flex-1 py-1.5 text-xs font-medium transition-colors ${direction === 'income' ? 'bg-green-500/20 text-green-400' : 'text-slate-400'}`}
         >הכנסה</button>
       </div>
-      <div>
-        <label className="text-xs text-slate-400 block mb-1">תאריך</label>
+      <FormField label="תאריך">
         <input
           type="date"
           value={date}
           onChange={e => setDate(e.target.value)}
           className="w-full bg-background rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 ring-accent"
         />
-      </div>
-      <div>
-        <label className="text-xs text-slate-400 block mb-1">שם עסק</label>
+      </FormField>
+      <FormField label="שם עסק" error={errors.name}>
         <input
           value={name}
-          onChange={e => setName(e.target.value)}
+          onChange={e => { setName(e.target.value); if (errors.name && e.target.value.trim()) setErrors(p => ({ ...p, name: undefined })) }}
           placeholder="שם עסק"
-          className="w-full bg-background rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 ring-accent"
+          className={`w-full bg-background rounded-lg px-3 py-2 text-sm outline-none ${errors.name ? 'ring-1 ring-red-500' : 'focus:ring-1 ring-accent'}`}
         />
-      </div>
-      <div>
-        <label className="text-xs text-slate-400 block mb-1">תיאור (אופציונלי)</label>
+      </FormField>
+      <FormField label="תיאור (אופציונלי)">
         <input
           value={description}
           onChange={e => setDescription(e.target.value)}
           placeholder="פרטים נוספים"
           className="w-full bg-background rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 ring-accent"
         />
-      </div>
-      <div>
-        <label className="text-xs text-slate-400 block mb-1">סכום (₪)</label>
+      </FormField>
+      <FormField label="סכום (₪)" error={errors.amount}>
         <input
           type="number"
           value={amount}
-          onChange={e => setAmount(e.target.value)}
+          onChange={e => { setAmount(e.target.value); if (errors.amount && parseFloat(e.target.value) > 0) setErrors(p => ({ ...p, amount: undefined })) }}
           step="0.01"
           min="0"
-          className="w-full bg-background rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 ring-accent tabular-nums"
+          className={`w-full bg-background rounded-lg px-3 py-2 text-sm outline-none tabular-nums ${errors.amount ? 'ring-1 ring-red-500' : 'focus:ring-1 ring-accent'}`}
         />
-      </div>
+      </FormField>
       {direction === 'expense' && (
-        <div>
-          <label className="text-xs text-slate-400 block mb-1">קטגוריה</label>
+        <FormField label="קטגוריה">
           <select
             value={categoryId}
             onChange={e => setCategoryId(e.target.value)}
@@ -116,7 +117,7 @@ function EditForm({ transaction, categories, onUpdate, onDelete, onClose }: {
               <option key={c.id} value={c.id}>{c.name}</option>
             ))}
           </select>
-        </div>
+        </FormField>
       )}
       <div className="flex gap-2 pt-1">
         <button
@@ -146,7 +147,7 @@ function DetailView({ transaction, categories, onEdit, onClose }: {
 }) {
   const [yyyy, mm, dd] = transaction.date.split('-')
   const categoryName = categories.find(c => c.id === transaction.categoryId)?.name
-  const { sign, abs, colorClass } = amountDisplay(transaction)
+  const { text, colorClass } = amountDisplay(transaction)
   const isIncome = transaction.direction === 'income'
   const isRefund = !isIncome && transaction.amount < 0
 
@@ -165,7 +166,7 @@ function DetailView({ transaction, categories, onEdit, onClose }: {
         </div>
         <div className="text-left">
           <div className={`text-base font-semibold tabular-nums ${colorClass}`} dir="ltr">
-            {sign}₪{abs.toLocaleString('he-IL')}
+            {text}
           </div>
           {isIncome ? (
             <div className="text-xs text-green-500/70 mt-0.5">הכנסה</div>
@@ -181,11 +182,11 @@ function DetailView({ transaction, categories, onEdit, onClose }: {
       {transaction.salaryDetails && (
         <div className="text-xs text-slate-500 mb-3 space-y-0.5" onClick={e => e.stopPropagation()}>
           <div className="flex justify-between"><span>ברוטו</span><span className="tabular-nums" dir="ltr">₪{transaction.salaryDetails.grossAmount.toLocaleString('he-IL')}</span></div>
-          {transaction.salaryDetails.deductions.incomeTax > 0 && <div className="flex justify-between"><span>מס הכנסה</span><span className="tabular-nums text-red-400/70" dir="ltr">-₪{transaction.salaryDetails.deductions.incomeTax.toLocaleString('he-IL')}</span></div>}
-          {transaction.salaryDetails.deductions.nationalInsurance > 0 && <div className="flex justify-between"><span>ביטוח לאומי</span><span className="tabular-nums text-red-400/70" dir="ltr">-₪{transaction.salaryDetails.deductions.nationalInsurance.toLocaleString('he-IL')}</span></div>}
-          {transaction.salaryDetails.deductions.healthInsurance > 0 && <div className="flex justify-between"><span>ביטוח בריאות</span><span className="tabular-nums text-red-400/70" dir="ltr">-₪{transaction.salaryDetails.deductions.healthInsurance.toLocaleString('he-IL')}</span></div>}
-          {transaction.salaryDetails.deductions.pension > 0 && <div className="flex justify-between"><span>פנסיה</span><span className="tabular-nums text-red-400/70" dir="ltr">-₪{transaction.salaryDetails.deductions.pension.toLocaleString('he-IL')}</span></div>}
-          {transaction.salaryDetails.deductions.trainingFund > 0 && <div className="flex justify-between"><span>קרן השתלמות</span><span className="tabular-nums text-red-400/70" dir="ltr">-₪{transaction.salaryDetails.deductions.trainingFund.toLocaleString('he-IL')}</span></div>}
+          {transaction.salaryDetails.deductions.incomeTax > 0 && <div className="flex justify-between"><span>מס הכנסה</span><span className="tabular-nums text-red-400/70" dir="ltr">₪-{transaction.salaryDetails.deductions.incomeTax.toLocaleString('he-IL')}</span></div>}
+          {transaction.salaryDetails.deductions.nationalInsurance > 0 && <div className="flex justify-between"><span>ביטוח לאומי</span><span className="tabular-nums text-red-400/70" dir="ltr">₪-{transaction.salaryDetails.deductions.nationalInsurance.toLocaleString('he-IL')}</span></div>}
+          {transaction.salaryDetails.deductions.healthInsurance > 0 && <div className="flex justify-between"><span>ביטוח בריאות</span><span className="tabular-nums text-red-400/70" dir="ltr">₪-{transaction.salaryDetails.deductions.healthInsurance.toLocaleString('he-IL')}</span></div>}
+          {transaction.salaryDetails.deductions.pension > 0 && <div className="flex justify-between"><span>פנסיה</span><span className="tabular-nums text-red-400/70" dir="ltr">₪-{transaction.salaryDetails.deductions.pension.toLocaleString('he-IL')}</span></div>}
+          {transaction.salaryDetails.deductions.trainingFund > 0 && <div className="flex justify-between"><span>קרן השתלמות</span><span className="tabular-nums text-red-400/70" dir="ltr">₪-{transaction.salaryDetails.deductions.trainingFund.toLocaleString('he-IL')}</span></div>}
           <div className="flex justify-between font-medium text-slate-400 border-t border-slate-800 pt-0.5 mt-0.5"><span>נטו</span><span className="tabular-nums text-green-400/80" dir="ltr">₪{transaction.salaryDetails.netAmount.toLocaleString('he-IL')}</span></div>
         </div>
       )}
@@ -204,7 +205,7 @@ export function TransactionRow({ transaction, categories, onCategoryChange: _onC
   const [, mm, dd] = transaction.date.split('-')
   const hasCategory = !!transaction.categoryId
   const isIncome = transaction.direction === 'income'
-  const { sign, abs, colorClass } = amountDisplay(transaction)
+  const { text, colorClass } = amountDisplay(transaction)
 
   if (mode === 'edit') {
     return (
@@ -239,7 +240,7 @@ export function TransactionRow({ transaction, categories, onCategoryChange: _onC
         {transaction.merchantName}
       </span>
       <span className={`text-sm tabular-nums flex-shrink-0 ${colorClass}`} dir="ltr">
-        {sign}₪{abs.toLocaleString('he-IL')}
+        {text}
       </span>
     </div>
   )
