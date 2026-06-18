@@ -32,13 +32,14 @@ export async function getAllSalaryEntries(): Promise<SalaryEntry[]> {
   return snap.docs.map(d => ({ id: d.id, ...d.data() } as SalaryEntry))
 }
 
-export async function upsertSalaryEntry(entry: Omit<SalaryEntry, 'id'> & { id?: string }): Promise<void> {
+export async function upsertSalaryEntry(entry: Omit<SalaryEntry, 'id'> & { id?: string }): Promise<SalaryEntry> {
   const { id, ...data } = entry
   const docRef = id
     ? doc(getDb(), 'salary_entries', id)
     : doc(collection(getDb(), 'salary_entries'))
   await setDoc(docRef, data, { merge: true })
   appCache.del(`salary:${data.month}`)
+  return { id: docRef.id, ...data } as SalaryEntry
 }
 
 export async function getSalaryEntries(month: string): Promise<SalaryEntry[]> {

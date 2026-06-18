@@ -138,7 +138,7 @@ export function SalaryFlow({ month, existingEntries, bankAccounts, previousSalar
         deductions: form.deductions,
         netAmount,
       }
-      await upsertSalaryEntry(form.entryId ? { ...entryData, id: form.entryId } : entryData)
+      const saved = await upsertSalaryEntry(form.entryId ? { ...entryData, id: form.entryId } : entryData)
       // Only create a transaction for new entries — editing leaves existing transaction intact
       if (!form.entryId) {
         await addTransactions([{
@@ -154,8 +154,7 @@ export function SalaryFlow({ month, existingEntries, bankAccounts, previousSalar
           salaryDetails: { grossAmount: form.grossAmount, deductions: form.deductions, netAmount, employerName: form.employerName },
         }])
       }
-      const updated: SalaryEntry = { id: form.entryId ?? `tmp-${Date.now()}`, ...entryData }
-      setEntries(prev => form.entryId ? prev.map(e => e.id === form.entryId ? updated : e) : [...prev, updated])
+      setEntries(prev => form.entryId ? prev.map(e => e.id === form.entryId ? saved : e) : [...prev, saved])
       setForm(null)
     } catch {
       setError('שגיאה בשמירה. נסה שוב.')
@@ -170,6 +169,8 @@ export function SalaryFlow({ month, existingEntries, bankAccounts, previousSalar
     try {
       await deleteSalaryEntry(id)
       setEntries(prev => prev.filter(e => e.id !== id))
+    } catch {
+      setError('שגיאה במחיקה. נסה שוב.')
     } finally {
       setSaving(false)
     }
