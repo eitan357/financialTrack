@@ -9,8 +9,15 @@ jest.mock('@/lib/firestore/salary', () => ({
 jest.mock('@/lib/firestore/transactions', () => ({
   addTransactions: jest.fn().mockResolvedValue(undefined),
   updateTransaction: jest.fn().mockResolvedValue(undefined),
+  deleteTransaction: jest.fn().mockResolvedValue(undefined),
 }))
 jest.mock('@/lib/firebase/config', () => ({ app: {} }))
+jest.mock('firebase/firestore', () => ({
+  getFirestore: jest.fn().mockReturnValue({}),
+  collection: jest.fn().mockReturnValue({}),
+  doc: jest.fn().mockReturnValue({ id: 'tx-mock-id' }),
+  setDoc: jest.fn().mockResolvedValue(undefined),
+}))
 
 const bankAccounts: Account[] = [
   { id: 'bank1', name: 'לאומי', type: 'bank', color: '#00f', isActive: true },

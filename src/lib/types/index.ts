@@ -83,6 +83,7 @@ export interface SalaryEntry {
   deductions: SalaryDeductions
   netAmount: number
   notes?: string
+  salaryTxId?: string // linked income transaction ID
 }
 
 export interface IncomeEntry {

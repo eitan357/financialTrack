@@ -1,8 +1,10 @@
 'use client'
 import { useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
+import { getFirestore, collection, doc, setDoc } from 'firebase/firestore'
+import { app } from '@/lib/firebase/config'
 import { upsertSalaryEntry, deleteSalaryEntry } from '@/lib/firestore/salary'
-import { addTransactions } from '@/lib/firestore/transactions'
+import { updateTransaction, deleteTransaction } from '@/lib/firestore/transactions'
 import type { SalaryEntry, SalaryDeductions, Account } from '@/lib/types'
 
 const EMPTY_DEDUCTIONS: SalaryDeductions = { incomeTax: 0, nationalInsurance: 0, healthInsurance: 0, pension: 0, trainingFund: 0 }
@@ -22,6 +24,7 @@ interface Props {
 
 interface SalaryFormState {
   entryId?: string
+  salaryTxId?: string
   employerName: string
   grossAmount: number
   deductions: SalaryDeductions
@@ -31,6 +34,7 @@ interface SalaryFormState {
 function entryToForm(entry: SalaryEntry, defaultBankId: string): SalaryFormState {
   return {
     entryId: entry.id,
+    salaryTxId: entry.salaryTxId,
     employerName: entry.employerName,
     grossAmount: entry.grossAmount,
     deductions: entry.deductions,
@@ -138,23 +142,37 @@ export function SalaryFlow({ month, existingEntries, bankAccounts, previousSalar
         deductions: form.deductions,
         netAmount,
       }
-      const saved = await upsertSalaryEntry(form.entryId ? { ...entryData, id: form.entryId } : entryData)
-      // Only create a transaction for new entries — editing leaves existing transaction intact
-      if (!form.entryId) {
-        await addTransactions([{
+
+      if (form.entryId) {
+        // Edit: update salary entry, then sync the linked transaction if we have its ID
+        const saved = await upsertSalaryEntry({ ...entryData, id: form.entryId, salaryTxId: form.salaryTxId })
+        if (form.salaryTxId) {
+          await updateTransaction(form.salaryTxId, {
+            merchantName: form.employerName || 'משכורת',
+            amount: netAmount,
+            salaryDetails: { grossAmount: form.grossAmount, deductions: form.deductions, netAmount, employerName: form.employerName },
+          })
+        }
+        setEntries(prev => prev.map(e => e.id === form.entryId ? saved : e))
+      } else {
+        // New entry: create transaction first to capture its ID, then save salary entry with that ID
+        const db = getFirestore(app)
+        const txRef = doc(collection(db, 'transactions'))
+        await setDoc(txRef, {
           date: `${month}-01`,
           merchantName: form.employerName || 'משכורת',
           amount: netAmount,
           currency: 'ILS',
           accountId: form.bankAccountId || defaultBankId,
-          source: 'manual' as const,
+          source: 'manual',
           isImmediate: true,
           month,
-          direction: 'income' as const,
+          direction: 'income',
           salaryDetails: { grossAmount: form.grossAmount, deductions: form.deductions, netAmount, employerName: form.employerName },
-        }])
+        })
+        const saved = await upsertSalaryEntry({ ...entryData, salaryTxId: txRef.id })
+        setEntries(prev => [...prev, saved])
       }
-      setEntries(prev => form.entryId ? prev.map(e => e.id === form.entryId ? saved : e) : [...prev, saved])
       setForm(null)
     } catch {
       setError('שגיאה בשמירה. נסה שוב.')
@@ -167,7 +185,11 @@ export function SalaryFlow({ month, existingEntries, bankAccounts, previousSalar
     if (!window.confirm('למחוק משכורת זו?')) return
     setSaving(true)
     try {
+      const entry = entries.find(e => e.id === id)
       await deleteSalaryEntry(id)
+      if (entry?.salaryTxId) {
+        await deleteTransaction(entry.salaryTxId)
+      }
       setEntries(prev => prev.filter(e => e.id !== id))
     } catch {
       setError('שגיאה במחיקה. נסה שוב.')
