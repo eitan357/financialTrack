@@ -1,4 +1,4 @@
-import type { Transaction, SalaryEntry, IncomeEntry, Dividend, InvestmentEntry, Category, MonthlySettings } from '../types'
+import type { Transaction, SalaryEntry, Dividend, InvestmentEntry, Category, MonthlySettings } from '../types'
 
 export interface CategorySummary {
   id: string
@@ -20,7 +20,6 @@ export interface DashboardSummary {
 export interface DashboardInput {
   transactions: Transaction[]
   salaryEntry: SalaryEntry | null
-  incomeEntries: IncomeEntry[]
   dividends: Dividend[]
   investmentEntries: InvestmentEntry[]
   categories: Category[]
@@ -28,13 +27,15 @@ export interface DashboardInput {
 }
 
 export function computeDashboard(input: DashboardInput): DashboardSummary {
-  const { transactions, salaryEntry, incomeEntries, dividends, investmentEntries, categories, monthlySettings } = input
+  const { transactions, salaryEntry, dividends, investmentEntries, categories, monthlySettings } = input
 
   const salaryNet = salaryEntry?.netAmount ?? 0
-  const incomeTotal = incomeEntries.reduce((s, e) => s + e.amount, 0)
   const dividendTotal = dividends.reduce((s, d) => s + (d.ilsEquivalent ?? 0), 0)
-  const txIncomeTotal = transactions.filter(t => t.direction === 'income').reduce((s, t) => s + t.amount, 0)
-  const totalIncome = salaryNet + incomeTotal + dividendTotal + txIncomeTotal
+  // Exclude salary transactions — already counted via salaryEntry.netAmount
+  const txIncomeTotal = transactions
+    .filter(t => t.direction === 'income' && !t.salaryDetails)
+    .reduce((s, t) => s + t.amount, 0)
+  const totalIncome = salaryNet + dividendTotal + txIncomeTotal
 
   const totalExpenses = transactions.filter(t => t.direction !== 'income').reduce((s, t) => s + t.amount, 0)
   const totalSavings = totalIncome - totalExpenses

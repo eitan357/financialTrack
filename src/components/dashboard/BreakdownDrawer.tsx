@@ -1,12 +1,11 @@
 'use client'
-import type { Transaction, SalaryEntry, IncomeEntry, Dividend, InvestmentEntry, InvestmentType, Category, Account } from '@/lib/types'
+import type { Transaction, SalaryEntry, Dividend, InvestmentEntry, InvestmentType, Category, Account } from '@/lib/types'
 
 export type DrawerData =
   | {
       type: 'income'
       total: number
       salary: SalaryEntry | null
-      incomeEntries: IncomeEntry[]
       dividends: Dividend[]
       incomeTransactions: Transaction[]
     }
@@ -90,9 +89,8 @@ function Row({ label, sub, right }: { label: string; sub?: string; right: React.
 }
 
 function IncomeBreakdown({ data }: { data: Extract<DrawerData, { type: 'income' }> }) {
-  const { salary, incomeEntries, dividends, incomeTransactions } = data
+  const { salary, dividends, incomeTransactions } = data
   const hasSalary = !!salary
-  const hasExtra = incomeEntries.length > 0
   const hasDivs = dividends.some(d => d.ilsEquivalent)
   const hasBankIncome = incomeTransactions.length > 0
 
@@ -109,15 +107,6 @@ function IncomeBreakdown({ data }: { data: Extract<DrawerData, { type: 'income' 
           )}
           <Row label="נטו"
             right={<span className="font-bold text-green-400">{fmtIls(salary!.netAmount)}</span>} />
-        </SectionBlock>
-      )}
-
-      {hasExtra && (
-        <SectionBlock title="הכנסות נוספות" total={incomeEntries.reduce((s, e) => s + e.amount, 0)}>
-          {incomeEntries.map(e => (
-            <Row key={e.id} label={e.sourceName} sub={formatDate(e.date)}
-              right={<span className="text-green-400">{fmtIls(e.amount)}</span>} />
-          ))}
         </SectionBlock>
       )}
 
@@ -140,7 +129,7 @@ function IncomeBreakdown({ data }: { data: Extract<DrawerData, { type: 'income' 
         </SectionBlock>
       )}
 
-      {!hasSalary && !hasExtra && !hasDivs && !hasBankIncome && (
+      {!hasSalary && !hasDivs && !hasBankIncome && (
         <p className="text-slate-500 text-sm text-center py-8">אין נתוני הכנסה לחודש זה</p>
       )}
     </div>

@@ -1,3 +1,8 @@
+jest.mock('@/lib/firestore/bank-reconciliations', () => ({
+  saveBankReconciliation: jest.fn(),
+}))
+jest.mock('@/lib/firebase/config', () => ({ app: {} }))
+
 import { render, screen } from '@testing-library/react'
 import { BankReconciliationCard } from './BankReconciliationCard'
 import type { Account, Transaction, BankReconciliation } from '@/lib/types'
@@ -44,20 +49,22 @@ describe('BankReconciliationCard', () => {
       // transactions are empty → net = 0 → expected = 10000, actual = 12500 → mismatch
     })} />)
     // 12500 actual vs 10000 expected → gap of 2500
-    expect(screen.getByText('פער')).toBeInTheDocument()
-    expect(screen.getByText(/2,500\.00/)).toBeInTheDocument()
+    const gapLabel = screen.getByText('פער')
+    expect(gapLabel).toBeInTheDocument()
+    expect(gapLabel.parentElement).toHaveTextContent(/2,500\.00/)
   })
 
   it('shows exact 2-decimal precision for gap', () => {
-    const precRec: BankReconciliation = { ...rec, actualBalance: 12500.01 }
-    const prevPrecRec: BankReconciliation = { ...prevRec, actualBalance: 12500.00 }
+    const precRec: BankReconciliation = { ...rec, actualBalance: 12345.56 }
+    const prevPrecRec: BankReconciliation = { ...prevRec, actualBalance: 12345.55 }
     render(<BankReconciliationCard {...makeProps({
       reconciliations: [precRec],
       prevReconciliations: [prevPrecRec],
     })} />)
-    // net = 0, expected = 12500.00, actual = 12500.01 → gap 0.01 → mismatch
-    expect(screen.getByText('פער')).toBeInTheDocument()
-    expect(screen.getByText(/0\.01/)).toBeInTheDocument()
+    // net = 0, expected = 12345.55, actual = 12345.56 → gap 0.01 → mismatch
+    const gapLabel = screen.getByText('פער')
+    expect(gapLabel).toBeInTheDocument()
+    expect(gapLabel.parentElement).toHaveTextContent(/0\.01/)
   })
 
   it('shows תואם when actual matches expected exactly', () => {
@@ -82,7 +89,8 @@ describe('BankReconciliationCard', () => {
       prevReconciliations: [prevRec],
       transactions: [tx],
     })} />)
-    expect(screen.getByText('פער')).toBeInTheDocument()
-    expect(screen.getByText(/-2,500\.00/)).toBeInTheDocument()
+    const gapLabel = screen.getByText('פער')
+    expect(gapLabel).toBeInTheDocument()
+    expect(gapLabel.parentElement).toHaveTextContent(/-2,500\.00/)
   })
 })

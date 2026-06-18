@@ -5,7 +5,6 @@ function emptyInput(): DashboardInput {
   return {
     transactions: [],
     salaryEntry: null,
-    incomeEntries: [],
     dividends: [],
     investmentEntries: [],
     categories: [],
@@ -24,12 +23,12 @@ describe('computeDashboard', () => {
     expect(result.uncategorizedTotal).toBe(0)
   })
 
-  it('computes totalIncome from salary net + income entries + dividend ILS equivalent', () => {
+  it('computes totalIncome from salary net + non-salary income transactions + dividends', () => {
     const input: DashboardInput = {
       ...emptyInput(),
       salaryEntry: { id: 's1', month: '2026-06', employerName: 'חברה', grossAmount: 15000, deductions: { incomeTax: 2000, nationalInsurance: 500, healthInsurance: 100, pension: 1500, trainingFund: 750 }, netAmount: 10150 },
-      incomeEntries: [
-        { id: 'i1', month: '2026-06', sourceName: 'מילואים', amount: 3000, currency: 'ILS', date: '2026-06-15' },
+      transactions: [
+        { id: 't1', date: '2026-06-15', merchantName: 'מילואים', amount: 3000, currency: 'ILS', accountId: 'a1', source: 'manual', isImmediate: false, month: '2026-06', direction: 'income' },
       ],
       dividends: [
         { id: 'd1', month: '2026-06', investmentTypeId: 'msty', amount: 100, currency: 'USD', ilsEquivalent: 370, date: '2026-06-01' },

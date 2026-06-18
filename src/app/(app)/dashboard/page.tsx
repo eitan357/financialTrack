@@ -17,7 +17,7 @@ import { CategoryProgress } from '@/components/dashboard/CategoryProgress'
 import { BankReconciliationCard } from '@/components/dashboard/BankReconciliationCard'
 import { DividendsCard } from '@/components/dashboard/DividendsCard'
 import { BreakdownDrawer } from '@/components/dashboard/BreakdownDrawer'
-import type { BankReconciliation, Dividend, InvestmentType, Transaction, SalaryEntry, IncomeEntry, InvestmentEntry, Category, Account } from '@/lib/types'
+import type { BankReconciliation, Dividend, InvestmentType, Transaction, SalaryEntry, InvestmentEntry, Category, Account } from '@/lib/types'
 import type { DashboardSummary } from '@/lib/dashboard/compute'
 import type { DrawerData } from '@/components/dashboard/BreakdownDrawer'
 
@@ -29,7 +29,6 @@ function prevMonth(month: string): string {
 interface RawData {
   transactions: Transaction[]
   salary: SalaryEntry | null
-  incomeEntries: IncomeEntry[]
   investmentEntries: InvestmentEntry[]
   categories: Category[]
   accounts: Account[]
@@ -67,10 +66,10 @@ export default function DashboardPage() {
           getAccounts(),
         ])
         setSummary(computeDashboard({
-          transactions: txs, salaryEntry: salary, incomeEntries: income,
+          transactions: txs, salaryEntry: salary,
           dividends: divs, investmentEntries: invEntries, categories: cats, monthlySettings: settings,
         }))
-        setRawData({ transactions: txs, salary, incomeEntries: income, investmentEntries: invEntries, categories: cats, accounts: accs })
+        setRawData({ transactions: txs, salary, investmentEntries: invEntries, categories: cats, accounts: accs })
         setReconciliations(recs)
         setPrevReconciliations(prevRecs)
         setDividends(divs)
@@ -91,9 +90,8 @@ export default function DashboardPage() {
       type: 'income',
       total: summary.totalIncome,
       salary: rawData.salary,
-      incomeEntries: rawData.incomeEntries,
       dividends,
-      incomeTransactions: rawData.transactions.filter(t => t.direction === 'income'),
+      incomeTransactions: rawData.transactions.filter(t => t.direction === 'income' && !t.salaryDetails),
     })
   }
 
