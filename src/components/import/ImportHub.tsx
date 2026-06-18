@@ -46,6 +46,7 @@ function txCount(txs: Transaction[], accountId: string) {
 export function ImportHub() {
   const [month, setMonth] = usePersistedMonth()
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [accounts, setAccounts] = useState<Account[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [rules, setRules] = useState<CategorizationRule[]>([])
@@ -63,6 +64,7 @@ export function ImportHub() {
 
   useEffect(() => {
     setLoading(true)
+    setError(null)
     setActiveFlow(null)
     async function init() {
       try {
@@ -78,6 +80,8 @@ export function ImportHub() {
         setRules(rls)
         if (prevSal) { const { id: _salId, ...rest } = prevSal; setPreviousSalary(rest) }
         await loadStatus(month)
+      } catch {
+        setError('שגיאה בטעינת הנתונים.')
       } finally {
         setLoading(false)
       }
@@ -87,7 +91,7 @@ export function ImportHub() {
 
   function handleFlowDone() {
     setActiveFlow(null)
-    loadStatus(month)
+    loadStatus(month).catch(() => setError('שגיאה בטעינת הנתונים.'))
   }
 
   const creditAccounts = accounts.filter(a => a.type === 'credit' && a.isActive)
@@ -105,10 +109,19 @@ export function ImportHub() {
     )
   }
 
+  if (error) {
+    return (
+      <main className="p-4 max-w-lg mx-auto">
+        <p className="text-red-400 text-sm">{error}</p>
+      </main>
+    )
+  }
+
   // Render active flow
   if (activeFlow) {
     if (activeFlow.type === 'credit') {
-      const account = accounts.find(a => a.id === activeFlow.accountId)!
+      const account = accounts.find(a => a.id === activeFlow.accountId)
+      if (!account) { setActiveFlow(null); return null }
       return (
         <main className="p-4 max-w-lg mx-auto">
           <CreditFlow
@@ -126,7 +139,8 @@ export function ImportHub() {
       )
     }
     if (activeFlow.type === 'bank') {
-      const account = accounts.find(a => a.id === activeFlow.accountId)!
+      const account = accounts.find(a => a.id === activeFlow.accountId)
+      if (!account) { setActiveFlow(null); return null }
       return (
         <main className="p-4 max-w-lg mx-auto">
           <BankFlow
