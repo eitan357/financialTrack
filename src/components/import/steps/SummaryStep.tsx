@@ -32,7 +32,7 @@ function toTx(t: ImportedTransaction, accountId: string, month: string, source: 
   return {
     date: t.date, merchantName: t.merchantName, description: t.notes || undefined,
     amount: t.amount, currency: t.currency, accountId,
-    categoryId: t.categoryId ?? undefined, source, isImmediate: t.isImmediate, month,
+    categoryId: t.categoryId ?? undefined, source, isImmediate: t.isImmediate, month, direction: t.direction,
   }
 }
 
@@ -51,7 +51,7 @@ export function SummaryStep({ month, data, cashAccountId, onDone }: Props) {
         ...data.cashExpenses.map(e => ({
           date: e.date, merchantName: e.description, amount: e.amount, currency: 'ILS',
           accountId: cashAccountId, categoryId: e.categoryId ?? undefined,
-          source: 'manual' as TransactionSource, isImmediate: true, month,
+          source: 'manual' as TransactionSource, isImmediate: true, month, direction: 'expense' as const,
         })),
       ]
       if (data.salary && data.salaryAccountId) {
