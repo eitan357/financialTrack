@@ -142,7 +142,7 @@ export default function DashboardPage() {
             <SummaryCard label="הכנסות" amount={summary.totalIncome} color="text-green-400" onClick={openIncome} />
             <SummaryCard label="הוצאות" amount={summary.totalExpenses} color="text-red-400" onClick={openExpenses} />
             <SummaryCard label="חיסכון" amount={summary.totalSavings} />
-            <SummaryCard label="להשקעות" amount={summary.totalInvestments} color="text-accent" onClick={openInvestments} />
+            <SummaryCard label="השקעות" amount={summary.totalInvestments} color="text-accent" onClick={openInvestments} />
           </div>
           <CategoryProgress categories={summary.categoryTotals} onClick={openCategoryBreakdown} />
           <BankReconciliationCard
