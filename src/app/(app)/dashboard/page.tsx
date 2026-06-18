@@ -21,6 +21,11 @@ import type { BankReconciliation, Dividend, InvestmentType, Transaction, SalaryE
 import type { DashboardSummary } from '@/lib/dashboard/compute'
 import type { DrawerData } from '@/components/dashboard/BreakdownDrawer'
 
+function prevMonth(month: string): string {
+  const [y, m] = month.split('-').map(Number)
+  return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, '0')}`
+}
+
 interface RawData {
   transactions: Transaction[]
   salary: SalaryEntry | null
@@ -36,7 +41,8 @@ export default function DashboardPage() {
   const [error, setError] = useState<string | null>(null)
   const [summary, setSummary] = useState<DashboardSummary | null>(null)
   const [rawData, setRawData] = useState<RawData | null>(null)
-  const [reconciliation, setReconciliation] = useState<BankReconciliation | null>(null)
+  const [reconciliations, setReconciliations] = useState<BankReconciliation[]>([])
+  const [prevReconciliations, setPrevReconciliations] = useState<BankReconciliation[]>([])
   const [dividends, setDividends] = useState<Dividend[]>([])
   const [investmentTypes, setInvestmentTypes] = useState<InvestmentType[]>([])
   const [drawer, setDrawer] = useState<DrawerData | null>(null)
@@ -47,7 +53,7 @@ export default function DashboardPage() {
     setDrawer(null)
     async function load() {
       try {
-        const [txs, salary, income, divs, invEntries, invTypes, recs, cats, settings, accs] = await Promise.all([
+        const [txs, salary, income, divs, invEntries, invTypes, recs, prevRecs, cats, settings, accs] = await Promise.all([
           getTransactions(month),
           getSalaryEntry(month),
           getIncomeEntries(month),
@@ -55,6 +61,7 @@ export default function DashboardPage() {
           getInvestmentEntries(month),
           getInvestmentTypes(),
           getBankReconciliations(month),
+          getBankReconciliations(prevMonth(month)),
           getCategories(),
           getMonthlySettings(month),
           getAccounts(),
@@ -64,7 +71,8 @@ export default function DashboardPage() {
           dividends: divs, investmentEntries: invEntries, categories: cats, monthlySettings: settings,
         }))
         setRawData({ transactions: txs, salary, incomeEntries: income, investmentEntries: invEntries, categories: cats, accounts: accs })
-        setReconciliation(recs[0] ?? null)
+        setReconciliations(recs)
+        setPrevReconciliations(prevRecs)
         setDividends(divs)
         setInvestmentTypes(invTypes)
       } catch (e) {
@@ -139,7 +147,17 @@ export default function DashboardPage() {
             <SummaryCard label="להשקעות" amount={summary.totalInvestments} color="text-accent" onClick={openInvestments} />
           </div>
           <CategoryProgress categories={summary.categoryTotals} onClick={openCategoryBreakdown} />
-          <BankReconciliationCard reconciliation={reconciliation} />
+          <BankReconciliationCard
+            accounts={rawData?.accounts ?? []}
+            transactions={rawData?.transactions ?? []}
+            reconciliations={reconciliations}
+            prevReconciliations={prevReconciliations}
+            month={month}
+            onSaved={saved => setReconciliations(prev => {
+              const without = prev.filter(r => r.accountId !== saved.accountId)
+              return [...without, saved]
+            })}
+          />
           <DividendsCard dividends={dividends} investmentTypes={investmentTypes} />
         </div>
       )}

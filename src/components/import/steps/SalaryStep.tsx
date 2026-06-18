@@ -27,6 +27,7 @@ export function SalaryStep({ month, initialSalary, bankAccounts, onComplete, onS
   const [deductions, setDeductions] = useState<SalaryDeductions>(initialSalary?.deductions ?? EMPTY_DEDUCTIONS)
   const [bankAccountId, setBankAccountId] = useState<string>(bankAccounts[0]?.id ?? '')
   const [grossError, setGrossError] = useState<string | null>(null)
+  const [bankError, setBankError] = useState<string | null>(null)
 
   const totalDeductions = Object.values(deductions).reduce((s, v) => s + v, 0)
   const netAmount = Math.max(0, grossAmount - totalDeductions)
@@ -37,7 +38,9 @@ export function SalaryStep({ month, initialSalary, bankAccounts, onComplete, onS
 
   function handleComplete() {
     if (!grossAmount || grossAmount <= 0) { setGrossError('יש להזין סכום ברוטו חיובי'); return }
+    if (bankAccounts.length > 0 && !bankAccountId) { setBankError('יש לבחור חשבון בנק'); return }
     setGrossError(null)
+    setBankError(null)
     onComplete({ month, employerName, grossAmount, deductions, netAmount }, bankAccountId || null)
   }
 
@@ -82,16 +85,15 @@ export function SalaryStep({ month, initialSalary, bankAccounts, onComplete, onS
         {bankAccounts.length > 0 && (
           <div>
             <label htmlFor="bank-account" className="block text-sm text-slate-400 mb-1">
-              חשבון בנק שהמשכורת נכנסה אליו
+              חשבון בנק שהמשכורת נכנסה אליו *
             </label>
-            <select id="bank-account" value={bankAccountId} onChange={e => setBankAccountId(e.target.value)}
-              className="w-full bg-surface text-foreground text-sm rounded-lg px-3 py-2 outline-none focus:ring-1 ring-accent">
-              <option value="">— לא ליצור עסקה —</option>
+            <select id="bank-account" value={bankAccountId} onChange={e => { setBankAccountId(e.target.value); if (bankError) setBankError(null) }}
+              className={`w-full bg-surface text-foreground text-sm rounded-lg px-3 py-2 outline-none focus:ring-1 ring-accent ${bankError ? 'ring-1 ring-red-500' : ''}`}>
               {bankAccounts.map(a => (
                 <option key={a.id} value={a.id}>{a.name}</option>
               ))}
             </select>
-            <p className="text-xs text-slate-500 mt-1">בחירת חשבון תיצור עסקת הכנסה אוטומטית</p>
+            {bankError && <p className="text-xs text-red-400 mt-1">{bankError}</p>}
           </div>
         )}
       </div>

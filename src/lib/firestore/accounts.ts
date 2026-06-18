@@ -1,10 +1,10 @@
 import {
   getFirestore, collection, getDocs, addDoc, doc, updateDoc, setDoc,
-  query, where, writeBatch, runTransaction,
+  query, where, writeBatch, runTransaction, arrayUnion,
 } from 'firebase/firestore'
 import { app } from '../firebase/config'
 import { appCache } from '../cache'
-import type { Account } from '../types'
+import type { Account, LinkedBankSnapshot } from '../types'
 
 const CACHE_KEY = 'accounts'
 
@@ -31,6 +31,18 @@ export async function addAccount(account: Omit<Account, 'id'>): Promise<Account>
 export async function updateAccount(id: string, updates: Partial<Omit<Account, 'id'>>): Promise<void> {
   appCache.del(CACHE_KEY)
   await updateDoc(doc(getDb(), 'accounts', id), updates)
+}
+
+// Appends a snapshot to linkedBankHistory using arrayUnion (non-destructive).
+// Also updates the "current" convenience fields so existing code that reads
+// linkedBankAccountId / creditPaymentDay still works.
+export async function appendLinkedBankSnapshot(id: string, snapshot: LinkedBankSnapshot): Promise<void> {
+  appCache.del(CACHE_KEY)
+  await updateDoc(doc(getDb(), 'accounts', id), {
+    linkedBankAccountId: snapshot.bankId,
+    ...(snapshot.paymentDay !== undefined ? { creditPaymentDay: snapshot.paymentDay } : {}),
+    linkedBankHistory: arrayUnion(snapshot),
+  })
 }
 
 const DEFAULT_ACCOUNTS: Omit<Account, 'id'>[] = [

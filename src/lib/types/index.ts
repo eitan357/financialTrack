@@ -1,5 +1,13 @@
 export type AccountType = 'credit' | 'bank' | 'cash'
 
+// One entry per "era" of credit card → bank linkage.
+// fromMonth is inclusive; the latest entry with fromMonth <= currentMonth wins.
+export interface LinkedBankSnapshot {
+  bankId: string
+  paymentDay?: number
+  fromMonth: string // 'YYYY-MM'
+}
+
 export interface Account {
   id: string
   name: string
@@ -9,8 +17,9 @@ export interface Account {
   isActive: boolean
   csvIdentifier?: string // keyword to search in CSV file to auto-detect this card's section
   sortOrder?: number
-  linkedBankAccountId?: string // credit only: which bank account pays this credit card
-  creditPaymentDay?: number    // credit only: day of month the bank pays (1-28)
+  linkedBankAccountId?: string  // credit only: current (latest) linked bank
+  creditPaymentDay?: number     // credit only: current (latest) payment day
+  linkedBankHistory?: LinkedBankSnapshot[] // credit only: full history for non-retroactive changes
 }
 
 export interface Category {
@@ -128,7 +137,6 @@ export interface BankReconciliation {
   month: string // YYYY-MM
   accountId: string
   actualBalance: number
-  expectedBalance: number
   date: string // ISO date string
   notes?: string
 }

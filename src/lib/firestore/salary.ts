@@ -27,6 +27,11 @@ export async function deleteAllSalaryEntries(): Promise<number> {
   return snap.size
 }
 
+export async function getAllSalaryEntries(): Promise<SalaryEntry[]> {
+  const snap = await getDocs(collection(getDb(), 'salary_entries'))
+  return snap.docs.map(d => ({ id: d.id, ...d.data() } as SalaryEntry))
+}
+
 export async function upsertSalaryEntry(entry: Omit<SalaryEntry, 'id'> & { id?: string }): Promise<void> {
   const { id, ...data } = entry
   const docRef = id

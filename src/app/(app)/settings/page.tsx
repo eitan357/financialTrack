@@ -1,8 +1,12 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { getAccounts, addAccount, updateAccount, cleanupDuplicateAccounts } from '@/lib/firestore/accounts'
-import { getCategories, addCategory, updateCategory, cleanupDuplicateCategories } from '@/lib/firestore/categories'
+import { getAccounts, addAccount, cleanupDuplicateAccounts } from '@/lib/firestore/accounts'
+import { getCategories, addCategory, cleanupDuplicateCategories } from '@/lib/firestore/categories'
 import { getRules, addRule, deleteRule } from '@/lib/firestore/categorization-rules'
+import {
+  updateAccountMeta, setAccountActive, reorderAccounts, updateCreditLinkage,
+  updateCategoryMeta, setCategoryActive, reorderCategories,
+} from '@/lib/settings-mutations'
 import type { Account, AccountType, Category, CategorizationRule, MatchType } from '@/lib/types'
 
 type Tab = 'accounts' | 'categories' | 'rules' | 'maintenance'
@@ -71,12 +75,15 @@ function AccountForm({ initial, bankAccounts, onSubmit, onCancel }: {
       <div className="flex gap-3">
         <div className="flex-1">
           <label className="text-xs text-slate-400 block mb-1">סוג</label>
-          <select value={type} onChange={e => { setType(e.target.value as AccountType); setLinkedBankError(null) }}
-            className="w-full bg-background rounded-lg px-3 py-2 text-sm outline-none">
+          <select value={type}
+            onChange={e => { setType(e.target.value as AccountType); setLinkedBankError(null) }}
+            disabled={!!initial}
+            className={`w-full bg-background rounded-lg px-3 py-2 text-sm outline-none ${initial ? 'opacity-50 cursor-not-allowed' : ''}`}>
             <option value="credit">אשראי</option>
             <option value="bank">בנק</option>
             <option value="cash">מזומן</option>
           </select>
+          {initial && <p className="text-xs text-slate-500 mt-1">לא ניתן לשנות סוג חשבון קיים</p>}
         </div>
         <div>
           <label className="text-xs text-slate-400 block mb-1">צבע</label>
@@ -148,13 +155,28 @@ function AccountsSection() {
   }
 
   async function handleUpdate(id: string, data: Omit<Account, 'id'>) {
-    await updateAccount(id, data)
+    const existing = accounts.find(a => a.id === id)
+    // Cosmetic fields go through updateAccountMeta (safe for all account types)
+    await updateAccountMeta(id, {
+      name: data.name,
+      color: data.color,
+      last4digits: data.last4digits,
+      csvIdentifier: data.csvIdentifier,
+    })
+    // Credit linkage goes through updateCreditLinkage (non-retroactive history append)
+    if (data.type === 'credit' && data.linkedBankAccountId) {
+      const bankChanged = data.linkedBankAccountId !== existing?.linkedBankAccountId
+      const dayChanged = data.creditPaymentDay !== existing?.creditPaymentDay
+      if (bankChanged || dayChanged || !existing?.linkedBankHistory?.length) {
+        await updateCreditLinkage(id, data.linkedBankAccountId, data.creditPaymentDay)
+      }
+    }
     setAccounts(prev => prev.map(a => a.id === id ? { ...a, ...data } : a))
     setEditId(null)
   }
 
   async function handleToggle(acc: Account) {
-    await updateAccount(acc.id, { isActive: !acc.isActive })
+    await setAccountActive(acc.id, !acc.isActive)
     setAccounts(prev => prev.map(a => a.id === acc.id ? { ...a, isActive: !a.isActive } : a))
   }
 
@@ -165,7 +187,7 @@ function AccountsSection() {
     if (newIdx < 0 || newIdx >= active.length) return
     const updated = [...active]
     ;[updated[idx], updated[newIdx]] = [updated[newIdx], updated[idx]]
-    await Promise.all(updated.map((a, i) => updateAccount(a.id, { sortOrder: i })))
+    await reorderAccounts(updated.map((a, i) => ({ id: a.id, sortOrder: i })))
     setAccounts(prev => {
       const inactive = prev.filter(a => !a.isActive)
       return [...updated.map((a, i) => ({ ...a, sortOrder: i })), ...inactive]
@@ -298,13 +320,13 @@ function CategoriesSection() {
   }
 
   async function handleUpdate(id: string, data: Omit<Category, 'id'>) {
-    await updateCategory(id, data)
+    await updateCategoryMeta(id, { name: data.name, color: data.color })
     setCategories(prev => prev.map(c => c.id === id ? { ...c, ...data } : c))
     setEditId(null)
   }
 
   async function handleToggle(cat: Category) {
-    await updateCategory(cat.id, { isActive: !cat.isActive })
+    await setCategoryActive(cat.id, !cat.isActive)
     setCategories(prev => prev.map(c => c.id === cat.id ? { ...c, isActive: !c.isActive } : c))
   }
 
@@ -315,7 +337,7 @@ function CategoriesSection() {
     if (newIdx < 0 || newIdx >= activeList.length) return
     const updated = [...activeList]
     ;[updated[idx], updated[newIdx]] = [updated[newIdx], updated[idx]]
-    await Promise.all(updated.map((c, i) => updateCategory(c.id, { sortOrder: i })))
+    await reorderCategories(updated.map((c, i) => ({ id: c.id, sortOrder: i })))
     setCategories(prev => {
       const inactive = prev.filter(c => !c.isActive)
       return [...updated.map((c, i) => ({ ...c, sortOrder: i })), ...inactive]

@@ -7,6 +7,7 @@ jest.mock('@/lib/firestore/investments', () => ({
   getInvestmentTypes: jest.fn().mockResolvedValue([]),
 }))
 jest.mock('@/lib/firestore/bank-reconciliations', () => ({ getBankReconciliations: jest.fn().mockResolvedValue([]) }))
+jest.mock('@/lib/firestore/accounts', () => ({ getAccounts: jest.fn().mockResolvedValue([]) }))
 jest.mock('@/lib/firestore/monthly-settings', () => ({ getMonthlySettings: jest.fn().mockResolvedValue(null) }))
 jest.mock('@/lib/firestore/categories', () => ({ getCategories: jest.fn().mockResolvedValue([]) }))
 
@@ -35,9 +36,10 @@ describe('DashboardPage', () => {
     expect(screen.getByRole('button', { name: 'חודש הבא' })).toBeInTheDocument()
   })
 
-  it('shows bank reconciliation card after loading', async () => {
+  it('does not show reconciliation card when no bank accounts', async () => {
     render(<DashboardPage />)
-    await waitFor(() => expect(screen.getByText('אימות יתרת בנק')).toBeInTheDocument())
+    await waitFor(() => screen.getByText('הכנסות'))
+    expect(screen.queryByText('אימות יתרת בנק')).toBeNull()
   })
 
   it('shows dividends card after loading', async () => {

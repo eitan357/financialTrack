@@ -51,8 +51,9 @@ export function computeDashboard(input: DashboardInput): DashboardSummary {
     }
   }
 
+  // All categories — isActive only controls the picker, not historical display.
+  // A hidden category still shows in the breakdown if it has actual spending.
   const categoryTotals: CategorySummary[] = categories
-    .filter(c => c.isActive)
     .map(c => {
       const target = monthlySettings?.categoryTargets[c.id] ?? c.monthlyTarget ?? null
       return { id: c.id, name: c.name, color: c.color, actual: amountByCategory[c.id] ?? 0, target }

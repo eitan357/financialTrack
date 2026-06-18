@@ -5,7 +5,8 @@ const mockDeleteDoc = jest.fn()
 const mockSetDoc = jest.fn()
 const mockBatchSet = jest.fn()
 const mockBatchCommit = jest.fn()
-const mockWriteBatch = jest.fn(() => ({ set: mockBatchSet, commit: mockBatchCommit }))
+const mockBatchDelete = jest.fn()
+const mockWriteBatch = jest.fn(() => ({ set: mockBatchSet, delete: mockBatchDelete, commit: mockBatchCommit }))
 const mockDoc = jest.fn(() => 'doc-ref')
 const mockCollection = jest.fn(() => 'col-ref')
 const mockQuery = jest.fn(() => 'query-ref')
@@ -34,7 +35,7 @@ import { getBankReconciliations, saveBankReconciliation } from './bank-reconcili
 
 beforeEach(() => jest.clearAllMocks())
 
-const recData = { month: '2026-06', accountId: 'a3', actualBalance: 12500, expectedBalance: 12480, date: '2026-06-03' }
+const recData = { month: '2026-06', accountId: 'a3', actualBalance: 12500, date: '2026-06-03' }
 
 describe('getBankReconciliations', () => {
   it('returns reconciliations for the month', async () => {
@@ -51,10 +52,11 @@ describe('getBankReconciliations', () => {
 })
 
 describe('saveBankReconciliation', () => {
-  it('calls setDoc with merge: true', async () => {
+  it('calls setDoc with merge: true and returns saved record', async () => {
     mockSetDoc.mockResolvedValue(undefined)
-    await saveBankReconciliation(recData)
+    const result = await saveBankReconciliation(recData)
     expect(mockSetDoc).toHaveBeenCalledWith('doc-ref', recData, { merge: true })
+    expect(result).toMatchObject(recData)
   })
 
   it('calls setDoc with the provided id when id is given', async () => {
