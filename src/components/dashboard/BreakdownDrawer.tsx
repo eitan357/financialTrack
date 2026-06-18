@@ -36,14 +36,6 @@ const TITLE: Record<DrawerData['type'], string> = {
   investments: 'פירוט השקעות',
 }
 
-const DEDUCTION_LABELS: Record<string, string> = {
-  incomeTax: 'מס הכנסה',
-  nationalInsurance: 'ביטוח לאומי',
-  healthInsurance: 'ביטוח בריאות',
-  pension: 'פנסיה',
-  trainingFund: 'קרן השתלמות',
-}
-
 function fmt(n: number) { return n.toLocaleString('he-IL') }
 function fmtIls(n: number) { return `₪${fmt(Math.abs(n))}` }
 function formatDate(d: string) {
@@ -90,24 +82,41 @@ function Row({ label, sub, right }: { label: string; sub?: string; right: React.
 
 function IncomeBreakdown({ data }: { data: Extract<DrawerData, { type: 'income' }> }) {
   const { salary, dividends, incomeTransactions } = data
-  const hasSalary = !!salary
   const hasDivs = dividends.some(d => d.ilsEquivalent)
-  const hasBankIncome = incomeTransactions.length > 0
+
+  type FlatItem = { key: string; date: string | null; label: string; amount: number }
+
+  const items: FlatItem[] = []
+  if (salary) {
+    items.push({ key: 'salary', date: null, label: salary.employerName || 'משכורת', amount: salary.netAmount })
+  }
+  for (const tx of incomeTransactions) {
+    items.push({ key: tx.id, date: tx.date, label: tx.merchantName, amount: tx.amount })
+  }
+  items.sort((a, b) => {
+    if (!a.date) return -1
+    if (!b.date) return 1
+    return b.date.localeCompare(a.date)
+  })
+
+  const isEmpty = items.length === 0 && !hasDivs
 
   return (
     <div className="space-y-3">
-      {hasSalary && (
-        <SectionBlock title={`משכורת — ${salary!.employerName || 'מעסיק'}`} total={salary!.netAmount}>
-          <Row label="ברוטו" right={<span className="text-slate-200">{fmtIls(salary!.grossAmount)}</span>} />
-          {Object.entries(salary!.deductions).map(([key, val]) =>
-            val > 0 ? (
-              <Row key={key} label={DEDUCTION_LABELS[key] ?? key}
-                right={<span className="text-red-400">₪-{fmt(val)}</span>} />
-            ) : null
-          )}
-          <Row label="נטו"
-            right={<span className="font-bold text-green-400">{fmtIls(salary!.netAmount)}</span>} />
-        </SectionBlock>
+      {items.length > 0 && (
+        <div className="bg-surface rounded-xl px-4 divide-y divide-slate-800/60">
+          {items.map(item => (
+            <div key={item.key} className="flex items-center gap-2 py-2.5">
+              <span className="text-xs text-slate-500 tabular-nums flex-shrink-0" style={{ width: '2.5rem' }}>
+                {item.date ? formatDate(item.date) : '—'}
+              </span>
+              <span className="flex-1 text-sm truncate">{item.label}</span>
+              <span className="text-sm tabular-nums text-green-400 flex-shrink-0" dir="ltr">
+                {fmtIls(item.amount)}
+              </span>
+            </div>
+          ))}
+        </div>
       )}
 
       {hasDivs && (
@@ -120,16 +129,7 @@ function IncomeBreakdown({ data }: { data: Extract<DrawerData, { type: 'income' 
         </SectionBlock>
       )}
 
-      {hasBankIncome && (
-        <SectionBlock title="הכנסות מחשבון בנק" total={incomeTransactions.reduce((s, t) => s + t.amount, 0)}>
-          {incomeTransactions.map(t => (
-            <Row key={t.id} label={t.merchantName} sub={formatDate(t.date)}
-              right={<span className="text-green-400">{fmtIls(t.amount)}</span>} />
-          ))}
-        </SectionBlock>
-      )}
-
-      {!hasSalary && !hasDivs && !hasBankIncome && (
+      {isEmpty && (
         <p className="text-slate-500 text-sm text-center py-8">אין נתוני הכנסה לחודש זה</p>
       )}
     </div>
