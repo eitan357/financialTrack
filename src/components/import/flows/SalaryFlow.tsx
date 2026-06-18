@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
 import { upsertSalaryEntry, deleteSalaryEntry } from '@/lib/firestore/salary'
-import { addTransactions, updateTransaction } from '@/lib/firestore/transactions'
+import { addTransactions } from '@/lib/firestore/transactions'
 import type { SalaryEntry, SalaryDeductions, Account } from '@/lib/types'
 
 const EMPTY_DEDUCTIONS: SalaryDeductions = { incomeTax: 0, nationalInsurance: 0, healthInsurance: 0, pension: 0, trainingFund: 0 }
@@ -26,7 +26,6 @@ interface SalaryFormState {
   grossAmount: number
   deductions: SalaryDeductions
   bankAccountId: string
-  salaryTxId?: string
 }
 
 function entryToForm(entry: SalaryEntry, defaultBankId: string): SalaryFormState {
@@ -140,22 +139,20 @@ export function SalaryFlow({ month, existingEntries, bankAccounts, previousSalar
         netAmount,
       }
       await upsertSalaryEntry(form.entryId ? { ...entryData, id: form.entryId } : entryData)
-      const txData = {
-        date: `${month}-01`,
-        merchantName: form.employerName || 'משכורת',
-        amount: netAmount,
-        currency: 'ILS',
-        accountId: form.bankAccountId || defaultBankId,
-        source: 'manual' as const,
-        isImmediate: true,
-        month,
-        direction: 'income' as const,
-        salaryDetails: { grossAmount: form.grossAmount, deductions: form.deductions, netAmount, employerName: form.employerName },
-      }
-      if (form.salaryTxId) {
-        await updateTransaction(form.salaryTxId, txData)
-      } else {
-        await addTransactions([txData])
+      // Only create a transaction for new entries — editing leaves existing transaction intact
+      if (!form.entryId) {
+        await addTransactions([{
+          date: `${month}-01`,
+          merchantName: form.employerName || 'משכורת',
+          amount: netAmount,
+          currency: 'ILS',
+          accountId: form.bankAccountId || defaultBankId,
+          source: 'manual' as const,
+          isImmediate: true,
+          month,
+          direction: 'income' as const,
+          salaryDetails: { grossAmount: form.grossAmount, deductions: form.deductions, netAmount, employerName: form.employerName },
+        }])
       }
       const updated: SalaryEntry = { id: form.entryId ?? `tmp-${Date.now()}`, ...entryData }
       setEntries(prev => form.entryId ? prev.map(e => e.id === form.entryId ? updated : e) : [...prev, updated])
