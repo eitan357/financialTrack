@@ -35,7 +35,7 @@ import { getTransactions, getTransactionsByMerchant, addTransactions, updateTran
 
 beforeEach(() => jest.clearAllMocks())
 
-const mockTxData = { date: '2026-06-01', merchantName: 'שופרסל', amount: 150, currency: 'ILS', accountId: 'a1', source: 'csv_import', isImmediate: false, month: '2026-06' }
+const mockTxData = { date: '2026-06-01', merchantName: 'שופרסל', amount: 150, currency: 'ILS', accountId: 'a1', source: 'csv_import' as const, isImmediate: false, month: '2026-06' }
 
 describe('getTransactions', () => {
   it('queries by month and orders by date desc', async () => {

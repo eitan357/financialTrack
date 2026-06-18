@@ -31,7 +31,7 @@ export function CreditImportStep({ stepNumber, accountName, categories, rules, p
   function applyCategories(raw: ReturnType<typeof mapRows>): ImportedTransaction[] {
     return raw.map(r => {
       const result = categorize(r.merchantName, rules, previousTransactions)
-      return { ...r, categoryId: result.categoryId, categorizationSource: result.source }
+      return { ...r, categoryId: result.categoryId, categorizationSource: result.source, direction: 'expense' }
     })
   }
 

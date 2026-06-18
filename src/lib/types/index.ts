@@ -42,7 +42,7 @@ export interface CategorizationRule {
   createdAt: string // ISO date string
 }
 
-export type TransactionSource = 'csv_import' | 'xlsx_import' | 'manual'
+export type TransactionSource = 'csv_import' | 'xlsx_import' | 'pdf_import' | 'manual'
 
 export interface SalaryDeductions {
   incomeTax: number
@@ -157,10 +157,12 @@ export interface RawTransaction {
   currency: string
   isImmediate: boolean // true when סוג עסקה === 'חיוב עסקות מיידי'
   notes: string
+  direction?: 'income' | 'expense'
 }
 
 // RawTransaction after the categorization engine has run
 export interface ImportedTransaction extends RawTransaction {
   categoryId: string | null
   categorizationSource: 'rule' | 'history' | 'manual' | null
+  direction: 'income' | 'expense'
 }

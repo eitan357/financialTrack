@@ -7,7 +7,7 @@ jest.mock('@/lib/firestore/income', () => ({ addIncomeEntry: jest.fn().mockResol
 
 const mockImportedTx = {
   date: '2026-06-01', merchantName: 'שופרסל', bankCategory: '', amount: 150,
-  currency: 'ILS', isImmediate: false, notes: '', categoryId: 'c1', categorizationSource: 'rule' as const,
+  currency: 'ILS', isImmediate: false, notes: '', categoryId: 'c1', categorizationSource: 'rule' as const, direction: 'expense' as const,
 }
 
 const baseProps = {
