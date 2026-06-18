@@ -1,4 +1,4 @@
-import { getFirestore, collection, getDocs, setDoc, doc, query, where, writeBatch } from 'firebase/firestore'
+import { getFirestore, collection, getDocs, setDoc, doc, query, where, writeBatch, deleteDoc } from 'firebase/firestore'
 import { app } from '../firebase/config'
 import { appCache } from '../cache'
 import type { SalaryEntry } from '../types'
@@ -39,4 +39,15 @@ export async function upsertSalaryEntry(entry: Omit<SalaryEntry, 'id'> & { id?: 
     : doc(collection(getDb(), 'salary_entries'))
   await setDoc(docRef, data, { merge: true })
   appCache.del(`salary:${data.month}`)
+}
+
+export async function getSalaryEntries(month: string): Promise<SalaryEntry[]> {
+  const q = query(collection(getDb(), 'salary_entries'), where('month', '==', month))
+  const snap = await getDocs(q)
+  return snap.docs.map(d => ({ id: d.id, ...d.data() } as SalaryEntry))
+}
+
+export async function deleteSalaryEntry(id: string): Promise<void> {
+  await deleteDoc(doc(getDb(), 'salary_entries', id))
+  appCache.delPrefix('salary:')
 }

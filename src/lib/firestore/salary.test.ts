@@ -29,8 +29,16 @@ jest.mock('firebase/firestore', () => ({
   writeBatch: (...a: unknown[]) => mockWriteBatch(...a),
 }))
 jest.mock('@/lib/firebase/config', () => ({ app: {} }))
+jest.mock('@/lib/cache', () => ({
+  appCache: {
+    get: jest.fn(() => undefined),
+    set: jest.fn(),
+    del: jest.fn(),
+    delPrefix: jest.fn(),
+  },
+}))
 
-import { getSalaryEntry, upsertSalaryEntry } from './salary'
+import { getSalaryEntry, upsertSalaryEntry, getSalaryEntries, deleteSalaryEntry } from './salary'
 
 beforeEach(() => jest.clearAllMocks())
 
@@ -46,6 +54,33 @@ describe('getSalaryEntry', () => {
     mockGetDocs.mockResolvedValue({ empty: false, docs: [{ id: 's1', data: () => salaryData }] })
     const entry = await getSalaryEntry('2026-06')
     expect(entry).toEqual({ id: 's1', ...salaryData })
+  })
+})
+
+describe('getSalaryEntries', () => {
+  it('returns array of salary entries for a month', async () => {
+    const mockEntry = { month: '2026-06', employerName: 'Acme', grossAmount: 15000, deductions: { incomeTax: 2000, nationalInsurance: 500, healthInsurance: 200, pension: 1000, trainingFund: 500 }, netAmount: 10800 }
+    mockGetDocs.mockResolvedValueOnce({
+      docs: [{ id: 'e1', data: () => mockEntry }],
+    })
+    const result = await getSalaryEntries('2026-06')
+    expect(result).toHaveLength(1)
+    expect(result[0].netAmount).toBe(10800)
+    expect(result[0].id).toBe('e1')
+  })
+
+  it('returns empty array when no entries', async () => {
+    mockGetDocs.mockResolvedValueOnce({ docs: [] })
+    const result = await getSalaryEntries('2026-06')
+    expect(result).toEqual([])
+  })
+})
+
+describe('deleteSalaryEntry', () => {
+  it('calls deleteDoc with the correct document reference', async () => {
+    mockDeleteDoc.mockResolvedValueOnce(undefined)
+    await deleteSalaryEntry('entry-id-1')
+    expect(mockDeleteDoc).toHaveBeenCalledWith('doc-ref')
   })
 })
 
