@@ -2,6 +2,10 @@ import { render, screen } from '@testing-library/react'
 import { SalaryFlow } from './SalaryFlow'
 import type { Account, SalaryEntry } from '@/lib/types'
 
+jest.mock('next/navigation', () => ({
+  useRouter: jest.fn().mockReturnValue({ back: jest.fn() }),
+}))
+
 jest.mock('@/lib/firestore/salary', () => ({
   upsertSalaryEntry: jest.fn().mockResolvedValue(undefined),
   deleteSalaryEntry: jest.fn().mockResolvedValue(undefined),
@@ -32,7 +36,6 @@ describe('SalaryFlow', () => {
         bankAccounts={bankAccounts}
         previousSalary={null}
         onDone={jest.fn()}
-        onBack={jest.fn()}
       />
     )
     expect(screen.getByText(/אין משכורות/i)).toBeInTheDocument()
@@ -53,7 +56,6 @@ describe('SalaryFlow', () => {
         bankAccounts={bankAccounts}
         previousSalary={null}
         onDone={jest.fn()}
-        onBack={jest.fn()}
       />
     )
     expect(screen.getByText('Acme Corp')).toBeInTheDocument()

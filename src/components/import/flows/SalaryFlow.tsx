@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Plus, Trash2 } from 'lucide-react'
 import { getFirestore, collection, doc, setDoc } from 'firebase/firestore'
 import { app } from '@/lib/firebase/config'
@@ -19,7 +20,6 @@ interface Props {
   bankAccounts: Account[]
   previousSalary: Omit<SalaryEntry, 'id'> | null
   onDone: () => void
-  onBack: () => void
 }
 
 interface SalaryFormState {
@@ -122,7 +122,8 @@ function SalaryForm({ form, bankAccounts, onChange, onSave, onCancel, saving }: 
   )
 }
 
-export function SalaryFlow({ month, existingEntries, bankAccounts, previousSalary, onDone, onBack }: Props) {
+export function SalaryFlow({ month, existingEntries, bankAccounts, previousSalary, onDone }: Props) {
+  const router = useRouter()
   const defaultBankId = bankAccounts[0]?.id ?? ''
   const [entries, setEntries] = useState<SalaryEntry[]>(existingEntries)
   const [form, setForm] = useState<SalaryFormState | null>(null)
@@ -201,7 +202,7 @@ export function SalaryFlow({ month, existingEntries, bankAccounts, previousSalar
   return (
     <div>
       <div className="flex items-center gap-2 mb-4">
-        <button onClick={onBack} className="text-slate-400 hover:text-foreground">←</button>
+        <button onClick={() => router.back()} className="text-slate-400 hover:text-foreground">←</button>
         <h2 className="text-lg font-semibold">משכורות — {month}</h2>
       </div>
 
