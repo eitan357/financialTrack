@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
+import { ChevronLeft } from 'lucide-react'
 import { usePersistedMonth } from '@/hooks/usePersistedMonth'
 import { MonthHeader } from '@/components/layout/MonthHeader'
 import { seedDefaultAccounts, getAccounts } from '@/lib/firestore/accounts'
@@ -76,6 +77,7 @@ export function ImportHub() {
           getSalaryEntry(prevMonthStr(month)),
         ])
         setAccounts(accs)
+        console.log('[ImportHub] accounts loaded:', accs.map(a => `${a.name} | type=${a.type} | isActive=${a.isActive}`))
         setCategories(cats)
         setRules(rls)
         if (prevSal) { const { id: _salId, ...rest } = prevSal; setPreviousSalary(rest) }
@@ -152,6 +154,8 @@ export function ImportHub() {
             rules={rules}
             previousTransactions={status.transactions}
             existingTransactions={status.transactions.filter(t => t.accountId === activeFlow.accountId)}
+            salaryEntries={status.salaryEntries}
+            creditAccounts={accounts.filter(a => a.type === 'credit')}
             onDone={handleFlowDone}
             onBack={() => setActiveFlow(null)}
           />
@@ -212,7 +216,6 @@ export function ImportHub() {
   return (
     <main className="p-4 max-w-lg mx-auto pb-24">
       <MonthHeader month={month} onMonthChange={m => { setMonth(m); setActiveFlow(null) }} />
-      <p className="text-sm text-slate-400 mb-4">בחר תהליך ייבוא:</p>
 
       <div className="space-y-2">
         {creditAccounts.map(acc => {
@@ -221,13 +224,14 @@ export function ImportHub() {
             <button
               key={acc.id}
               onClick={() => setActiveFlow({ type: 'credit', accountId: acc.id })}
-              className="w-full bg-surface rounded-2xl px-4 py-3 flex justify-between items-center hover:bg-surface/80 transition-colors"
+              className="w-full bg-surface rounded-2xl px-4 py-3 flex items-center gap-3 hover:bg-surface/80 transition-colors text-right"
             >
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: acc.color }} />
-                <span className="text-sm font-medium">{acc.name}</span>
+              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: acc.color }} />
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium">{acc.name}</div>
+                <div className="text-xs text-slate-500">ייבוא קובץ CSV · {count > 0 ? `${count} עסקאות יובאו` : 'לא יובא עדיין'}</div>
               </div>
-              <span className="text-xs text-slate-400">{count > 0 ? `${count} עסקאות` : 'לא יובא'}</span>
+              <ChevronLeft size={16} className="text-slate-500 flex-shrink-0" />
             </button>
           )
         })}
@@ -235,50 +239,69 @@ export function ImportHub() {
         {bankAccounts.map(acc => {
           const count = txCount(status.transactions, acc.id)
           const bankType = detectBankType(acc)
+          const fileLabel = bankType === 'leumi' ? 'PDF' : bankType === 'one-zero' ? 'XLS' : 'XLS / PDF'
           return (
             <button
               key={acc.id}
               onClick={() => setActiveFlow({ type: 'bank', accountId: acc.id, bankType })}
-              className="w-full bg-surface rounded-2xl px-4 py-3 flex justify-between items-center hover:bg-surface/80 transition-colors"
+              className="w-full bg-surface rounded-2xl px-4 py-3 flex items-center gap-3 hover:bg-surface/80 transition-colors text-right"
             >
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: acc.color }} />
-                <span className="text-sm font-medium">{acc.name}</span>
-                <span className="text-xs text-slate-500">בנק</span>
+              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: acc.color }} />
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium">{acc.name}</div>
+                <div className="text-xs text-slate-500">ייבוא קובץ {fileLabel} · {count > 0 ? `${count} עסקאות יובאו` : 'לא יובא עדיין'}</div>
               </div>
-              <span className="text-xs text-slate-400">{count > 0 ? `${count} עסקאות` : 'לא יובא'}</span>
+              <ChevronLeft size={16} className="text-slate-500 flex-shrink-0" />
             </button>
           )
         })}
 
         <button
           onClick={() => setActiveFlow({ type: 'salary' })}
-          className="w-full bg-surface rounded-2xl px-4 py-3 flex justify-between items-center hover:bg-surface/80 transition-colors"
+          className="w-full bg-surface rounded-2xl px-4 py-3 flex items-center gap-3 hover:bg-surface/80 transition-colors text-right"
         >
-          <span className="text-sm font-medium">משכורות</span>
-          <span className="text-xs text-slate-400">
-            {status.salaryEntries.length > 0
-              ? `${status.salaryEntries.length} משכורות — נטו ₪${status.salaryEntries.reduce((s, e) => s + e.netAmount, 0).toLocaleString('he-IL')}`
-              : 'לא הוזן'}
-          </span>
+          <span className="w-2.5 h-2.5 rounded-full bg-green-400 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium">משכורות</div>
+            <div className="text-xs text-slate-500">
+              {status.salaryEntries.length > 0
+                ? `${status.salaryEntries.length} משכורות · נטו ₪${status.salaryEntries.reduce((s, e) => s + e.netAmount, 0).toLocaleString('he-IL')}`
+                : 'לחץ להוספה / עריכה'}
+            </div>
+          </div>
+          <ChevronLeft size={16} className="text-slate-500 flex-shrink-0" />
         </button>
 
         <button
           onClick={() => setActiveFlow({ type: 'income' })}
-          className="w-full bg-surface rounded-2xl px-4 py-3 flex justify-between items-center hover:bg-surface/80 transition-colors"
+          className="w-full bg-surface rounded-2xl px-4 py-3 flex items-center gap-3 hover:bg-surface/80 transition-colors text-right"
         >
-          <span className="text-sm font-medium">הכנסות נוספות</span>
-          <span className="text-xs text-slate-400">{incomeTxCount > 0 ? `${incomeTxCount} הכנסות` : 'אין'}</span>
+          <span className="w-2.5 h-2.5 rounded-full bg-blue-400 flex-shrink-0" />
+          <div className="flex-1 min-w-0">
+            <div className="text-sm font-medium">הכנסות נוספות</div>
+            <div className="text-xs text-slate-500">{incomeTxCount > 0 ? `${incomeTxCount} הכנסות` : 'לחץ להוספה / עריכה'}</div>
+          </div>
+          <ChevronLeft size={16} className="text-slate-500 flex-shrink-0" />
         </button>
 
         {cashAccount && (
           <button
             onClick={() => setActiveFlow({ type: 'cash' })}
-            className="w-full bg-surface rounded-2xl px-4 py-3 flex justify-between items-center hover:bg-surface/80 transition-colors"
+            className="w-full bg-surface rounded-2xl px-4 py-3 flex items-center gap-3 hover:bg-surface/80 transition-colors text-right"
           >
-            <span className="text-sm font-medium">מזומן</span>
-            <span className="text-xs text-slate-400">{cashTxCount > 0 ? `${cashTxCount} הוצאות` : 'אין'}</span>
+            <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: cashAccount.color }} />
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium">מזומן</div>
+              <div className="text-xs text-slate-500">{cashTxCount > 0 ? `${cashTxCount} הוצאות` : 'לחץ להוספה / עריכה'}</div>
+            </div>
+            <ChevronLeft size={16} className="text-slate-500 flex-shrink-0" />
           </button>
+        )}
+
+        {bankAccounts.length === 0 && creditAccounts.length === 0 && (
+          <p className="text-xs text-slate-500 text-center py-2">
+            אין חשבונות פעילים — <a href="/settings" className="text-accent underline">הוסף בהגדרות</a>
+          </p>
         )}
       </div>
     </main>

@@ -45,8 +45,8 @@ function entryToForm(entry: SalaryEntry, defaultBankId: string): SalaryFormState
 function emptyForm(defaultBankId: string, prev: Omit<SalaryEntry, 'id'> | null): SalaryFormState {
   return {
     employerName: prev?.employerName ?? '',
-    grossAmount: prev?.grossAmount ?? 0,
-    deductions: prev?.deductions ?? EMPTY_DEDUCTIONS,
+    grossAmount: 0,
+    deductions: EMPTY_DEDUCTIONS,
     bankAccountId: defaultBankId,
   }
 }
@@ -242,14 +242,13 @@ export function SalaryFlow({ month, existingEntries, bankAccounts, previousSalar
         )}
       </div>
 
-      {!form && (
-        <button
-          onClick={() => setForm(emptyForm(defaultBankId, previousSalary))}
-          className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-slate-600 rounded-xl text-slate-400 text-sm hover:border-accent hover:text-accent transition-colors mb-4"
-        >
-          <Plus size={16} />הוסף משכורת
-        </button>
-      )}
+      <button
+        onClick={() => setForm(emptyForm(defaultBankId, previousSalary))}
+        disabled={!!form}
+        className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-slate-600 rounded-xl text-slate-400 text-sm hover:border-accent hover:text-accent transition-colors mb-4 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-slate-600 disabled:hover:text-slate-400"
+      >
+        <Plus size={16} />הוסף משכורת
+      </button>
 
       <button onClick={onDone} className="w-full py-3 bg-accent rounded-xl text-sm font-semibold">סיום</button>
     </div>

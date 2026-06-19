@@ -6,9 +6,14 @@ import { parseLeumiPdf } from '@/lib/parsers/leumi-pdf-parser'
 import { categorize } from '@/lib/categorization/engine'
 import { detectDuplicates } from '@/lib/import/duplicate-detector'
 import { addTransactions } from '@/lib/firestore/transactions'
-import type { Category, CategorizationRule, ImportedTransaction, RawTransaction, Transaction, TransactionSource } from '@/lib/types'
+import type { Account, Category, CategorizationRule, ImportedTransaction, RawTransaction, SalaryEntry, Transaction, TransactionSource } from '@/lib/types'
 
 export type BankType = 'one-zero' | 'leumi' | 'generic'
+
+interface BankImportRow extends ImportedTransaction {
+  skip: boolean
+  skipReason?: 'salary' | 'credit-payment'
+}
 
 interface Props {
   month: string
@@ -19,6 +24,8 @@ interface Props {
   rules?: CategorizationRule[]
   previousTransactions?: Transaction[]
   existingTransactions: Transaction[]
+  salaryEntries?: SalaryEntry[]
+  creditAccounts?: Account[]
   onDone: () => void
   onBack: () => void
 }
@@ -51,14 +58,38 @@ const ACCEPT_LABEL: Record<BankType, string> = {
   'generic': 'XLS / PDF',
 }
 
-export function BankFlow({ month, accountId, accountName, bankType, categories, rules = [], previousTransactions = [], existingTransactions, onDone, onBack }: Props) {
-  const [transactions, setTransactions] = useState<ImportedTransaction[]>([])
+function suggestSkips(txs: ImportedTransaction[], salaryEntries: SalaryEntry[], creditAccounts: Account[]): BankImportRow[] {
+  const salaryAmounts = new Set(salaryEntries.map(e => e.netAmount))
+  const creditTerms = creditAccounts.flatMap(a => [
+    a.name.toLowerCase(),
+    ...(a.csvIdentifier ? [a.csvIdentifier.toLowerCase()] : []),
+  ])
+
+  return txs.map(t => {
+    if (t.direction === 'income' && salaryAmounts.size > 0 && salaryAmounts.has(t.amount)) {
+      return { ...t, skip: true, skipReason: 'salary' as const }
+    }
+    if (t.direction === 'expense' && creditTerms.length > 0) {
+      const lowerMerchant = t.merchantName.toLowerCase()
+      if (creditTerms.some(term => term && lowerMerchant.includes(term))) {
+        return { ...t, skip: true, skipReason: 'credit-payment' as const }
+      }
+    }
+    return { ...t, skip: false }
+  })
+}
+
+export function BankFlow({ month, accountId, accountName, bankType, categories, rules = [], previousTransactions = [], existingTransactions, salaryEntries = [], creditAccounts = [], onDone, onBack }: Props) {
+  const [rows, setRows] = useState<BankImportRow[]>([])
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [parsing, setParsing] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const { duplicates: liveDuplicates } = detectDuplicates(transactions, existingTransactions)
+
+  const activeRows = rows.filter(r => !r.skip)
+  const skippedCount = rows.filter(r => r.skip).length
+  const { duplicates: liveDuplicates } = detectDuplicates(activeRows, existingTransactions)
   const duplicateWarning = liveDuplicates.length
 
   function applyCategories(raw: RawTransaction[]): ImportedTransaction[] {
@@ -91,7 +122,7 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
       }
 
       const mapped = applyCategories(raw)
-      setTransactions(mapped)
+      setRows(suggestSkips(mapped, salaryEntries, creditAccounts))
     } catch {
       setError('שגיאה בקריאת הקובץ. נסה שוב.')
     } finally {
@@ -100,18 +131,19 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
     }
   }
 
-  function updateField(index: number, updates: Partial<ImportedTransaction>) {
-    setTransactions(prev => prev.map((t, i) => i === index ? { ...t, ...updates } : t))
+  function updateRow(index: number, updates: Partial<BankImportRow>) {
+    setRows(prev => prev.map((r, i) => i === index ? { ...r, ...updates } : r))
   }
 
   async function handleSave() {
     setSaving(true); setError(null)
     try {
-      const { clean, duplicates } = detectDuplicates(transactions, existingTransactions)
+      const toImport = rows.filter(r => !r.skip)
+      const { clean, duplicates } = detectDuplicates(toImport, existingTransactions)
       const source: TransactionSource = bankType === 'leumi' ? 'pdf_import' : 'xlsx_import'
       const toSave = duplicates.length > 0
-        ? (window.confirm(`נמצאו ${duplicates.length} עסקאות כפולות. לשמור בכל זאת?`) ? transactions : clean)
-        : transactions
+        ? (window.confirm(`נמצאו ${duplicates.length} עסקאות כפולות. לשמור בכל זאת?`) ? toImport : clean)
+        : toImport
       await addTransactions(toSave.map(t => toTransaction(t, accountId, month, source)))
       setSaved(true)
     } catch {
@@ -126,13 +158,15 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
       <div className="text-center py-8">
         <CheckCircle size={48} className="mx-auto text-green-400 mb-4" />
         <h2 className="text-xl font-bold mb-2">נשמר!</h2>
-        <p className="text-slate-400 text-sm mb-6">{transactions.length} עסקאות יובאו</p>
+        <p className="text-slate-400 text-sm mb-6">
+          {activeRows.length} עסקאות יובאו{skippedCount > 0 ? `, ${skippedCount} סוננו` : ''}
+        </p>
         <button onClick={onDone} className="w-full py-3 bg-accent rounded-xl font-semibold">חזור לרשימה</button>
       </div>
     )
   }
 
-  const uncategorized = transactions.filter(t => !t.categoryId && t.direction !== 'income').length
+  const uncategorized = activeRows.filter(t => !t.categoryId && t.direction !== 'income').length
 
   return (
     <div>
@@ -156,8 +190,13 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
         <p className="text-amber-400 text-xs mb-2">⚠️ {duplicateWarning} עסקאות עלולות להיות כפולות</p>
       )}
 
-      {transactions.length > 0 && (
+      {rows.length > 0 && (
         <>
+          {skippedCount > 0 && (
+            <p className="text-slate-500 text-xs mb-2">
+              {skippedCount} עסקאות סוננו אוטומטית (משכורת / אשראי) — בטל סימון V בטבלה להכללה
+            </p>
+          )}
           {uncategorized > 0 && (
             <p className="text-blue-400 text-xs mb-2 flex items-center gap-1">
               <Tag size={12} />{uncategorized} עסקאות ממתינות לקיטלוג
@@ -167,6 +206,7 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
             <table className="w-full text-sm" aria-label="עסקאות בנק לייבוא">
               <thead>
                 <tr className="text-slate-400 border-b border-slate-700 text-xs">
+                  <th className="py-2 px-2 w-8 text-center">✓</th>
                   <th className="text-right py-2 px-2">תאריך</th>
                   <th className="text-right py-2 px-2">תיאור</th>
                   <th className="text-right py-2 px-2">הערה</th>
@@ -176,38 +216,52 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
                 </tr>
               </thead>
               <tbody>
-                {transactions.map((tx, i) => (
-                  <tr key={`${tx.date}-${tx.merchantName}-${i}`} className={`border-b border-slate-700/40 ${!tx.categoryId && tx.direction !== 'income' ? 'ring-1 ring-inset ring-blue-400' : ''}`}>
-                    <td className="py-1.5 px-2 text-slate-400 text-xs">{tx.date}</td>
-                    <td className="py-1.5 px-2 text-xs">{tx.merchantName}</td>
-                    <td className="py-1.5 px-2">
+                {rows.map((row, i) => (
+                  <tr key={`${row.date}-${row.merchantName}-${i}`}
+                    className={`border-b border-slate-700/40 ${row.skip ? 'opacity-30' : (!row.categoryId && row.direction !== 'income' ? 'ring-1 ring-inset ring-blue-400' : '')}`}>
+                    <td className="py-1.5 px-2 text-center">
                       <input
-                        value={tx.notes ?? ''}
-                        onChange={e => updateField(i, { notes: e.target.value })}
-                        placeholder="הערה"
-                        className="w-full bg-background text-xs rounded px-1 py-0.5 min-w-16"
-                        aria-label={`הערה עבור ${tx.merchantName}`}
+                        type="checkbox"
+                        checked={!row.skip}
+                        onChange={e => updateRow(i, { skip: !e.target.checked })}
+                        className="accent-accent"
+                        aria-label={`כלול ${row.merchantName}`}
                       />
                     </td>
-                    <td className="py-1.5 px-2 text-left tabular-nums text-xs">{tx.amount.toFixed(2)} {tx.currency}</td>
+                    <td className="py-1.5 px-2 text-slate-400 text-xs">{row.date}</td>
+                    <td className="py-1.5 px-2 text-xs">{row.merchantName}</td>
+                    <td className="py-1.5 px-2">
+                      <input
+                        value={row.notes ?? ''}
+                        onChange={e => updateRow(i, { notes: e.target.value })}
+                        placeholder="הערה"
+                        disabled={row.skip}
+                        className="w-full bg-background text-xs rounded px-1 py-0.5 min-w-16 disabled:opacity-40"
+                        aria-label={`הערה עבור ${row.merchantName}`}
+                      />
+                    </td>
+                    <td className="py-1.5 px-2 text-left tabular-nums text-xs">{row.amount.toFixed(2)} {row.currency}</td>
                     <td className="py-1.5 px-2">
                       <select
-                        value={tx.direction}
-                        onChange={e => updateField(i, { direction: e.target.value as 'income' | 'expense', categoryId: e.target.value === 'income' ? null : tx.categoryId })}
-                        className="bg-background text-xs rounded px-1 py-0.5"
-                        aria-label={`כיוון עבור ${tx.merchantName}`}
+                        value={row.direction}
+                        onChange={e => updateRow(i, { direction: e.target.value as 'income' | 'expense', categoryId: e.target.value === 'income' ? null : row.categoryId })}
+                        disabled={row.skip}
+                        className="bg-background text-xs rounded px-1 py-0.5 disabled:opacity-40"
+                        aria-label={`כיוון עבור ${row.merchantName}`}
                       >
                         <option value="expense">הוצאה</option>
                         <option value="income">הכנסה</option>
                       </select>
                     </td>
                     <td className="py-1.5 px-2">
-                      {tx.direction === 'expense' ? (
+                      {row.skip ? (
+                        <span className="text-xs text-slate-600">מסונן</span>
+                      ) : row.direction === 'expense' ? (
                         <select
-                          value={tx.categoryId ?? ''}
-                          onChange={e => updateField(i, { categoryId: e.target.value || null, categorizationSource: 'manual' })}
+                          value={row.categoryId ?? ''}
+                          onChange={e => updateRow(i, { categoryId: e.target.value || null, categorizationSource: 'manual' })}
                           className="bg-background text-foreground text-xs rounded px-1 py-0.5 w-full"
-                          aria-label={`קטגוריה עבור ${tx.merchantName}`}
+                          aria-label={`קטגוריה עבור ${row.merchantName}`}
                         >
                           <option value="">— ללא —</option>
                           {categories.filter(c => c.isActive).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -221,9 +275,9 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
               </tbody>
             </table>
           </div>
-          <button onClick={handleSave} disabled={saving}
+          <button onClick={handleSave} disabled={saving || activeRows.length === 0}
             className="w-full py-3 bg-accent rounded-xl text-sm font-semibold disabled:opacity-50 mb-3">
-            {saving ? 'שומר...' : `שמור ${transactions.length} עסקאות`}
+            {saving ? 'שומר...' : `שמור ${activeRows.length} עסקאות`}
           </button>
         </>
       )}
