@@ -1,5 +1,6 @@
 'use client'
 import { useState, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { Upload, CheckCircle, Tag } from 'lucide-react'
 import { parseCSV } from '@/lib/parsers/csv-parser'
 import { getSheetNames, parseSheet } from '@/lib/parsers/xlsx-parser'
@@ -18,7 +19,6 @@ interface Props {
   previousTransactions: Transaction[]
   existingTransactions: Transaction[]
   onDone: () => void
-  onBack: () => void
 }
 
 function toTransaction(t: ImportedTransaction, accountId: string, month: string): Omit<Transaction, 'id'> {
@@ -37,7 +37,8 @@ function toTransaction(t: ImportedTransaction, accountId: string, month: string)
   }
 }
 
-export function CreditFlow({ month, accountId, accountName, categories, rules, previousTransactions, existingTransactions, onDone, onBack }: Props) {
+export function CreditFlow({ month, accountId, accountName, categories, rules, previousTransactions, existingTransactions, onDone }: Props) {
+  const router = useRouter()
   const [transactions, setTransactions] = useState<ImportedTransaction[]>([])
   const [xlsxData, setXlsxData] = useState<Uint8Array | null>(null)
   const [availableSheets, setAvailableSheets] = useState<string[]>([])
@@ -143,7 +144,7 @@ export function CreditFlow({ month, accountId, accountName, categories, rules, p
   return (
     <div>
       <div className="flex items-center gap-2 mb-4">
-        <button onClick={onBack} className="text-slate-400 hover:text-foreground">←</button>
+        <button onClick={() => router.back()} className="text-slate-400 hover:text-foreground">←</button>
         <h2 className="text-lg font-semibold">{accountName}</h2>
       </div>
 
@@ -250,7 +251,7 @@ export function CreditFlow({ month, accountId, accountName, categories, rules, p
         </>
       )}
 
-      <button onClick={onBack} className="w-full py-2 text-slate-400 text-sm">← חזור</button>
+      <button onClick={() => router.back()} className="w-full py-2 text-slate-400 text-sm">← חזור</button>
     </div>
   )
 }

@@ -7,6 +7,9 @@ jest.mock('@/lib/firestore/transactions', () => ({
   getTransactions: jest.fn().mockResolvedValue([]),
 }))
 jest.mock('@/lib/firebase/config', () => ({ app: {} }))
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ back: jest.fn(), push: jest.fn() }),
+}))
 
 const categories: Category[] = [
   { id: 'cat1', name: 'מזון', color: '#f00', isActive: true },
@@ -26,7 +29,6 @@ describe('CreditFlow', () => {
         previousTransactions={previousTxs}
         existingTransactions={[]}
         onDone={jest.fn()}
-        onBack={jest.fn()}
       />
     )
     expect(screen.getByText(/כרטיס ויזה/)).toBeInTheDocument()
