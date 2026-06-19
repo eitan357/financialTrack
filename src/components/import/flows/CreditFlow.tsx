@@ -207,6 +207,7 @@ export function CreditFlow({ month, accountId, accountName, categories, rules, p
                   <th className="text-right py-2 px-2">תיאור</th>
                   <th className="text-left py-2 px-2">סכום</th>
                   <th className="text-right py-2 px-2">כיוון</th>
+                  <th className="text-right py-2 px-2">מיידי</th>
                   <th className="text-right py-2 px-2">קטגוריה</th>
                 </tr>
               </thead>
@@ -235,6 +236,16 @@ export function CreditFlow({ month, accountId, accountName, categories, rules, p
                         <option value="expense">הוצאה</option>
                         <option value="income">הכנסה</option>
                       </select>
+                    </td>
+                    <td className="py-1.5 px-2 text-center">
+                      <input
+                        type="checkbox"
+                        checked={tx.isImmediate}
+                        onChange={e => updateField(i, { isImmediate: e.target.checked })}
+                        className="accent-amber-400"
+                        aria-label={`חיוב מיידי עבור ${tx.merchantName}`}
+                        title="חיוב מיידי"
+                      />
                     </td>
                     <td className="py-1.5 px-2">
                       {tx.direction === 'expense' ? (
