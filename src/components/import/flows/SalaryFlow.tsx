@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, Trash2, ChevronRight } from 'lucide-react'
 import { getFirestore, collection, doc, setDoc } from 'firebase/firestore'
 import { app } from '@/lib/firebase/config'
 import { upsertSalaryEntry, deleteSalaryEntry } from '@/lib/firestore/salary'
@@ -202,7 +202,9 @@ export function SalaryFlow({ month, existingEntries, bankAccounts, previousSalar
   return (
     <div>
       <div className="flex items-center gap-2 mb-4">
-        <button onClick={() => router.back()} className="text-slate-400 hover:text-foreground">←</button>
+        <button onClick={() => router.back()} className="p-1 text-slate-400 hover:text-foreground transition-colors">
+          <ChevronRight size={22} />
+        </button>
         <h2 className="text-lg font-semibold">משכורות — {month}</h2>
       </div>
 

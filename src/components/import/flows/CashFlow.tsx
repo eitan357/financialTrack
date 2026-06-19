@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, Trash2, ChevronRight } from 'lucide-react'
 import { addTransactions, deleteTransaction } from '@/lib/firestore/transactions'
 import type { Category, Transaction } from '@/lib/types'
 
@@ -78,7 +78,9 @@ export function CashFlow({ month, cashAccountId, categories, existingTransaction
   return (
     <div>
       <div className="flex items-center gap-2 mb-4">
-        <button onClick={() => router.back()} className="text-slate-400 hover:text-foreground">←</button>
+        <button onClick={() => router.back()} className="p-1 text-slate-400 hover:text-foreground transition-colors">
+          <ChevronRight size={22} />
+        </button>
         <h2 className="text-lg font-semibold">מזומן — {month}</h2>
       </div>
 

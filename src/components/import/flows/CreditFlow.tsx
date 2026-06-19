@@ -1,10 +1,11 @@
 'use client'
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Upload, CheckCircle, Tag } from 'lucide-react'
+import { Upload, CheckCircle, Tag, ChevronRight } from 'lucide-react'
 import { parseCSV } from '@/lib/parsers/csv-parser'
 import { getSheetNames, parseSheet } from '@/lib/parsers/xlsx-parser'
 import { mapRows } from '@/lib/parsers/transaction-mapper'
+import { parseLeumiPdf } from '@/lib/parsers/leumi-pdf-parser'
 import { categorize } from '@/lib/categorization/engine'
 import { detectDuplicates } from '@/lib/import/duplicate-detector'
 import { addTransactions } from '@/lib/firestore/transactions'
@@ -68,22 +69,34 @@ export function CreditFlow({ month, accountId, accountName, categories, rules, p
     if (!file) return
     setError(null)
     try {
-      if (file.name.endsWith('.csv')) {
+      const ext = file.name.toLowerCase()
+      if (ext.endsWith('.csv')) {
         const text = await file.text()
         const mapped = applyCategories(mapRows(parseCSV(text)))
         const { duplicates } = detectDuplicates(mapped, existingTransactions)
         setTransactions(mapped)
         setDuplicateWarning(duplicates.length)
         setXlsxData(null); setAvailableSheets([])
-      } else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
+      } else if (ext.endsWith('.xlsx') || ext.endsWith('.xls')) {
         const buf = await file.arrayBuffer()
         const data = new Uint8Array(buf)
         const sheets = getSheetNames(data)
         setXlsxData(data); setAvailableSheets(sheets)
         setSelectedSheets(sheets.length > 0 ? [sheets[0]] : [])
         setTransactions([])
+      } else if (ext.endsWith('.pdf')) {
+        const buf = await file.arrayBuffer()
+        const mapped = applyCategories(await parseLeumiPdf(new Uint8Array(buf)))
+        if (mapped.length === 0) {
+          setError('לא נמצאו עסקאות בקובץ ה-PDF. ייתכן שהפורמט אינו נתמך.')
+          return
+        }
+        const { duplicates } = detectDuplicates(mapped, existingTransactions)
+        setTransactions(mapped)
+        setDuplicateWarning(duplicates.length)
+        setXlsxData(null); setAvailableSheets([])
       } else {
-        setError('פורמט לא נתמך. השתמש בקובץ CSV או XLSX.')
+        setError('פורמט לא נתמך. השתמש בקובץ CSV, XLSX או PDF.')
       }
     } catch {
       setError('שגיאה בקריאת הקובץ. נסה שוב.')
@@ -144,7 +157,9 @@ export function CreditFlow({ month, accountId, accountName, categories, rules, p
   return (
     <div>
       <div className="flex items-center gap-2 mb-4">
-        <button onClick={() => router.back()} className="text-slate-400 hover:text-foreground">←</button>
+        <button onClick={() => router.back()} className="p-1 text-slate-400 hover:text-foreground transition-colors">
+          <ChevronRight size={22} />
+        </button>
         <h2 className="text-lg font-semibold">{accountName}</h2>
       </div>
 
@@ -153,7 +168,7 @@ export function CreditFlow({ month, accountId, accountName, categories, rules, p
         onClick={() => fileInputRef.current?.click()}
       >
         <Upload size={24} className="mx-auto mb-2 text-slate-400" />
-        <p className="text-slate-400 text-sm">העלאת קובץ CSV, XLS או XLSX</p>
+        <p className="text-slate-400 text-sm">העלאת קובץ CSV, XLS, XLSX או PDF</p>
         <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls,.pdf" className="hidden" onChange={handleFileChange} />
       </div>
 
@@ -251,7 +266,6 @@ export function CreditFlow({ month, accountId, accountName, categories, rules, p
         </>
       )}
 
-      <button onClick={() => router.back()} className="w-full py-2 text-slate-400 text-sm">← חזור</button>
     </div>
   )
 }

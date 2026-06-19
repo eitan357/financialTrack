@@ -1,9 +1,11 @@
 'use client'
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Upload, CheckCircle, Tag } from 'lucide-react'
+import { Upload, CheckCircle, Tag, ChevronRight } from 'lucide-react'
 import { parseOneZeroXlsx } from '@/lib/parsers/one-zero-xlsx-parser'
 import { parseLeumiPdf } from '@/lib/parsers/leumi-pdf-parser'
+import { parseCSV } from '@/lib/parsers/csv-parser'
+import { mapRows } from '@/lib/parsers/transaction-mapper'
 import { categorize } from '@/lib/categorization/engine'
 import { detectDuplicates } from '@/lib/import/duplicate-detector'
 import { addTransactions } from '@/lib/firestore/transactions'
@@ -46,11 +48,6 @@ function toTransaction(t: ImportedTransaction, accountId: string, month: string,
   }
 }
 
-const ACCEPT_LABEL: Record<BankType, string> = {
-  'one-zero': 'XLS / PDF',
-  'leumi': 'XLS / PDF',
-  'generic': 'XLS / PDF',
-}
 
 function suggestSkips(txs: ImportedTransaction[], salaryEntries: SalaryEntry[], creditAccounts: Account[]): BankImportRow[] {
   const salaryAmounts = new Set(salaryEntries.map(e => e.netAmount))
@@ -110,8 +107,12 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
       const data = new Uint8Array(buf)
       let raw: RawTransaction[]
 
-      if (bankType === 'leumi' || file.name.toLowerCase().endsWith('.pdf')) {
+      const ext = file.name.toLowerCase()
+      if (ext.endsWith('.pdf') || bankType === 'leumi') {
         raw = await parseLeumiPdf(data)
+      } else if (ext.endsWith('.csv')) {
+        const text = await file.text()
+        raw = mapRows(parseCSV(text))
       } else {
         raw = parseOneZeroXlsx(data)
       }
@@ -166,7 +167,9 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
   return (
     <div>
       <div className="flex items-center gap-2 mb-4">
-        <button onClick={() => router.back()} className="text-slate-400 hover:text-foreground">←</button>
+        <button onClick={() => router.back()} className="p-1 text-slate-400 hover:text-foreground transition-colors">
+          <ChevronRight size={22} />
+        </button>
         <h2 className="text-lg font-semibold">{accountName}</h2>
       </div>
 
@@ -175,7 +178,7 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
         onClick={() => fileInputRef.current?.click()}
       >
         <Upload size={24} className="mx-auto mb-2 text-slate-400" />
-        <p className="text-slate-400 text-sm">העלאת קובץ {ACCEPT_LABEL[bankType]}</p>
+        <p className="text-slate-400 text-sm">העלאת קובץ XLS, XLSX, PDF או CSV</p>
         <input ref={fileInputRef} type="file" accept=".xls,.xlsx,.pdf,.csv" className="hidden" onChange={handleFileChange} />
       </div>
 
@@ -277,7 +280,6 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
         </>
       )}
 
-      <button onClick={() => router.back()} className="w-full py-2 text-slate-400 text-sm">← חזור</button>
     </div>
   )
 }
