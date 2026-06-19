@@ -30,6 +30,7 @@ function CreditPageInner() {
 
   useEffect(() => {
     async function load() {
+      setLoading(true)
       try {
         const [accs, cats, rls, txs] = await Promise.all([
           getAccounts(),
