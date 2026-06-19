@@ -9,19 +9,38 @@ function parseDiscountDate(dateStr: string): string {
 }
 
 function parseAmount(raw: string): number {
-  return parseFloat((raw ?? '0').replace(/,/g, '')) || 0
+  return parseFloat((raw ?? '0').replace(/,/g, '').trim()) || 0
+}
+
+// Try multiple column name variants (different Israeli credit card exporters use different names)
+function getField(row: ParsedRow, ...keys: string[]): string {
+  for (const key of keys) {
+    const val = row[key]?.trim()
+    if (val) return val
+  }
+  return ''
 }
 
 export function mapRows(rows: ParsedRow[]): RawTransaction[] {
   return rows
-    .filter(row => row['שם בית העסק']?.trim())
+    .filter(row => getField(row,
+      'שם בית העסק', 'שם בית עסק', 'שם ספק', 'שם בית-עסק',
+      'תיאור', 'פירוט נוסף', 'תיאור העסקה',
+    ))
     .map(row => ({
-      date: parseDiscountDate(row['תאריך עסקה'] ?? ''),
-      merchantName: row['שם בית העסק'].trim(),
-      bankCategory: row['קטגוריה'] ?? '',
-      amount: parseAmount(row['סכום חיוב'] ?? '0'),
-      currency: row['מטבע חיוב']?.trim() || 'ILS',
-      isImmediate: row['סוג עסקה']?.trim() === 'חיוב עסקות מיידי',
-      notes: row['הערות'] ?? '',
+      date: parseDiscountDate(
+        getField(row, 'תאריך עסקה', 'תאריך') ?? ''
+      ),
+      merchantName: getField(row,
+        'שם בית העסק', 'שם בית עסק', 'שם ספק', 'שם בית-עסק',
+        'תיאור', 'פירוט נוסף', 'תיאור העסקה',
+      ),
+      bankCategory: getField(row, 'קטגוריה', 'ענף', 'קטגורית עסקה') ?? '',
+      amount: parseAmount(
+        getField(row, 'סכום חיוב', 'סכום', 'חיוב', 'סכום ₪', 'סכום בש"ח') || '0'
+      ),
+      currency: getField(row, 'מטבע חיוב', 'מטבע') || 'ILS',
+      isImmediate: getField(row, 'סוג עסקה') === 'חיוב עסקות מיידי',
+      notes: getField(row, 'הערות', 'פירוט נוסף', 'תיאור נוסף') ?? '',
     }))
 }

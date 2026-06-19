@@ -91,11 +91,20 @@ export function CreditFlow({ month, accountId, accountName, categories, rules, p
 
   function loadSheets() {
     if (!xlsxData || selectedSheets.length === 0) return
-    const rows = selectedSheets.flatMap(s => parseSheet(xlsxData, s))
-    const mapped = applyCategories(mapRows(rows))
-    const { duplicates } = detectDuplicates(mapped, existingTransactions)
-    setTransactions(mapped)
-    setDuplicateWarning(duplicates.length)
+    try {
+      const rows = selectedSheets.flatMap(s => parseSheet(xlsxData, s))
+      const mapped = applyCategories(mapRows(rows))
+      if (mapped.length === 0) {
+        setError('לא נמצאו עסקאות בגליונות שנבחרו. ייתכן שפורמט הקובץ שונה מהצפוי.')
+        return
+      }
+      const { duplicates } = detectDuplicates(mapped, existingTransactions)
+      setTransactions(mapped)
+      setDuplicateWarning(duplicates.length)
+      setError(null)
+    } catch {
+      setError('שגיאה בניתוח הגליונות. נסה שוב.')
+    }
   }
 
   function updateField(index: number, updates: Partial<ImportedTransaction>) {
@@ -143,8 +152,8 @@ export function CreditFlow({ month, accountId, accountName, categories, rules, p
         onClick={() => fileInputRef.current?.click()}
       >
         <Upload size={24} className="mx-auto mb-2 text-slate-400" />
-        <p className="text-slate-400 text-sm">העלאת קובץ CSV או XLSX</p>
-        <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={handleFileChange} />
+        <p className="text-slate-400 text-sm">העלאת קובץ CSV, XLS או XLSX</p>
+        <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls,.pdf" className="hidden" onChange={handleFileChange} />
       </div>
 
       {error && <p role="alert" className="text-red-400 text-sm mb-3">{error}</p>}
@@ -187,7 +196,7 @@ export function CreditFlow({ month, accountId, accountName, categories, rules, p
               </thead>
               <tbody>
                 {transactions.map((tx, i) => (
-                  <tr key={i} className={`border-b border-slate-700/40 ${!tx.categoryId && tx.direction !== 'income' ? 'ring-1 ring-inset ring-blue-400' : ''}`}>
+                  <tr key={i} className="border-b border-slate-700/40">
                     <td className="py-1.5 px-2 text-slate-400 text-xs">{tx.date}</td>
                     <td className="py-1.5 px-2 text-xs">{tx.merchantName}</td>
                     <td className="py-1.5 px-2">
@@ -241,7 +250,7 @@ export function CreditFlow({ month, accountId, accountName, categories, rules, p
         </>
       )}
 
-      <button onClick={onBack} className="w-full py-2 text-slate-400 text-sm">דלג</button>
+      <button onClick={onBack} className="w-full py-2 text-slate-400 text-sm">← חזור</button>
     </div>
   )
 }

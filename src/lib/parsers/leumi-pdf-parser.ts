@@ -88,7 +88,7 @@ export function parseLeumiRows(items: PdfTextItem[]): RawTransaction[] {
 export async function parseLeumiPdf(data: Uint8Array): Promise<RawTransaction[]> {
   // @ts-ignore — pdfjs-dist types vary by version; dynamic import works at runtime
   const pdfjsLib = await import('pdfjs-dist')
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`
+  pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs'
 
   const pdf = await pdfjsLib.getDocument({ data: data.slice(0) }).promise
   const items: PdfTextItem[] = []

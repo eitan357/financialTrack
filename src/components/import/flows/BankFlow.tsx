@@ -46,15 +46,9 @@ function toTransaction(t: ImportedTransaction, accountId: string, month: string,
   }
 }
 
-const ACCEPT: Record<BankType, string> = {
-  'one-zero': '.xls,.xlsx',
-  'leumi': '.pdf',
-  'generic': '.xls,.xlsx,.pdf',
-}
-
 const ACCEPT_LABEL: Record<BankType, string> = {
-  'one-zero': 'XLS',
-  'leumi': 'PDF',
+  'one-zero': 'XLS / PDF',
+  'leumi': 'XLS / PDF',
   'generic': 'XLS / PDF',
 }
 
@@ -181,7 +175,7 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
       >
         <Upload size={24} className="mx-auto mb-2 text-slate-400" />
         <p className="text-slate-400 text-sm">העלאת קובץ {ACCEPT_LABEL[bankType]}</p>
-        <input ref={fileInputRef} type="file" accept={ACCEPT[bankType]} className="hidden" onChange={handleFileChange} />
+        <input ref={fileInputRef} type="file" accept=".xls,.xlsx,.pdf,.csv" className="hidden" onChange={handleFileChange} />
       </div>
 
       {parsing && <p className="text-slate-400 text-sm text-center mb-3">מנתח קובץ...</p>}
@@ -218,7 +212,7 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
               <tbody>
                 {rows.map((row, i) => (
                   <tr key={`${row.date}-${row.merchantName}-${i}`}
-                    className={`border-b border-slate-700/40 ${row.skip ? 'opacity-30' : (!row.categoryId && row.direction !== 'income' ? 'ring-1 ring-inset ring-blue-400' : '')}`}>
+                    className={`border-b border-slate-700/40 ${row.skip ? 'opacity-30' : ''}`}>
                     <td className="py-1.5 px-2 text-center">
                       <input
                         type="checkbox"
