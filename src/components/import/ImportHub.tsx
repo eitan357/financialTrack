@@ -1,30 +1,15 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { ChevronLeft } from 'lucide-react'
-import { usePersistedMonth } from '@/hooks/usePersistedMonth'
 import { MonthHeader } from '@/components/layout/MonthHeader'
 import { seedDefaultAccounts, getAccounts } from '@/lib/firestore/accounts'
-import { seedDefaultCategories, getCategories } from '@/lib/firestore/categories'
-import { getRules } from '@/lib/firestore/categorization-rules'
+import { seedDefaultCategories } from '@/lib/firestore/categories'
 import { getTransactions } from '@/lib/firestore/transactions'
-import { getSalaryEntries, getSalaryEntry } from '@/lib/firestore/salary'
-import { CreditFlow } from './flows/CreditFlow'
-import { BankFlow, type BankType } from './flows/BankFlow'
-import { SalaryFlow } from './flows/SalaryFlow'
-import { CashFlow } from './flows/CashFlow'
-import type { Account, Category, CategorizationRule, SalaryEntry, Transaction } from '@/lib/types'
+import { getSalaryEntries } from '@/lib/firestore/salary'
+import type { Account, SalaryEntry, Transaction } from '@/lib/types'
 
-type FlowId =
-  | { type: 'credit'; accountId: string }
-  | { type: 'bank'; accountId: string; bankType: BankType }
-  | { type: 'salary' }
-  | { type: 'cash' }
-
-function prevMonthStr(m: string): string {
-  const [y, mo] = m.split('-').map(Number)
-  const d = new Date(y, mo - 2)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-}
+type BankType = 'one-zero' | 'leumi' | 'generic'
 
 function detectBankType(account: Account): BankType {
   const id = (account.csvIdentifier ?? account.name).toLowerCase()
@@ -33,9 +18,9 @@ function detectBankType(account: Account): BankType {
   return 'generic'
 }
 
-interface HubStatus {
-  transactions: Transaction[]
-  salaryEntries: SalaryEntry[]
+function currentMonth(): string {
+  const n = new Date()
+  return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}`
 }
 
 function txCount(txs: Transaction[], accountId: string) {
@@ -43,41 +28,50 @@ function txCount(txs: Transaction[], accountId: string) {
 }
 
 export function ImportHub() {
-  const [month, setMonth] = usePersistedMonth()
+  const router = useRouter()
+  const searchParams = useSearchParams()
+
+  const [month, setMonthState] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('ft_month') ?? currentMonth()
+    }
+    return currentMonth()
+  })
+
+  // Sync month from/to URL search param
+  useEffect(() => {
+    const urlMonth = searchParams.get('month')
+    if (urlMonth && urlMonth !== month) {
+      setMonthState(urlMonth)
+    }
+  }, [searchParams, month])
+
+  function setMonth(m: string) {
+    setMonthState(m)
+    localStorage.setItem('ft_month', m)
+    router.replace(`/import?month=${m}`)
+  }
+
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [accounts, setAccounts] = useState<Account[]>([])
-  const [categories, setCategories] = useState<Category[]>([])
-  const [rules, setRules] = useState<CategorizationRule[]>([])
-  const [status, setStatus] = useState<HubStatus>({ transactions: [], salaryEntries: [] })
-  const [previousSalary, setPreviousSalary] = useState<Omit<SalaryEntry, 'id'> | null>(null)
-  const [activeFlow, setActiveFlow] = useState<FlowId | null>(null)
+  const [transactions, setTransactions] = useState<Transaction[]>([])
+  const [salaryEntries, setSalaryEntries] = useState<SalaryEntry[]>([])
 
   const loadStatus = useCallback(async (m: string) => {
-    const [txs, salaries] = await Promise.all([
-      getTransactions(m),
-      getSalaryEntries(m),
-    ])
-    setStatus({ transactions: txs, salaryEntries: salaries })
+    const [txs, salaries] = await Promise.all([getTransactions(m), getSalaryEntries(m)])
+    setTransactions(txs)
+    setSalaryEntries(salaries)
   }, [])
 
   useEffect(() => {
     setLoading(true)
     setError(null)
-    setActiveFlow(null)
     async function init() {
       try {
         await Promise.all([seedDefaultAccounts(), seedDefaultCategories()])
-        const [accs, cats, rls, prevSal] = await Promise.all([
-          getAccounts(),
-          getCategories(),
-          getRules(),
-          getSalaryEntry(prevMonthStr(month)),
-        ])
+        const accs = await getAccounts()
         setAccounts(accs)
-        setCategories(cats)
-        setRules(rls)
-        if (prevSal) { const { id: _salId, ...rest } = prevSal; setPreviousSalary(rest) }
         await loadStatus(month)
       } catch {
         setError('שגיאה בטעינת הנתונים.')
@@ -87,11 +81,6 @@ export function ImportHub() {
     }
     init()
   }, [month, loadStatus])
-
-  function handleFlowDone() {
-    setActiveFlow(null)
-    loadStatus(month).catch(() => setError('שגיאה בטעינת הנתונים.'))
-  }
 
   const creditAccounts = accounts.filter(a => a.type === 'credit' && a.isActive)
   const bankAccounts = accounts.filter(a => a.type === 'bank' && a.isActive)
@@ -115,96 +104,19 @@ export function ImportHub() {
     )
   }
 
-  // Render active flow
-  if (activeFlow) {
-    if (activeFlow.type === 'credit') {
-      const account = accounts.find(a => a.id === activeFlow.accountId)
-      if (!account) { setActiveFlow(null); return null }
-      return (
-        <main className="p-4 max-w-lg mx-auto">
-          <CreditFlow
-            month={month}
-            accountId={activeFlow.accountId}
-            accountName={account.name}
-            categories={categories}
-            rules={rules}
-            previousTransactions={status.transactions}
-            existingTransactions={status.transactions.filter(t => t.accountId === activeFlow.accountId)}
-            onDone={handleFlowDone}
-            onBack={() => setActiveFlow(null)}
-          />
-        </main>
-      )
-    }
-    if (activeFlow.type === 'bank') {
-      const account = accounts.find(a => a.id === activeFlow.accountId)
-      if (!account) { setActiveFlow(null); return null }
-      return (
-        <main className="p-4 max-w-lg mx-auto">
-          <BankFlow
-            month={month}
-            accountId={activeFlow.accountId}
-            accountName={account.name}
-            bankType={activeFlow.bankType}
-            categories={categories}
-            rules={rules}
-            previousTransactions={status.transactions}
-            existingTransactions={status.transactions.filter(t => t.accountId === activeFlow.accountId)}
-            salaryEntries={status.salaryEntries}
-            creditAccounts={accounts.filter(a => a.type === 'credit')}
-            onDone={handleFlowDone}
-            onBack={() => setActiveFlow(null)}
-          />
-        </main>
-      )
-    }
-    if (activeFlow.type === 'salary') {
-      return (
-        <main className="p-4 max-w-lg mx-auto">
-          <SalaryFlow
-            month={month}
-            existingEntries={status.salaryEntries}
-            bankAccounts={bankAccounts}
-            previousSalary={previousSalary}
-            onDone={handleFlowDone}
-            onBack={() => setActiveFlow(null)}
-          />
-        </main>
-      )
-    }
-    if (activeFlow.type === 'cash') {
-      const cashTxs = cashAccount
-        ? status.transactions.filter(t => t.accountId === cashAccount.id)
-        : []
-      return (
-        <main className="p-4 max-w-lg mx-auto">
-          <CashFlow
-            month={month}
-            cashAccountId={cashAccount?.id ?? ''}
-            categories={categories}
-            existingTransactions={cashTxs}
-            onDone={handleFlowDone}
-            onBack={() => setActiveFlow(null)}
-          />
-        </main>
-      )
-    }
-  }
-
-  // Hub screen
-  const cashTxCount = cashAccount ? txCount(status.transactions, cashAccount.id) : 0
+  const cashTxCount = cashAccount ? txCount(transactions, cashAccount.id) : 0
 
   return (
     <main className="p-4 max-w-lg mx-auto pb-24">
-      <MonthHeader month={month} onMonthChange={m => { setMonth(m); setActiveFlow(null) }} />
+      <MonthHeader month={month} onMonthChange={setMonth} />
 
       <div className="space-y-2">
         {creditAccounts.map(acc => {
-          const count = txCount(status.transactions, acc.id)
+          const count = txCount(transactions, acc.id)
           return (
             <button
               key={acc.id}
-              onClick={() => setActiveFlow({ type: 'credit', accountId: acc.id })}
+              onClick={() => router.push(`/import/credit/${acc.id}?month=${month}`)}
               className="w-full bg-surface rounded-2xl px-4 py-3 flex items-center gap-3 hover:bg-surface/80 transition-colors text-right"
             >
               <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: acc.color }} />
@@ -218,13 +130,13 @@ export function ImportHub() {
         })}
 
         {bankAccounts.map(acc => {
-          const count = txCount(status.transactions, acc.id)
+          const count = txCount(transactions, acc.id)
           const bankType = detectBankType(acc)
           const fileLabel = bankType === 'leumi' ? 'PDF' : bankType === 'one-zero' ? 'XLS' : 'XLS / PDF'
           return (
             <button
               key={acc.id}
-              onClick={() => setActiveFlow({ type: 'bank', accountId: acc.id, bankType })}
+              onClick={() => router.push(`/import/bank/${acc.id}?month=${month}`)}
               className="w-full bg-surface rounded-2xl px-4 py-3 flex items-center gap-3 hover:bg-surface/80 transition-colors text-right"
             >
               <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: acc.color }} />
@@ -238,15 +150,15 @@ export function ImportHub() {
         })}
 
         <button
-          onClick={() => setActiveFlow({ type: 'salary' })}
+          onClick={() => router.push(`/import/salary?month=${month}`)}
           className="w-full bg-surface rounded-2xl px-4 py-3 flex items-center gap-3 hover:bg-surface/80 transition-colors text-right"
         >
           <span className="w-2.5 h-2.5 rounded-full bg-green-400 flex-shrink-0" />
           <div className="flex-1 min-w-0">
             <div className="text-sm font-medium">משכורות</div>
             <div className="text-xs text-slate-500">
-              {status.salaryEntries.length > 0
-                ? `${status.salaryEntries.length} משכורות · נטו ₪${status.salaryEntries.reduce((s, e) => s + e.netAmount, 0).toLocaleString('he-IL')}`
+              {salaryEntries.length > 0
+                ? `${salaryEntries.length} משכורות · נטו ₪${salaryEntries.reduce((s, e) => s + e.netAmount, 0).toLocaleString('he-IL')}`
                 : 'לחץ להוספה / עריכה'}
             </div>
           </div>
@@ -255,7 +167,7 @@ export function ImportHub() {
 
         {cashAccount && (
           <button
-            onClick={() => setActiveFlow({ type: 'cash' })}
+            onClick={() => router.push(`/import/cash?month=${month}`)}
             className="w-full bg-surface rounded-2xl px-4 py-3 flex items-center gap-3 hover:bg-surface/80 transition-colors text-right"
           >
             <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: cashAccount.color }} />
