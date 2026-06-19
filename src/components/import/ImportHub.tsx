@@ -31,26 +31,25 @@ export function ImportHub() {
   const router = useRouter()
   const searchParams = useSearchParams()
 
-  const [month, setMonthState] = useState<string>(() => {
-    if (typeof window !== 'undefined') {
-      return localStorage.getItem('ft_month') ?? currentMonth()
-    }
-    return currentMonth()
-  })
+  const [month, setMonthState] = useState<string>(currentMonth)
 
-  // Sync month from/to URL search param
+  // Hydrate month from localStorage after mount (avoids SSR/client mismatch)
+  useEffect(() => {
+    const stored = localStorage.getItem('ft_month')
+    if (stored) setMonthState(stored)
+  }, [])
+
+  // Sync month from URL search param
   useEffect(() => {
     const urlMonth = searchParams.get('month')
-    if (urlMonth && urlMonth !== month) {
-      setMonthState(urlMonth)
-    }
-  }, [searchParams, month])
+    if (urlMonth) setMonthState(urlMonth)
+  }, [searchParams])
 
-  function setMonth(m: string) {
+  const setMonth = useCallback((m: string) => {
     setMonthState(m)
     localStorage.setItem('ft_month', m)
     router.replace(`/import?month=${m}`)
-  }
+  }, [router])
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
