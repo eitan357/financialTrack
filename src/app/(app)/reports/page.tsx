@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { getTransactionsForMonths } from '@/lib/firestore/transactions'
 import { getCategories } from '@/lib/firestore/categories'
+import { getAccounts } from '@/lib/firestore/accounts'
 import { computeMonthlyReports } from '@/lib/reports/compute'
 import { MonthSummaryRow } from '@/components/reports/MonthSummaryRow'
 import type { Category } from '@/lib/types'
@@ -24,12 +25,15 @@ export default function ReportsPage() {
     const months = monthsOfYear(year)
     async function load() {
       try {
-        const [txs, cats] = await Promise.all([
+        const [txs, cats, accs] = await Promise.all([
           getTransactionsForMonths(months),
           getCategories(),
+          getAccounts(),
         ])
         setCategories(cats)
-        setSummaries(computeMonthlyReports(txs, months, cats))
+        const creditIds = new Set(accs.filter(a => a.type === 'credit').map(a => a.id))
+        const txsForCompute = txs.filter(t => !(t.isImmediate && creditIds.has(t.accountId)))
+        setSummaries(computeMonthlyReports(txsForCompute, months, cats))
       } finally {
         setLoading(false)
       }

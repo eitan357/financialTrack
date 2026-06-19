@@ -65,8 +65,10 @@ export default function DashboardPage() {
           getMonthlySettings(month),
           getAccounts(),
         ])
+        const creditIds = new Set(accs.filter(a => a.type === 'credit').map(a => a.id))
+        const txsForCompute = txs.filter(t => !(t.isImmediate && creditIds.has(t.accountId)))
         setSummary(computeDashboard({
-          transactions: txs, salaryEntry: salary,
+          transactions: txsForCompute, salaryEntry: salary,
           dividends: divs, investmentEntries: invEntries, categories: cats, monthlySettings: settings,
         }))
         setRawData({ transactions: txs, salary, investmentEntries: invEntries, categories: cats, accounts: accs })
