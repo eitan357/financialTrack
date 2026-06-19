@@ -1,5 +1,13 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { ImportHub } from './ImportHub'
+
+const mockPush = jest.fn()
+const mockReplace = jest.fn()
+
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ push: mockPush, replace: mockReplace, back: jest.fn() }),
+  useSearchParams: () => ({ get: () => null }),
+}))
 
 jest.mock('@/lib/firestore/accounts', () => ({
   getAccounts: jest.fn().mockResolvedValue([
@@ -11,26 +19,20 @@ jest.mock('@/lib/firestore/accounts', () => ({
   seedDefaultAccounts: jest.fn().mockResolvedValue(undefined),
 }))
 jest.mock('@/lib/firestore/categories', () => ({
-  getCategories: jest.fn().mockResolvedValue([]),
   seedDefaultCategories: jest.fn().mockResolvedValue(undefined),
-}))
-jest.mock('@/lib/firestore/categorization-rules', () => ({
-  getRules: jest.fn().mockResolvedValue([]),
 }))
 jest.mock('@/lib/firestore/transactions', () => ({
   getTransactions: jest.fn().mockResolvedValue([]),
 }))
 jest.mock('@/lib/firestore/salary', () => ({
   getSalaryEntries: jest.fn().mockResolvedValue([]),
-  getSalaryEntry: jest.fn().mockResolvedValue(null),
-}))
-jest.mock('@/lib/firestore/income', () => ({
-  getIncomeEntries: jest.fn().mockResolvedValue([]),
-}))
-jest.mock('@/hooks/usePersistedMonth', () => ({
-  usePersistedMonth: () => ['2026-06', jest.fn()],
 }))
 jest.mock('@/lib/firebase/config', () => ({ app: {} }))
+
+beforeEach(() => {
+  mockPush.mockClear()
+  mockReplace.mockClear()
+})
 
 describe('ImportHub', () => {
   it('shows hub cards after loading', async () => {
@@ -38,8 +40,30 @@ describe('ImportHub', () => {
     await waitFor(() => {
       expect(screen.getByText('ויזה')).toBeInTheDocument()
     })
+    expect(screen.getByText('לאומי')).toBeInTheDocument()
     expect(screen.getByText('משכורות')).toBeInTheDocument()
-    expect(screen.getByText('הכנסות נוספות')).toBeInTheDocument()
     expect(screen.getByText('מזומן')).toBeInTheDocument()
+    expect(screen.queryByText('הכנסות נוספות')).not.toBeInTheDocument()
+  })
+
+  it('navigates to credit flow when credit account row is clicked', async () => {
+    render(<ImportHub />)
+    await waitFor(() => expect(screen.getByText('ויזה')).toBeInTheDocument())
+    fireEvent.click(screen.getByText('ויזה'))
+    expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('/import/credit/cc1'))
+  })
+
+  it('navigates to bank flow when bank account row is clicked', async () => {
+    render(<ImportHub />)
+    await waitFor(() => expect(screen.getByText('לאומי')).toBeInTheDocument())
+    fireEvent.click(screen.getByText('לאומי'))
+    expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('/import/bank/bk1'))
+  })
+
+  it('navigates to salary flow when salary row is clicked', async () => {
+    render(<ImportHub />)
+    await waitFor(() => expect(screen.getByText('משכורות')).toBeInTheDocument())
+    fireEvent.click(screen.getByText('משכורות'))
+    expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('/import/salary'))
   })
 })
