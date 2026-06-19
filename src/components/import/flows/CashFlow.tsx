@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Plus, Trash2 } from 'lucide-react'
 import { addTransactions, deleteTransaction } from '@/lib/firestore/transactions'
 import type { Category, Transaction } from '@/lib/types'
@@ -22,10 +23,10 @@ interface Props {
   categories: Category[]
   existingTransactions: Transaction[]
   onDone: () => void
-  onBack: () => void
 }
 
-export function CashFlow({ month, cashAccountId, categories, existingTransactions, onDone, onBack }: Props) {
+export function CashFlow({ month, cashAccountId, categories, existingTransactions, onDone }: Props) {
+  const router = useRouter()
   const [entries, setEntries] = useState<Transaction[]>(existingTransactions)
   const [newRows, setNewRows] = useState<CashRow[]>([])
   const [saving, setSaving] = useState(false)
@@ -77,7 +78,7 @@ export function CashFlow({ month, cashAccountId, categories, existingTransaction
   return (
     <div>
       <div className="flex items-center gap-2 mb-4">
-        <button onClick={onBack} className="text-slate-400 hover:text-foreground">←</button>
+        <button onClick={() => router.back()} className="text-slate-400 hover:text-foreground">←</button>
         <h2 className="text-lg font-semibold">מזומן — {month}</h2>
       </div>
 

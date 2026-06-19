@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react'
 import { CashFlow } from './CashFlow'
 import type { Category, Transaction } from '@/lib/types'
 
+jest.mock('next/navigation', () => ({ useRouter: () => ({ back: jest.fn() }) }))
 jest.mock('@/lib/firestore/transactions', () => ({
   addTransactions: jest.fn().mockResolvedValue(undefined),
   deleteTransaction: jest.fn().mockResolvedValue(undefined),
@@ -27,7 +28,6 @@ describe('CashFlow', () => {
         categories={categories}
         existingTransactions={[existingCashTx]}
         onDone={jest.fn()}
-        onBack={jest.fn()}
       />
     )
     expect(screen.getByText('שוק הכרמל')).toBeInTheDocument()
@@ -42,7 +42,6 @@ describe('CashFlow', () => {
         categories={categories}
         existingTransactions={[]}
         onDone={jest.fn()}
-        onBack={jest.fn()}
       />
     )
     expect(screen.getByText(/אין הוצאות מזומן/i)).toBeInTheDocument()
