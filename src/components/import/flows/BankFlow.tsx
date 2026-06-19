@@ -1,5 +1,6 @@
 'use client'
 import { useState, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { Upload, CheckCircle, Tag } from 'lucide-react'
 import { parseOneZeroXlsx } from '@/lib/parsers/one-zero-xlsx-parser'
 import { parseLeumiPdf } from '@/lib/parsers/leumi-pdf-parser'
@@ -27,7 +28,6 @@ interface Props {
   salaryEntries?: SalaryEntry[]
   creditAccounts?: Account[]
   onDone: () => void
-  onBack: () => void
 }
 
 function toTransaction(t: ImportedTransaction, accountId: string, month: string, source: TransactionSource): Omit<Transaction, 'id'> {
@@ -73,7 +73,8 @@ function suggestSkips(txs: ImportedTransaction[], salaryEntries: SalaryEntry[], 
   })
 }
 
-export function BankFlow({ month, accountId, accountName, bankType, categories, rules = [], previousTransactions = [], existingTransactions, salaryEntries = [], creditAccounts = [], onDone, onBack }: Props) {
+export function BankFlow({ month, accountId, accountName, bankType, categories, rules = [], previousTransactions = [], existingTransactions, salaryEntries = [], creditAccounts = [], onDone }: Props) {
+  const router = useRouter()
   const [rows, setRows] = useState<BankImportRow[]>([])
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -165,7 +166,7 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
   return (
     <div>
       <div className="flex items-center gap-2 mb-4">
-        <button onClick={onBack} className="text-slate-400 hover:text-foreground">←</button>
+        <button onClick={() => router.back()} className="text-slate-400 hover:text-foreground">←</button>
         <h2 className="text-lg font-semibold">{accountName}</h2>
       </div>
 
@@ -276,7 +277,7 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
         </>
       )}
 
-      <button onClick={onBack} className="w-full py-2 text-slate-400 text-sm">← חזור</button>
+      <button onClick={() => router.back()} className="w-full py-2 text-slate-400 text-sm">← חזור</button>
     </div>
   )
 }

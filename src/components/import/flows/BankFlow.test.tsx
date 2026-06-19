@@ -5,6 +5,9 @@ jest.mock('@/lib/firestore/transactions', () => ({
   addTransactions: jest.fn().mockResolvedValue(undefined),
 }))
 jest.mock('@/lib/firebase/config', () => ({ app: {} }))
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ back: jest.fn(), push: jest.fn() }),
+}))
 
 describe('BankFlow', () => {
   it('renders account name and upload area for one-zero', () => {
@@ -17,7 +20,6 @@ describe('BankFlow', () => {
         categories={[]}
         existingTransactions={[]}
         onDone={jest.fn()}
-        onBack={jest.fn()}
       />
     )
     expect(screen.getByText(/One Zero/)).toBeInTheDocument()
@@ -34,7 +36,6 @@ describe('BankFlow', () => {
         categories={[]}
         existingTransactions={[]}
         onDone={jest.fn()}
-        onBack={jest.fn()}
       />
     )
     expect(screen.getByText(/PDF/)).toBeInTheDocument()
