@@ -29,6 +29,7 @@ interface Props {
   existingTransactions: Transaction[]
   salaryEntries?: SalaryEntry[]
   creditAccounts?: Account[]
+  creditImmediateAmounts?: Set<number>
   onDone: () => void
 }
 
@@ -70,7 +71,7 @@ function suggestSkips(txs: ImportedTransaction[], salaryEntries: SalaryEntry[], 
   })
 }
 
-export function BankFlow({ month, accountId, accountName, bankType, categories, rules = [], previousTransactions = [], existingTransactions, salaryEntries = [], creditAccounts = [], onDone }: Props) {
+export function BankFlow({ month, accountId, accountName, bankType, categories, rules = [], previousTransactions = [], existingTransactions, salaryEntries = [], creditAccounts = [], creditImmediateAmounts, onDone }: Props) {
   const router = useRouter()
   const [rows, setRows] = useState<BankImportRow[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -88,9 +89,11 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
     return raw.map(r => {
       const res = categorize(r.merchantName, rules, previousTransactions)
       const direction: 'income' | 'expense' = r.direction ?? 'expense'
+      const autoImmediate = direction === 'expense' && !!creditImmediateAmounts?.has(r.amount)
       return {
         ...r,
         direction,
+        isImmediate: r.isImmediate || autoImmediate,
         categoryId: direction === 'income' ? null : res.categoryId,
         categorizationSource: direction === 'income' ? null : res.source,
       }
@@ -210,6 +213,7 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
                   <th className="text-right py-2 px-2">הערה</th>
                   <th className="text-left py-2 px-2">סכום</th>
                   <th className="text-right py-2 px-2">כיוון</th>
+                  <th className="text-right py-2 px-2">מיידי</th>
                   <th className="text-right py-2 px-2">קטגוריה</th>
                 </tr>
               </thead>
@@ -250,6 +254,17 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
                         <option value="expense">הוצאה</option>
                         <option value="income">הכנסה</option>
                       </select>
+                    </td>
+                    <td className="py-1.5 px-2 text-center">
+                      <input
+                        type="checkbox"
+                        checked={row.isImmediate}
+                        onChange={e => updateRow(i, { isImmediate: e.target.checked })}
+                        disabled={row.skip}
+                        className="accent-amber-400 disabled:opacity-40"
+                        aria-label={`חיוב מיידי עבור ${row.merchantName}`}
+                        title="חיוב מיידי"
+                      />
                     </td>
                     <td className="py-1.5 px-2">
                       {row.skip ? (

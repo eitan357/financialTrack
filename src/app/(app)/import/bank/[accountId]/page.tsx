@@ -37,6 +37,7 @@ function BankPageInner() {
   const [existingTransactions, setExistingTransactions] = useState<Transaction[]>([])
   const [salaryEntries, setSalaryEntries] = useState<SalaryEntry[]>([])
   const [creditAccounts, setCreditAccounts] = useState<Account[]>([])
+  const [creditImmediateAmounts, setCreditImmediateAmounts] = useState<Set<number>>(new Set())
 
   useEffect(() => {
     async function load() {
@@ -57,7 +58,12 @@ function BankPageInner() {
         setPreviousTransactions(txs)
         setExistingTransactions(txs.filter(t => t.accountId === accountId))
         setSalaryEntries(salaries)
-        setCreditAccounts(accs.filter(a => a.type === 'credit'))
+        const creditAccs = accs.filter(a => a.type === 'credit')
+        setCreditAccounts(creditAccs)
+        const creditIds = new Set(creditAccs.map(a => a.id))
+        setCreditImmediateAmounts(
+          new Set(txs.filter(t => t.isImmediate && creditIds.has(t.accountId)).map(t => t.amount))
+        )
       } catch {
         setError('שגיאה בטעינת הנתונים.')
       } finally {
@@ -84,6 +90,7 @@ function BankPageInner() {
         existingTransactions={existingTransactions}
         salaryEntries={salaryEntries}
         creditAccounts={creditAccounts}
+        creditImmediateAmounts={creditImmediateAmounts}
         onDone={() => router.push(`/import?month=${month}`)}
       />
     </main>
