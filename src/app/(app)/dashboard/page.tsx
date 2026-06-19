@@ -99,10 +99,14 @@ export default function DashboardPage() {
 
   function openExpenses() {
     if (!rawData || !summary) return
+    const creditIds = new Set(rawData.accounts.filter(a => a.type === 'credit').map(a => a.id))
+    const expenseTxs = rawData.transactions.filter(t =>
+      t.direction !== 'income' && !(t.isImmediate && creditIds.has(t.accountId))
+    )
     setDrawer({
       type: 'expenses',
       total: summary.totalExpenses,
-      transactions: rawData.transactions.filter(t => t.direction !== 'income'),
+      transactions: expenseTxs,
       categories: rawData.categories,
       accounts: rawData.accounts,
     })
@@ -110,10 +114,14 @@ export default function DashboardPage() {
 
   function openCategoryBreakdown() {
     if (!rawData || !summary) return
+    const creditIds = new Set(rawData.accounts.filter(a => a.type === 'credit').map(a => a.id))
+    const expenseTxs = rawData.transactions.filter(t =>
+      t.direction !== 'income' && !(t.isImmediate && creditIds.has(t.accountId))
+    )
     setDrawer({
       type: 'expenses-by-category',
       total: summary.totalExpenses,
-      transactions: rawData.transactions.filter(t => t.direction !== 'income'),
+      transactions: expenseTxs,
       categories: rawData.categories,
     })
   }
