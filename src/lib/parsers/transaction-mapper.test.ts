@@ -27,6 +27,11 @@ describe('mapRows', () => {
     expect(mapRows([row])[0].isImmediate).toBe(true)
   })
 
+  it('detects "חיוב מיידי" short variant', () => {
+    const row = { ...BASE_ROW, 'סוג עסקה': 'חיוב מיידי' }
+    expect(mapRows([row])[0].isImmediate).toBe(true)
+  })
+
   it('filters out rows with no merchant name', () => {
     const row = { ...BASE_ROW, 'שם בית העסק': '   ' }
     expect(mapRows([row])).toHaveLength(0)

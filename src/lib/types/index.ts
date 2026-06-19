@@ -156,7 +156,7 @@ export interface RawTransaction {
   bankCategory: string // the bank's own category string (used as fallback suggestion)
   amount: number
   currency: string
-  isImmediate: boolean // true when סוג עסקה === 'חיוב עסקות מיידי'
+  isImmediate: boolean // true when סוג עסקה contains 'מיידי' (any variant, e.g. 'חיוב עסקות מיידי', 'חיוב מיידי')
   notes: string
   direction?: 'income' | 'expense'
 }

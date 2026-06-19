@@ -40,7 +40,7 @@ export function mapRows(rows: ParsedRow[]): RawTransaction[] {
         getField(row, 'סכום חיוב', 'סכום', 'חיוב', 'סכום ₪', 'סכום בש"ח') || '0'
       ),
       currency: getField(row, 'מטבע חיוב', 'מטבע') || 'ILS',
-      isImmediate: getField(row, 'סוג עסקה') === 'חיוב עסקות מיידי',
+      isImmediate: /מיידי/.test(getField(row, 'סוג עסקה')),
       notes: getField(row, 'הערות', 'פירוט נוסף', 'תיאור נוסף') ?? '',
     }))
 }
