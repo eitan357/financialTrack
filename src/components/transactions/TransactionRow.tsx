@@ -34,6 +34,7 @@ function EditForm({ transaction, categories, onUpdate, onDelete, onClose }: {
   const [direction, setDirection] = useState<'expense' | 'income'>(transaction.direction === 'income' ? 'income' : 'expense')
   const [categoryId, setCategoryId] = useState(transaction.categoryId ?? '')
   const [saving, setSaving] = useState(false)
+  const [isImmediate, setIsImmediate] = useState(transaction.isImmediate)
   const [errors, setErrors] = useState<{ date?: string; name?: string; amount?: string }>({})
 
   async function save() {
@@ -56,6 +57,7 @@ function EditForm({ transaction, categories, onUpdate, onDelete, onClose }: {
       if (description.trim()) updates.description = description.trim()
       if (direction === 'expense' && categoryId) updates.categoryId = categoryId
       if (direction === 'income') updates.categoryId = undefined
+      updates.isImmediate = isImmediate
       await onUpdate(transaction.id, updates)
       onClose()
     } finally {
@@ -123,6 +125,16 @@ function EditForm({ transaction, categories, onUpdate, onDelete, onClose }: {
           </select>
         </FormField>
       )}
+      <label className="flex items-center gap-2 text-sm text-slate-400 py-1">
+        <input
+          type="checkbox"
+          checked={isImmediate}
+          onChange={e => setIsImmediate(e.target.checked)}
+          className="accent-amber-400"
+          aria-label="חיוב מיידי"
+        />
+        חיוב מיידי
+      </label>
       <div className="flex gap-2 pt-1">
         <button
           onClick={() => { onDelete(transaction.id); onClose() }}
@@ -180,6 +192,9 @@ function DetailView({ transaction, categories, onEdit, onClose }: {
             <div className="text-xs text-slate-400 mt-0.5">{categoryName}</div>
           ) : (
             <div className="text-xs text-amber-400 mt-0.5">ללא קטגוריה</div>
+          )}
+          {transaction.isImmediate && (
+            <div className="text-xs text-amber-400/80 mt-0.5">חיוב מיידי</div>
           )}
         </div>
       </div>
