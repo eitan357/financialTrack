@@ -11,7 +11,6 @@ import { getSalaryEntries, getSalaryEntry } from '@/lib/firestore/salary'
 import { CreditFlow } from './flows/CreditFlow'
 import { BankFlow, type BankType } from './flows/BankFlow'
 import { SalaryFlow } from './flows/SalaryFlow'
-import { IncomeFlow } from './flows/IncomeFlow'
 import { CashFlow } from './flows/CashFlow'
 import type { Account, Category, CategorizationRule, SalaryEntry, Transaction } from '@/lib/types'
 
@@ -19,7 +18,6 @@ type FlowId =
   | { type: 'credit'; accountId: string }
   | { type: 'bank'; accountId: string; bankType: BankType }
   | { type: 'salary' }
-  | { type: 'income' }
   | { type: 'cash' }
 
 function prevMonthStr(m: string): string {
@@ -77,7 +75,6 @@ export function ImportHub() {
           getSalaryEntry(prevMonthStr(month)),
         ])
         setAccounts(accs)
-        console.log('[ImportHub] accounts loaded:', accs.map(a => `${a.name} | type=${a.type} | isActive=${a.isActive}`))
         setCategories(cats)
         setRules(rls)
         if (prevSal) { const { id: _salId, ...rest } = prevSal; setPreviousSalary(rest) }
@@ -99,7 +96,6 @@ export function ImportHub() {
   const creditAccounts = accounts.filter(a => a.type === 'credit' && a.isActive)
   const bankAccounts = accounts.filter(a => a.type === 'bank' && a.isActive)
   const cashAccount = accounts.find(a => a.type === 'cash' && a.isActive)
-  const salaryBankAccounts = bankAccounts
 
   if (loading) {
     return (
@@ -168,22 +164,8 @@ export function ImportHub() {
           <SalaryFlow
             month={month}
             existingEntries={status.salaryEntries}
-            bankAccounts={salaryBankAccounts}
+            bankAccounts={bankAccounts}
             previousSalary={previousSalary}
-            onDone={handleFlowDone}
-            onBack={() => setActiveFlow(null)}
-          />
-        </main>
-      )
-    }
-    if (activeFlow.type === 'income') {
-      const incomeTxs = status.transactions.filter(t => t.direction === 'income' && !t.salaryDetails)
-      return (
-        <main className="p-4 max-w-lg mx-auto">
-          <IncomeFlow
-            month={month}
-            existingTransactions={incomeTxs}
-            bankAccounts={salaryBankAccounts}
             onDone={handleFlowDone}
             onBack={() => setActiveFlow(null)}
           />
@@ -210,7 +192,6 @@ export function ImportHub() {
   }
 
   // Hub screen
-  const incomeTxCount = status.transactions.filter(t => t.direction === 'income' && !t.salaryDetails).length
   const cashTxCount = cashAccount ? txCount(status.transactions, cashAccount.id) : 0
 
   return (
@@ -268,18 +249,6 @@ export function ImportHub() {
                 ? `${status.salaryEntries.length} משכורות · נטו ₪${status.salaryEntries.reduce((s, e) => s + e.netAmount, 0).toLocaleString('he-IL')}`
                 : 'לחץ להוספה / עריכה'}
             </div>
-          </div>
-          <ChevronLeft size={16} className="text-slate-500 flex-shrink-0" />
-        </button>
-
-        <button
-          onClick={() => setActiveFlow({ type: 'income' })}
-          className="w-full bg-surface rounded-2xl px-4 py-3 flex items-center gap-3 hover:bg-surface/80 transition-colors text-right"
-        >
-          <span className="w-2.5 h-2.5 rounded-full bg-blue-400 flex-shrink-0" />
-          <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium">הכנסות נוספות</div>
-            <div className="text-xs text-slate-500">{incomeTxCount > 0 ? `${incomeTxCount} הכנסות` : 'לחץ להוספה / עריכה'}</div>
           </div>
           <ChevronLeft size={16} className="text-slate-500 flex-shrink-0" />
         </button>
