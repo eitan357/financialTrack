@@ -249,10 +249,8 @@ function AccountsSection() {
           )}
           <button onClick={() => { setEditId(acc.id); setShowAddType(null) }}
             className="text-xs text-slate-400 hover:text-accent">ערוך</button>
-          {acc.type !== 'cash' && (
-            <button onClick={() => handleToggle(acc)}
-              className="text-xs text-slate-400 hover:text-amber-400">הסתר</button>
-          )}
+          <button onClick={() => handleToggle(acc)}
+            className="text-xs text-slate-400 hover:text-amber-400">הסתר</button>
         </div>
       </div>
     )
