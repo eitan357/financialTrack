@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { getAccounts, addAccount, cleanupDuplicateAccounts } from '@/lib/firestore/accounts'
+import { getAccounts, addAccount, deleteAccount, cleanupDuplicateAccounts } from '@/lib/firestore/accounts'
 import { getCategories, addCategory, cleanupDuplicateCategories } from '@/lib/firestore/categories'
 import { getRules, addRule, deleteRule } from '@/lib/firestore/categorization-rules'
 import {
@@ -30,6 +30,16 @@ const PROVIDER_LABELS: Record<AccountProvider, string> = {
   max: 'Max',
   isracard: 'ישראכרט',
 }
+
+const BANK_PROVIDERS: { value: AccountProvider; label: string }[] = [
+  { value: 'leumi', label: 'לאומי' },
+  { value: 'one-zero', label: 'One Zero' },
+]
+
+const CREDIT_PROVIDERS: { value: AccountProvider; label: string }[] = [
+  { value: 'max', label: 'Max' },
+  { value: 'isracard', label: 'ישראכרט' },
+]
 
 // ---- Account form ----
 function AccountForm({ type, initial, bankAccounts, onSubmit, onCancel }: {
@@ -72,8 +82,22 @@ function AccountForm({ type, initial, bankAccounts, onSubmit, onCancel }: {
     setSaving(false)
   }
 
+  const providerOptions = type === 'bank' ? BANK_PROVIDERS : type === 'credit' ? CREDIT_PROVIDERS : []
+
   return (
     <form onSubmit={submit} className="bg-slate-800 rounded-xl p-4 space-y-3">
+      {type !== 'cash' && (
+        <div>
+          <label className="text-xs text-slate-400 block mb-1">
+            {type === 'bank' ? 'בנק' : 'כרטיס אשראי'}
+          </label>
+          <select value={provider} onChange={e => setProvider(e.target.value as AccountProvider | '')}
+            className="w-full bg-background rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 ring-accent">
+            <option value="">— לא נבחר —</option>
+            {providerOptions.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+          </select>
+        </div>
+      )}
       <div>
         <label className="text-xs text-slate-400 block mb-1">שם חשבון</label>
         <input value={name}
@@ -86,28 +110,20 @@ function AccountForm({ type, initial, bankAccounts, onSubmit, onCancel }: {
         <input type="color" value={color} onChange={e => setColor(e.target.value)}
           className="h-9 w-16 rounded cursor-pointer border border-slate-700" />
       </div>
-      {type !== 'cash' && (
+      {type === 'bank' && (
         <div>
-          <label className="text-xs text-slate-400 block mb-1">4 ספרות אחרונות (אופציונלי)</label>
-          <input value={last4} onChange={e => setLast4(e.target.value)} maxLength={4} placeholder="1234"
+          <label className="text-xs text-slate-400 block mb-1">מספר חשבון בנק (אופציונלי)</label>
+          <input value={last4} onChange={e => setLast4(e.target.value)} placeholder="12-345-678901"
             className="w-full bg-background rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 ring-accent" />
-        </div>
-      )}
-      {type !== 'cash' && (
-        <div>
-          <label className="text-xs text-slate-400 block mb-1">חברה / בנק</label>
-          <select value={provider} onChange={e => setProvider(e.target.value as AccountProvider | '')}
-            className="w-full bg-background rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 ring-accent">
-            <option value="">— לא נבחר —</option>
-            <option value="leumi">לאומי</option>
-            <option value="one-zero">One Zero</option>
-            <option value="max">Max</option>
-            <option value="isracard">ישראכרט</option>
-          </select>
         </div>
       )}
       {type === 'credit' && (
         <>
+          <div>
+            <label className="text-xs text-slate-400 block mb-1">4 ספרות אחרונות (אופציונלי)</label>
+            <input value={last4} onChange={e => setLast4(e.target.value)} maxLength={4} placeholder="1234"
+              className="w-full bg-background rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 ring-accent" />
+          </div>
           <div>
             <label className="text-xs text-slate-400 block mb-1">חשבון בנק מקושר <span className="text-red-400">*</span></label>
             <select value={linkedBankId}
@@ -197,6 +213,12 @@ function AccountsSection() {
     setAccounts(prev => prev.map(a => a.id === acc.id ? { ...a, isActive: !a.isActive } : a))
   }
 
+  async function handleDelete(acc: Account) {
+    if (!window.confirm(`למחוק את "${acc.name}"? פעולה זו אינה הפיכה.`)) return
+    await deleteAccount(acc.id)
+    setAccounts(prev => prev.filter(a => a.id !== acc.id))
+  }
+
   async function moveAccount(id: string, dir: -1 | 1) {
     const acc = accounts.find(a => a.id === id)!
     const sameType = accounts
@@ -235,7 +257,11 @@ function AccountsSection() {
         <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: acc.color }} />
         <div className="flex-1 min-w-0">
           <span className="text-sm">{acc.name}</span>
-          {acc.last4digits && <span className="text-xs text-slate-600 mr-2">****{acc.last4digits}</span>}
+          {acc.last4digits && (
+            acc.type === 'bank'
+              ? <span className="text-xs text-slate-600 mr-2">{acc.last4digits}</span>
+              : <span className="text-xs text-slate-600 mr-2">****{acc.last4digits}</span>
+          )}
           {acc.provider && <span className="text-xs text-slate-500 mr-1">· {PROVIDER_LABELS[acc.provider]}</span>}
         </div>
         <div className="flex items-center gap-2">
@@ -251,6 +277,10 @@ function AccountsSection() {
             className="text-xs text-slate-400 hover:text-accent">ערוך</button>
           <button onClick={() => handleToggle(acc)}
             className="text-xs text-slate-400 hover:text-amber-400">הסתר</button>
+          {acc.type !== 'cash' && (
+            <button onClick={() => handleDelete(acc)}
+              className="text-xs text-red-500 hover:text-red-400">מחק</button>
+          )}
         </div>
       </div>
     )

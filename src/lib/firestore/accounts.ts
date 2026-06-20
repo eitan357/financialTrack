@@ -1,5 +1,5 @@
 import {
-  getFirestore, collection, getDocs, addDoc, doc, updateDoc, setDoc,
+  getFirestore, collection, getDocs, addDoc, doc, updateDoc, deleteDoc, setDoc,
   query, where, writeBatch, runTransaction, arrayUnion,
 } from 'firebase/firestore'
 import { app } from '../firebase/config'
@@ -30,7 +30,13 @@ export async function addAccount(account: Omit<Account, 'id'>): Promise<Account>
 
 export async function updateAccount(id: string, updates: Partial<Omit<Account, 'id'>>): Promise<void> {
   appCache.del(CACHE_KEY)
-  await updateDoc(doc(getDb(), 'accounts', id), updates)
+  const clean = Object.fromEntries(Object.entries(updates).filter(([, v]) => v !== undefined))
+  await updateDoc(doc(getDb(), 'accounts', id), clean)
+}
+
+export async function deleteAccount(id: string): Promise<void> {
+  appCache.del(CACHE_KEY)
+  await deleteDoc(doc(getDb(), 'accounts', id))
 }
 
 // Appends a snapshot to linkedBankHistory using arrayUnion (non-destructive).
