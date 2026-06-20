@@ -32,14 +32,14 @@ const PROVIDER_LABELS: Record<AccountProvider, string> = {
 }
 
 // ---- Account form ----
-function AccountForm({ initial, bankAccounts, onSubmit, onCancel }: {
+function AccountForm({ type, initial, bankAccounts, onSubmit, onCancel }: {
+  type: AccountType
   initial?: Account
   bankAccounts: Account[]
   onSubmit: (data: Omit<Account, 'id'>) => Promise<void>
   onCancel: () => void
 }) {
   const [name, setName] = useState(initial?.name ?? '')
-  const [type, setType] = useState<AccountType>(initial?.type ?? 'credit')
   const [color, setColor] = useState(initial?.color ?? '#6366f1')
   const [last4, setLast4] = useState(initial?.last4digits ?? '')
   const [csvId, setCsvId] = useState(initial?.csvIdentifier ?? '')
@@ -81,24 +81,10 @@ function AccountForm({ initial, bankAccounts, onSubmit, onCancel }: {
           className={`w-full bg-background rounded-lg px-3 py-2 text-sm outline-none ${nameError ? 'ring-1 ring-red-500' : 'focus:ring-1 ring-accent'}`} />
         {nameError && <p className="text-xs text-red-400 mt-1">{nameError}</p>}
       </div>
-      <div className="flex gap-3">
-        <div className="flex-1">
-          <label className="text-xs text-slate-400 block mb-1">סוג</label>
-          <select value={type}
-            onChange={e => { setType(e.target.value as AccountType); setLinkedBankError(null) }}
-            disabled={!!initial}
-            className={`w-full bg-background rounded-lg px-3 py-2 text-sm outline-none ${initial ? 'opacity-50 cursor-not-allowed' : ''}`}>
-            <option value="credit">אשראי</option>
-            <option value="bank">בנק</option>
-            <option value="cash">מזומן</option>
-          </select>
-          {initial && <p className="text-xs text-slate-500 mt-1">לא ניתן לשנות סוג חשבון קיים</p>}
-        </div>
-        <div>
-          <label className="text-xs text-slate-400 block mb-1">צבע</label>
-          <input type="color" value={color} onChange={e => setColor(e.target.value)}
-            className="h-9 w-16 rounded cursor-pointer border border-slate-700" />
-        </div>
+      <div>
+        <label className="text-xs text-slate-400 block mb-1">צבע</label>
+        <input type="color" value={color} onChange={e => setColor(e.target.value)}
+          className="h-9 w-16 rounded cursor-pointer border border-slate-700" />
       </div>
       {type !== 'cash' && (
         <div>
@@ -164,21 +150,30 @@ function AccountsSection() {
   const [accounts, setAccounts] = useState<Account[]>([])
   const [loading, setLoading] = useState(true)
   const [editId, setEditId] = useState<string | null>(null)
-  const [showAdd, setShowAdd] = useState(false)
+  const [showAddType, setShowAddType] = useState<'bank' | 'credit' | null>(null)
 
   useEffect(() => {
-    getAccounts().then(accs => { setAccounts(accs); setLoading(false) })
+    async function load() {
+      const accs = await getAccounts()
+      if (!accs.some(a => a.type === 'cash')) {
+        const cash = await addAccount({ name: 'מזומן', type: 'cash', color: '#22c55e', isActive: true })
+        setAccounts([...accs, cash])
+      } else {
+        setAccounts(accs)
+      }
+      setLoading(false)
+    }
+    load()
   }, [])
 
   async function handleAdd(data: Omit<Account, 'id'>) {
     const acc = await addAccount(data)
     setAccounts(prev => [...prev, acc])
-    setShowAdd(false)
+    setShowAddType(null)
   }
 
   async function handleUpdate(id: string, data: Omit<Account, 'id'>) {
     const existing = accounts.find(a => a.id === id)
-    // Cosmetic fields go through updateAccountMeta (safe for all account types)
     await updateAccountMeta(id, {
       name: data.name,
       color: data.color,
@@ -186,7 +181,6 @@ function AccountsSection() {
       csvIdentifier: data.csvIdentifier,
       provider: data.provider,
     })
-    // Credit linkage goes through updateCreditLinkage (non-retroactive history append)
     if (data.type === 'credit' && data.linkedBankAccountId) {
       const bankChanged = data.linkedBankAccountId !== existing?.linkedBankAccountId
       const dayChanged = data.creditPaymentDay !== existing?.creditPaymentDay
@@ -204,80 +198,130 @@ function AccountsSection() {
   }
 
   async function moveAccount(id: string, dir: -1 | 1) {
-    const active = accounts.filter(a => a.isActive)
-    const idx = active.findIndex(a => a.id === id)
+    const acc = accounts.find(a => a.id === id)!
+    const sameType = accounts
+      .filter(a => a.isActive && a.type === acc.type)
+      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+    const idx = sameType.findIndex(a => a.id === id)
     const newIdx = idx + dir
-    if (newIdx < 0 || newIdx >= active.length) return
-    const updated = [...active]
+    if (newIdx < 0 || newIdx >= sameType.length) return
+    const updated = [...sameType]
     ;[updated[idx], updated[newIdx]] = [updated[newIdx], updated[idx]]
     await reorderAccounts(updated.map((a, i) => ({ id: a.id, sortOrder: i })))
-    setAccounts(prev => {
-      const inactive = prev.filter(a => !a.isActive)
-      return [...updated.map((a, i) => ({ ...a, sortOrder: i })), ...inactive]
-    })
+    setAccounts(prev => prev.map(a => {
+      const pos = updated.findIndex(u => u.id === a.id)
+      return pos >= 0 ? { ...a, sortOrder: pos } : a
+    }))
   }
 
-  const active = accounts.filter(a => a.isActive)
-  const inactive = accounts.filter(a => !a.isActive)
   const bankAccounts = accounts.filter(a => a.type === 'bank')
+  const activeBanks = bankAccounts.filter(a => a.isActive).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+  const activeCredit = accounts.filter(a => a.type === 'credit' && a.isActive).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+  const activeCash = accounts.filter(a => a.type === 'cash' && a.isActive)
+  const inactive = accounts.filter(a => !a.isActive)
 
   if (loading) return <p className="text-slate-400 text-sm text-center py-6">טוען...</p>
 
+  function renderRow(acc: Account, idx: number, total: number, showMove: boolean) {
+    if (editId === acc.id) return (
+      <div key={acc.id} className="p-2">
+        <AccountForm type={acc.type} initial={acc} bankAccounts={bankAccounts}
+          onSubmit={data => handleUpdate(acc.id, data)}
+          onCancel={() => setEditId(null)} />
+      </div>
+    )
+    return (
+      <div key={acc.id} className="flex items-center px-4 py-3 gap-3">
+        <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: acc.color }} />
+        <div className="flex-1 min-w-0">
+          <span className="text-sm">{acc.name}</span>
+          {acc.last4digits && <span className="text-xs text-slate-600 mr-2">****{acc.last4digits}</span>}
+          {acc.provider && <span className="text-xs text-slate-500 mr-1">· {PROVIDER_LABELS[acc.provider]}</span>}
+        </div>
+        <div className="flex items-center gap-2">
+          {showMove && (
+            <div className="flex flex-col gap-0" dir="ltr">
+              <button onClick={() => moveAccount(acc.id, -1)} disabled={idx === 0}
+                className="text-slate-500 hover:text-foreground disabled:opacity-20 text-xs leading-tight">▲</button>
+              <button onClick={() => moveAccount(acc.id, 1)} disabled={idx === total - 1}
+                className="text-slate-500 hover:text-foreground disabled:opacity-20 text-xs leading-tight">▼</button>
+            </div>
+          )}
+          <button onClick={() => { setEditId(acc.id); setShowAddType(null) }}
+            className="text-xs text-slate-400 hover:text-accent">ערוך</button>
+          {acc.type !== 'cash' && (
+            <button onClick={() => handleToggle(acc)}
+              className="text-xs text-slate-400 hover:text-amber-400">הסתר</button>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="space-y-3">
-      <div className="flex justify-between items-center">
-        <p className="text-xs text-slate-500">{accounts.length} חשבונות</p>
-        <button onClick={() => { setShowAdd(v => !v); setEditId(null) }}
-          className="text-xs text-accent">{showAdd ? 'ביטול' : '+ הוסף חשבון'}</button>
+    <div className="space-y-4">
+      <div className="flex gap-2">
+        <button
+          onClick={() => { setShowAddType(v => v === 'bank' ? null : 'bank'); setEditId(null) }}
+          className={`flex-1 py-2 text-xs rounded-xl border transition-colors ${showAddType === 'bank' ? 'border-accent text-accent' : 'border-slate-600 text-slate-400 hover:border-slate-500'}`}>
+          {showAddType === 'bank' ? 'ביטול' : '+ הוסף חשבון בנק'}
+        </button>
+        <button
+          onClick={() => { setShowAddType(v => v === 'credit' ? null : 'credit'); setEditId(null) }}
+          className={`flex-1 py-2 text-xs rounded-xl border transition-colors ${showAddType === 'credit' ? 'border-accent text-accent' : 'border-slate-600 text-slate-400 hover:border-slate-500'}`}>
+          {showAddType === 'credit' ? 'ביטול' : '+ הוסף כרטיס אשראי'}
+        </button>
       </div>
 
-      {showAdd && <AccountForm bankAccounts={bankAccounts} onSubmit={handleAdd} onCancel={() => setShowAdd(false)} />}
+      {showAddType && (
+        <AccountForm type={showAddType} bankAccounts={bankAccounts}
+          onSubmit={handleAdd} onCancel={() => setShowAddType(null)} />
+      )}
 
-      <div className="bg-surface rounded-2xl divide-y divide-slate-800">
-        {active.map((acc, idx) => (
-          editId === acc.id ? (
-            <div key={acc.id} className="p-2">
-              <AccountForm initial={acc} bankAccounts={bankAccounts}
-                onSubmit={data => handleUpdate(acc.id, data)}
-                onCancel={() => setEditId(null)} />
-            </div>
-          ) : (
-            <div key={acc.id} className="flex items-center px-4 py-3 gap-3">
-              <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: acc.color }} />
-              <div className="flex-1 min-w-0">
-                <span className="text-sm">{acc.name}</span>
-                <span className="text-xs text-slate-500 mr-2">{ACCOUNT_TYPE_LABELS[acc.type]}</span>
-                {acc.last4digits && <span className="text-xs text-slate-600">****{acc.last4digits}</span>}
-                {acc.provider && (
-                  <span className="text-xs text-slate-500 mr-1">· {PROVIDER_LABELS[acc.provider]}</span>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="flex flex-col gap-0" dir="ltr">
-                  <button onClick={() => moveAccount(acc.id, -1)} disabled={idx === 0}
-                    className="text-slate-500 hover:text-foreground disabled:opacity-20 text-xs leading-tight">▲</button>
-                  <button onClick={() => moveAccount(acc.id, 1)} disabled={idx === active.length - 1}
-                    className="text-slate-500 hover:text-foreground disabled:opacity-20 text-xs leading-tight">▼</button>
-                </div>
-                <button onClick={() => { setEditId(acc.id); setShowAdd(false) }}
-                  className="text-xs text-slate-400 hover:text-accent">ערוך</button>
-                <button onClick={() => handleToggle(acc)}
-                  className="text-xs text-slate-400 hover:text-amber-400">הסתר</button>
-              </div>
-            </div>
-          )
-        ))}
-        {inactive.map(acc => (
-          <div key={acc.id} className="flex items-center px-4 py-3 gap-3 opacity-50">
-            <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: acc.color }} />
-            <div className="flex-1 min-w-0">
-              <span className="text-sm line-through text-slate-500">{acc.name}</span>
-              <span className="text-xs text-slate-500 mr-2">{ACCOUNT_TYPE_LABELS[acc.type]}</span>
-            </div>
-            <button onClick={() => handleToggle(acc)} className="text-xs text-green-400">הצג</button>
+      {activeBanks.length > 0 && (
+        <div>
+          <p className="text-xs text-slate-500 mb-2 px-1">חשבונות בנק</p>
+          <div className="bg-surface rounded-2xl divide-y divide-slate-800">
+            {activeBanks.map((acc, idx) => renderRow(acc, idx, activeBanks.length, true))}
           </div>
-        ))}
-      </div>
+        </div>
+      )}
+
+      {activeCredit.length > 0 && (
+        <div>
+          <p className="text-xs text-slate-500 mb-2 px-1">כרטיסי אשראי</p>
+          <div className="bg-surface rounded-2xl divide-y divide-slate-800">
+            {activeCredit.map((acc, idx) => renderRow(acc, idx, activeCredit.length, true))}
+          </div>
+        </div>
+      )}
+
+      {activeCash.length > 0 && (
+        <div>
+          <p className="text-xs text-slate-500 mb-2 px-1">מזומן</p>
+          <div className="bg-surface rounded-2xl divide-y divide-slate-800">
+            {activeCash.map(acc => renderRow(acc, 0, 1, false))}
+          </div>
+        </div>
+      )}
+
+      {inactive.length > 0 && (
+        <div>
+          <p className="text-xs text-slate-500 mb-2 px-1">מוסתרים</p>
+          <div className="bg-surface rounded-2xl divide-y divide-slate-800">
+            {inactive.map(acc => (
+              <div key={acc.id} className="flex items-center px-4 py-3 gap-3 opacity-50">
+                <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: acc.color }} />
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm line-through text-slate-500">{acc.name}</span>
+                  <span className="text-xs text-slate-500 mr-2">{ACCOUNT_TYPE_LABELS[acc.type]}</span>
+                </div>
+                <button onClick={() => handleToggle(acc)} className="text-xs text-green-400">הצג</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
