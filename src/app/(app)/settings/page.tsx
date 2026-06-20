@@ -43,19 +43,29 @@ const CREDIT_PROVIDERS: { value: AccountProvider; label: string }[] = [
 
 const PROVIDER_DOMAINS: Partial<Record<AccountProvider, string>> = {
   leumi: 'leumi.co.il',
-  'one-zero': 'one-zero.io',
+  'one-zero': 'one-zero.co.il',
   max: 'max.co.il',
   isracard: 'isracard.co.il',
 }
 
+function logoSources(domain: string): string[] {
+  return [
+    `https://logo.clearbit.com/${domain}`,
+    `https://icons.duckduckgo.com/ip3/${domain}.ico`,
+  ]
+}
+
 function ProviderLogo({ provider, color, className = 'w-8 h-8' }: { provider?: AccountProvider; color: string; className?: string }) {
-  const [imgFailed, setImgFailed] = useState(false)
-  const domain = provider && !imgFailed ? PROVIDER_DOMAINS[provider] : null
-  if (!domain) return <div className={`${className} rounded-full flex-shrink-0`} style={{ background: color }} />
+  const [sourceIdx, setSourceIdx] = useState(0)
+  const domain = provider ? PROVIDER_DOMAINS[provider] : null
+  const sources = domain ? logoSources(domain) : []
+  const src = sources[sourceIdx]
+
+  if (!src) return <div className={`${className} rounded-full flex-shrink-0`} style={{ background: color }} />
   return (
     <div className={`${className} rounded-full flex-shrink-0 bg-white flex items-center justify-center overflow-hidden`}>
-      <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=64`} alt={provider}
-        className="w-3/4 h-3/4 object-contain" onError={() => setImgFailed(true)} />
+      <img key={src} src={src} alt={provider}
+        className="w-3/4 h-3/4 object-contain" onError={() => setSourceIdx(i => i + 1)} />
     </div>
   )
 }
