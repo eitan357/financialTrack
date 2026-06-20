@@ -24,7 +24,7 @@
 
 import { updateAccount, appendLinkedBankSnapshot } from './firestore/accounts'
 import { updateCategory } from './firestore/categories'
-import type { LinkedBankSnapshot } from './types'
+import type { LinkedBankSnapshot, AccountProvider } from './types'
 
 function currentMonth(): string {
   return new Date().toISOString().slice(0, 7) // 'YYYY-MM'
@@ -37,7 +37,7 @@ function currentMonth(): string {
 /** Cosmetic — safe to apply globally. */
 export async function updateAccountMeta(
   id: string,
-  fields: { name?: string; color?: string; last4digits?: string; csvIdentifier?: string }
+  fields: { name?: string; color?: string; last4digits?: string; csvIdentifier?: string; provider?: AccountProvider }
 ): Promise<void> {
   await updateAccount(id, fields)
 }

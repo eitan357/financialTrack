@@ -1,5 +1,7 @@
 export type AccountType = 'credit' | 'bank' | 'cash'
 
+export type AccountProvider = 'leumi' | 'one-zero' | 'discount' | 'max' | 'poalim' | 'other'
+
 // One entry per "era" of credit card → bank linkage.
 // fromMonth is inclusive; the latest entry with fromMonth <= currentMonth wins.
 export interface LinkedBankSnapshot {
@@ -16,6 +18,7 @@ export interface Account {
   color: string
   isActive: boolean
   csvIdentifier?: string // keyword to search in CSV file to auto-detect this card's section
+  provider?: AccountProvider
   sortOrder?: number
   linkedBankAccountId?: string  // credit only: current (latest) linked bank
   creditPaymentDay?: number     // credit only: current (latest) payment day
