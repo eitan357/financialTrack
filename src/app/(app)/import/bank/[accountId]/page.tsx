@@ -14,11 +14,12 @@ function currentMonth(): string {
   return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}`
 }
 
-function detectBankType(account: Account): BankType {
-  const id = (account.csvIdentifier ?? account.name).toLowerCase()
-  if (id.includes('one-zero') || id.includes('one zero')) return 'one-zero'
-  if (id.includes('leumi') || id.includes('לאומי')) return 'leumi'
-  return 'generic'
+function bankTypeFromAccount(account: Account): BankType {
+  switch (account.provider) {
+    case 'one-zero': return 'one-zero'
+    case 'leumi': return 'leumi'
+    default: return 'generic'
+  }
 }
 
 function BankPageInner() {
@@ -83,7 +84,7 @@ function BankPageInner() {
         month={month}
         accountId={accountId}
         accountName={account.name}
-        bankType={detectBankType(account)}
+        bankType={bankTypeFromAccount(account)}
         categories={categories}
         rules={rules}
         previousTransactions={previousTransactions}
