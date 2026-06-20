@@ -27,10 +27,8 @@ const ACCOUNT_TYPE_LABELS: Record<AccountType, string> = {
 const PROVIDER_LABELS: Record<AccountProvider, string> = {
   leumi: 'לאומי',
   'one-zero': 'One Zero',
-  discount: 'דיסקונט',
   max: 'Max',
-  poalim: 'פועלים',
-  other: 'אחר',
+  isracard: 'ישראכרט',
 }
 
 // ---- Account form ----
@@ -117,10 +115,8 @@ function AccountForm({ initial, bankAccounts, onSubmit, onCancel }: {
             <option value="">— לא נבחר —</option>
             <option value="leumi">לאומי</option>
             <option value="one-zero">One Zero</option>
-            <option value="discount">דיסקונט</option>
             <option value="max">Max</option>
-            <option value="poalim">פועלים</option>
-            <option value="other">אחר</option>
+            <option value="isracard">ישראכרט</option>
           </select>
         </div>
       )}
