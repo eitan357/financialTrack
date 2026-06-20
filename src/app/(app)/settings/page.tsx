@@ -41,6 +41,24 @@ const CREDIT_PROVIDERS: { value: AccountProvider; label: string }[] = [
   { value: 'isracard', label: 'ישראכרט' },
 ]
 
+const PROVIDER_DOMAINS: Partial<Record<AccountProvider, string>> = {
+  leumi: 'leumi.co.il',
+  'one-zero': 'one-zero.io',
+  max: 'max.co.il',
+  isracard: 'isracard.co.il',
+}
+
+function ProviderLogo({ provider, color }: { provider?: AccountProvider; color: string }) {
+  const domain = provider ? PROVIDER_DOMAINS[provider] : null
+  if (!domain) return <div className="w-8 h-8 rounded-full flex-shrink-0" style={{ background: color }} />
+  return (
+    <div className="w-8 h-8 rounded-full flex-shrink-0 bg-white flex items-center justify-center overflow-hidden">
+      <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`} alt={provider}
+        className="w-6 h-6" onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
+    </div>
+  )
+}
+
 // ---- Account form ----
 function AccountForm({ type, initial, bankAccounts, onSubmit, onCancel, onDelete }: {
   type: AccountType
@@ -253,7 +271,7 @@ function AccountsSection() {
 
   function renderRow(acc: Account, idx: number, total: number, showMove: boolean) {
     if (editId === acc.id) return (
-      <div key={acc.id} className="p-2">
+      <div key={acc.id} className="bg-surface rounded-xl p-2">
         <AccountForm type={acc.type} initial={acc} bankAccounts={bankAccounts}
           onSubmit={data => handleUpdate(acc.id, data)}
           onCancel={() => setEditId(null)}
@@ -261,16 +279,15 @@ function AccountsSection() {
       </div>
     )
     return (
-      <div key={acc.id} className="flex items-center px-4 py-3 gap-3">
-        <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: acc.color }} />
+      <div key={acc.id} className="bg-surface rounded-xl flex items-center px-4 py-3 gap-3">
+        <ProviderLogo provider={acc.provider} color={acc.color} />
         <div className="flex-1 min-w-0">
-          <span className="text-sm">{acc.name}</span>
+          <span className="text-sm" dir="auto">{acc.name}</span>
           {acc.last4digits && (
             acc.type === 'bank'
-              ? <span className="text-xs text-slate-600 mr-2">{acc.last4digits}</span>
-              : <span className="text-xs text-slate-600 mr-2">****{acc.last4digits}</span>
+              ? <span className="text-xs text-slate-500 mr-2">{acc.last4digits}</span>
+              : <span className="text-xs text-slate-500 mr-2">****{acc.last4digits}</span>
           )}
-          {acc.provider && <span className="text-xs text-slate-500 mr-1">· {PROVIDER_LABELS[acc.provider]}</span>}
         </div>
         <div className="flex items-center gap-2">
           {showMove && (
@@ -313,7 +330,7 @@ function AccountsSection() {
       {activeBanks.length > 0 && (
         <div>
           <p className="text-xs text-slate-500 mb-2 px-1">חשבונות בנק</p>
-          <div className="bg-surface rounded-2xl divide-y divide-slate-800">
+          <div className="space-y-2">
             {activeBanks.map((acc, idx) => renderRow(acc, idx, activeBanks.length, true))}
           </div>
         </div>
@@ -322,7 +339,7 @@ function AccountsSection() {
       {activeCredit.length > 0 && (
         <div>
           <p className="text-xs text-slate-500 mb-2 px-1">כרטיסי אשראי</p>
-          <div className="bg-surface rounded-2xl divide-y divide-slate-800">
+          <div className="space-y-2">
             {activeCredit.map((acc, idx) => renderRow(acc, idx, activeCredit.length, true))}
           </div>
         </div>
@@ -331,7 +348,7 @@ function AccountsSection() {
       {activeCash.length > 0 && (
         <div>
           <p className="text-xs text-slate-500 mb-2 px-1">מזומן</p>
-          <div className="bg-surface rounded-2xl divide-y divide-slate-800">
+          <div className="space-y-2">
             {activeCash.map(acc => renderRow(acc, 0, 1, false))}
           </div>
         </div>
@@ -340,12 +357,12 @@ function AccountsSection() {
       {inactive.length > 0 && (
         <div>
           <p className="text-xs text-slate-500 mb-2 px-1">מוסתרים</p>
-          <div className="bg-surface rounded-2xl divide-y divide-slate-800">
+          <div className="space-y-2">
             {inactive.map(acc => (
-              <div key={acc.id} className="flex items-center px-4 py-3 gap-3 opacity-50">
-                <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: acc.color }} />
+              <div key={acc.id} className="bg-surface rounded-xl flex items-center px-4 py-3 gap-3 opacity-50">
+                <ProviderLogo provider={acc.provider} color={acc.color} />
                 <div className="flex-1 min-w-0">
-                  <span className="text-sm line-through text-slate-500">{acc.name}</span>
+                  <span className="text-sm line-through text-slate-500" dir="auto">{acc.name}</span>
                   <span className="text-xs text-slate-500 mr-2">{ACCOUNT_TYPE_LABELS[acc.type]}</span>
                 </div>
                 <button onClick={() => handleToggle(acc)} className="text-xs text-green-400">הצג</button>
