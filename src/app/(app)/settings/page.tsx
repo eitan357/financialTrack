@@ -48,13 +48,14 @@ const PROVIDER_DOMAINS: Partial<Record<AccountProvider, string>> = {
   isracard: 'isracard.co.il',
 }
 
-function ProviderLogo({ provider, color }: { provider?: AccountProvider; color: string }) {
-  const domain = provider ? PROVIDER_DOMAINS[provider] : null
-  if (!domain) return <div className="w-8 h-8 rounded-full flex-shrink-0" style={{ background: color }} />
+function ProviderLogo({ provider, color, className = 'w-8 h-8' }: { provider?: AccountProvider; color: string; className?: string }) {
+  const [imgFailed, setImgFailed] = useState(false)
+  const domain = provider && !imgFailed ? PROVIDER_DOMAINS[provider] : null
+  if (!domain) return <div className={`${className} rounded-full flex-shrink-0`} style={{ background: color }} />
   return (
-    <div className="w-8 h-8 rounded-full flex-shrink-0 bg-white flex items-center justify-center overflow-hidden">
-      <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=32`} alt={provider}
-        className="w-6 h-6" onError={e => { (e.currentTarget as HTMLImageElement).style.display = 'none' }} />
+    <div className={`${className} rounded-full flex-shrink-0 bg-white flex items-center justify-center overflow-hidden`}>
+      <img src={`https://www.google.com/s2/favicons?domain=${domain}&sz=64`} alt={provider}
+        className="w-3/4 h-3/4 object-contain" onError={() => setImgFailed(true)} />
     </div>
   )
 }
@@ -69,6 +70,7 @@ function AccountForm({ type, initial, bankAccounts, onSubmit, onCancel, onDelete
   onDelete?: () => Promise<void>
 }) {
   const [name, setName] = useState(initial?.name ?? '')
+  const [nameManuallyEdited, setNameManuallyEdited] = useState(!!initial)
   const [color, setColor] = useState(initial?.color ?? '#6366f1')
   const [last4, setLast4] = useState(initial?.last4digits ?? '')
   const [csvId, setCsvId] = useState(initial?.csvIdentifier ?? '')
@@ -78,6 +80,11 @@ function AccountForm({ type, initial, bankAccounts, onSubmit, onCancel, onDelete
   const [saving, setSaving] = useState(false)
   const [nameError, setNameError] = useState<string | null>(null)
   const [linkedBankError, setLinkedBankError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (nameManuallyEdited) return
+    setName(provider ? PROVIDER_LABELS[provider as AccountProvider] : '')
+  }, [provider, nameManuallyEdited])
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
@@ -105,22 +112,44 @@ function AccountForm({ type, initial, bankAccounts, onSubmit, onCancel, onDelete
 
   return (
     <form onSubmit={submit} className="bg-slate-800 rounded-xl p-4 space-y-3">
+      {initial && (
+        <div className="flex items-center gap-3 pb-3 border-b border-slate-700/50">
+          <ProviderLogo provider={provider || undefined} color={color} className="w-10 h-10" />
+          <div>
+            <p className="text-sm font-medium" dir="auto">{name || '—'}</p>
+            <p className="text-xs text-slate-500">{ACCOUNT_TYPE_LABELS[type]}</p>
+          </div>
+        </div>
+      )}
       {type !== 'cash' && (
         <div>
-          <label className="text-xs text-slate-400 block mb-1">
+          <label className="text-xs text-slate-400 block mb-2">
             {type === 'bank' ? 'בנק' : 'כרטיס אשראי'}
           </label>
-          <select value={provider} onChange={e => setProvider(e.target.value as AccountProvider | '')}
-            className="w-full bg-background rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 ring-accent">
-            <option value="">— לא נבחר —</option>
-            {providerOptions.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
-          </select>
+          <div className="flex flex-wrap gap-2">
+            {providerOptions.map(p => (
+              <button key={p.value} type="button"
+                onClick={() => setProvider(prev => prev === p.value ? '' : p.value)}
+                className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm transition-colors ${
+                  provider === p.value
+                    ? 'border-accent text-accent bg-accent/10'
+                    : 'border-slate-700 text-slate-300 hover:border-slate-500'
+                }`}>
+                <ProviderLogo provider={p.value} color="#94a3b8" className="w-5 h-5" />
+                {p.label}
+              </button>
+            ))}
+          </div>
         </div>
       )}
       <div>
         <label className="text-xs text-slate-400 block mb-1">שם חשבון</label>
         <input value={name}
-          onChange={e => { setName(e.target.value); if (nameError && e.target.value.trim()) setNameError(null) }}
+          onChange={e => {
+            setName(e.target.value)
+            setNameManuallyEdited(true)
+            if (nameError && e.target.value.trim()) setNameError(null)
+          }}
           className={`w-full bg-background rounded-lg px-3 py-2 text-sm outline-none ${nameError ? 'ring-1 ring-red-500' : 'focus:ring-1 ring-accent'}`} />
         {nameError && <p className="text-xs text-red-400 mt-1">{nameError}</p>}
       </div>
@@ -145,12 +174,20 @@ function AccountForm({ type, initial, bankAccounts, onSubmit, onCancel, onDelete
           </div>
           <div>
             <label className="text-xs text-slate-400 block mb-1">חשבון בנק מקושר <span className="text-red-400">*</span></label>
-            <select value={linkedBankId}
-              onChange={e => { setLinkedBankId(e.target.value); if (linkedBankError && e.target.value) setLinkedBankError(null) }}
-              className={`w-full bg-background rounded-lg px-3 py-2 text-sm outline-none ${linkedBankError ? 'ring-1 ring-red-500' : 'focus:ring-1 ring-accent'}`}>
-              <option value="">בחר חשבון בנק...</option>
-              {bankAccounts.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-            </select>
+            <div className="space-y-1">
+              {bankAccounts.map(b => (
+                <button key={b.id} type="button"
+                  onClick={() => { setLinkedBankId(b.id); if (linkedBankError) setLinkedBankError(null) }}
+                  className={`w-full flex items-center gap-2 px-3 py-2 rounded-xl border text-sm transition-colors text-right ${
+                    linkedBankId === b.id
+                      ? 'border-accent bg-accent/10 text-accent'
+                      : 'border-slate-700 text-slate-300 hover:border-slate-500'
+                  }`}>
+                  <ProviderLogo provider={b.provider} color={b.color} className="w-6 h-6" />
+                  <span dir="auto">{b.name}</span>
+                </button>
+              ))}
+            </div>
             {linkedBankError && <p className="text-xs text-red-400 mt-1">{linkedBankError}</p>}
             {bankAccounts.length === 0 && <p className="text-xs text-slate-500 mt-1">יש ליצור חשבון בנק תחילה</p>}
           </div>
