@@ -237,6 +237,7 @@ function AccountForm({ type, initial, bankAccounts, onSubmit, onCancel, onDelete
 function AccountsSection() {
   const [accounts, setAccounts] = useState<Account[]>([])
   const [loading, setLoading] = useState(true)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
   const [editId, setEditId] = useState<string | null>(null)
   const [showAddType, setShowAddType] = useState<'bank' | 'credit' | null>(null)
 
@@ -278,17 +279,20 @@ function AccountsSection() {
     }
     setAccounts(prev => prev.map(a => a.id === id ? { ...a, ...data } : a))
     setEditId(null)
+    setExpandedId(null)
   }
 
   async function handleToggle(acc: Account) {
     await setAccountActive(acc.id, !acc.isActive)
     setAccounts(prev => prev.map(a => a.id === acc.id ? { ...a, isActive: !a.isActive } : a))
+    setExpandedId(null)
   }
 
   async function handleDelete(acc: Account) {
     if (!window.confirm(`למחוק את "${acc.name}"? פעולה זו אינה הפיכה.`)) return
     await deleteAccount(acc.id)
     setAccounts(prev => prev.filter(a => a.id !== acc.id))
+    setExpandedId(null)
   }
 
   async function moveAccount(id: string, dir: -1 | 1) {
@@ -317,39 +321,83 @@ function AccountsSection() {
   if (loading) return <p className="text-slate-400 text-sm text-center py-6">טוען...</p>
 
   function renderRow(acc: Account, idx: number, total: number, showMove: boolean) {
-    if (editId === acc.id) return (
+    const isExpanded = expandedId === acc.id
+    const isEditing = editId === acc.id
+
+    if (isEditing) return (
       <div key={acc.id} className="bg-surface rounded-xl p-2">
         <AccountForm type={acc.type} initial={acc} bankAccounts={bankAccounts}
           onSubmit={data => handleUpdate(acc.id, data)}
-          onCancel={() => setEditId(null)}
+          onCancel={() => { setEditId(null); setExpandedId(acc.id) }}
           onDelete={acc.type !== 'cash' ? () => handleDelete(acc) : undefined} />
       </div>
     )
+
     return (
-      <div key={acc.id} className="bg-surface rounded-xl flex items-center px-4 py-3 gap-3">
-        <ProviderLogo provider={acc.provider} color={acc.color} />
-        <div className="flex-1 min-w-0">
-          <span className="text-sm" dir="auto">{acc.name}</span>
-          {acc.last4digits && (
-            acc.type === 'bank'
-              ? <span className="text-xs text-slate-500 mr-2">{acc.last4digits}</span>
-              : <span className="text-xs text-slate-500 mr-2">****{acc.last4digits}</span>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          {showMove && (
-            <div className="flex flex-col gap-0" dir="ltr">
-              <button onClick={() => moveAccount(acc.id, -1)} disabled={idx === 0}
-                className="text-slate-500 hover:text-foreground disabled:opacity-20 text-xs leading-tight">▲</button>
-              <button onClick={() => moveAccount(acc.id, 1)} disabled={idx === total - 1}
-                className="text-slate-500 hover:text-foreground disabled:opacity-20 text-xs leading-tight">▼</button>
+      <div key={acc.id} className="bg-surface rounded-xl overflow-hidden">
+        <button type="button" className="w-full flex items-center px-4 py-3 gap-3 text-right"
+          onClick={() => { setExpandedId(v => v === acc.id ? null : acc.id); setEditId(null); setShowAddType(null) }}>
+          <ProviderLogo provider={acc.provider} color={acc.color} />
+          <div className="flex-1 min-w-0">
+            <span className="text-sm" dir="auto">{acc.name}</span>
+            {acc.last4digits && (
+              acc.type === 'bank'
+                ? <span className="text-xs text-slate-500 mr-2">{acc.last4digits}</span>
+                : <span className="text-xs text-slate-500 mr-2">****{acc.last4digits}</span>
+            )}
+          </div>
+          <span className="text-slate-500 text-xs flex-shrink-0">{isExpanded ? '⌃' : '⌄'}</span>
+        </button>
+
+        {isExpanded && (
+          <div className="border-t border-slate-700/50 px-4 pt-3 pb-3 space-y-3">
+            <div className="space-y-1.5">
+              {acc.provider && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-slate-500">{acc.type === 'bank' ? 'בנק' : 'כרטיס'}</span>
+                  <span className="text-slate-300">{PROVIDER_LABELS[acc.provider]}</span>
+                </div>
+              )}
+              {acc.last4digits && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-slate-500">{acc.type === 'bank' ? 'מספר חשבון' : '4 ספרות אחרונות'}</span>
+                  <span className="text-slate-300 font-mono">{acc.type === 'bank' ? acc.last4digits : `****${acc.last4digits}`}</span>
+                </div>
+              )}
+              {acc.type === 'credit' && acc.linkedBankAccountId && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-slate-500">בנק מקושר</span>
+                  <span className="text-slate-300">{bankAccounts.find(b => b.id === acc.linkedBankAccountId)?.name ?? '—'}</span>
+                </div>
+              )}
+              {acc.creditPaymentDay && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-slate-500">יום תשלום</span>
+                  <span className="text-slate-300">{acc.creditPaymentDay}</span>
+                </div>
+              )}
             </div>
-          )}
-          <button onClick={() => { setEditId(acc.id); setShowAddType(null) }}
-            className="text-xs text-slate-400 hover:text-accent">ערוך</button>
-          <button onClick={() => handleToggle(acc)}
-            className="text-xs text-slate-400 hover:text-amber-400">הסתר</button>
-        </div>
+
+            <div className="flex gap-2">
+              {showMove && (
+                <div className="flex gap-1" dir="ltr">
+                  <button onClick={() => moveAccount(acc.id, -1)} disabled={idx === 0}
+                    className="px-2 py-1.5 border border-slate-700 rounded-lg text-slate-500 hover:text-foreground disabled:opacity-20 text-xs">▲</button>
+                  <button onClick={() => moveAccount(acc.id, 1)} disabled={idx === total - 1}
+                    className="px-2 py-1.5 border border-slate-700 rounded-lg text-slate-500 hover:text-foreground disabled:opacity-20 text-xs">▼</button>
+                </div>
+              )}
+              <button onClick={() => { setEditId(acc.id); setShowAddType(null) }}
+                className="flex-1 py-1.5 border border-slate-600 rounded-lg text-xs text-slate-300 hover:text-accent hover:border-accent/50 transition-colors">
+                ערוך
+              </button>
+              <button onClick={() => handleToggle(acc)}
+                className="flex-1 py-1.5 border border-slate-600 rounded-lg text-xs text-slate-300 hover:text-amber-400 hover:border-amber-400/50 transition-colors">
+                הסתר
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     )
   }
@@ -358,12 +406,12 @@ function AccountsSection() {
     <div className="space-y-4">
       <div className="flex gap-2">
         <button
-          onClick={() => { setShowAddType(v => v === 'bank' ? null : 'bank'); setEditId(null) }}
+          onClick={() => { setShowAddType(v => v === 'bank' ? null : 'bank'); setEditId(null); setExpandedId(null) }}
           className={`flex-1 py-2 text-xs rounded-xl border transition-colors ${showAddType === 'bank' ? 'border-accent text-accent' : 'border-slate-600 text-slate-400 hover:border-slate-500'}`}>
           {showAddType === 'bank' ? 'ביטול' : '+ הוסף חשבון בנק'}
         </button>
         <button
-          onClick={() => { setShowAddType(v => v === 'credit' ? null : 'credit'); setEditId(null) }}
+          onClick={() => { setShowAddType(v => v === 'credit' ? null : 'credit'); setEditId(null); setExpandedId(null) }}
           className={`flex-1 py-2 text-xs rounded-xl border transition-colors ${showAddType === 'credit' ? 'border-accent text-accent' : 'border-slate-600 text-slate-400 hover:border-slate-500'}`}>
           {showAddType === 'credit' ? 'ביטול' : '+ הוסף כרטיס אשראי'}
         </button>
@@ -405,16 +453,30 @@ function AccountsSection() {
         <div>
           <p className="text-xs text-slate-500 mb-2 px-1">מוסתרים</p>
           <div className="space-y-2">
-            {inactive.map(acc => (
-              <div key={acc.id} className="bg-surface rounded-xl flex items-center px-4 py-3 gap-3 opacity-50">
-                <ProviderLogo provider={acc.provider} color={acc.color} />
-                <div className="flex-1 min-w-0">
-                  <span className="text-sm line-through text-slate-500" dir="auto">{acc.name}</span>
-                  <span className="text-xs text-slate-500 mr-2">{ACCOUNT_TYPE_LABELS[acc.type]}</span>
+            {inactive.map(acc => {
+              const isExpanded = expandedId === acc.id
+              return (
+                <div key={acc.id} className="bg-surface rounded-xl overflow-hidden opacity-60">
+                  <button type="button" className="w-full flex items-center px-4 py-3 gap-3 text-right"
+                    onClick={() => setExpandedId(v => v === acc.id ? null : acc.id)}>
+                    <ProviderLogo provider={acc.provider} color={acc.color} />
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm line-through text-slate-500" dir="auto">{acc.name}</span>
+                      <span className="text-xs text-slate-500 mr-2">{ACCOUNT_TYPE_LABELS[acc.type]}</span>
+                    </div>
+                    <span className="text-slate-500 text-xs flex-shrink-0">{isExpanded ? '⌃' : '⌄'}</span>
+                  </button>
+                  {isExpanded && (
+                    <div className="border-t border-slate-700/50 px-4 py-3">
+                      <button onClick={() => handleToggle(acc)}
+                        className="w-full py-1.5 border border-slate-600 rounded-lg text-xs text-green-400 hover:border-green-400/50 transition-colors">
+                        הצג חשבון
+                      </button>
+                    </div>
+                  )}
                 </div>
-                <button onClick={() => handleToggle(acc)} className="text-xs text-green-400">הצג</button>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       )}
