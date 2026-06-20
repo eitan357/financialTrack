@@ -37,15 +37,15 @@ function toTransaction(t: ImportedTransaction, accountId: string, month: string,
   return {
     date: t.date,
     merchantName: t.merchantName,
-    description: t.notes || undefined,
     amount: t.amount,
     currency: t.currency,
     accountId,
-    categoryId: t.direction === 'income' ? undefined : (t.categoryId ?? undefined),
     source,
     isImmediate: t.isImmediate,
     month,
     direction: t.direction,
+    ...(t.notes && { description: t.notes }),
+    ...(t.direction !== 'income' && t.categoryId ? { categoryId: t.categoryId } : {}),
   }
 }
 

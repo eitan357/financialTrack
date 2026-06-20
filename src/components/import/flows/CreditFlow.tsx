@@ -26,15 +26,15 @@ function toTransaction(t: ImportedTransaction, accountId: string, month: string)
   return {
     date: t.date,
     merchantName: t.merchantName,
-    description: t.notes || undefined,
     amount: t.amount,
     currency: t.currency,
     accountId,
-    categoryId: t.direction === 'income' ? undefined : (t.categoryId ?? undefined),
     source: 'xlsx_import' as TransactionSource,
     isImmediate: t.isImmediate,
     month,
     direction: t.direction,
+    ...(t.notes && { description: t.notes }),
+    ...(t.direction !== 'income' && t.categoryId ? { categoryId: t.categoryId } : {}),
   }
 }
 
@@ -134,7 +134,8 @@ export function CreditFlow({ month, accountId, accountName, categories, rules, p
         : transactions
       await addTransactions(toSave.map(t => toTransaction(t, accountId, month)))
       setSaved(true)
-    } catch {
+    } catch (err) {
+      console.error('addTransactions failed:', err)
       setError('שגיאה בשמירה. נסה שוב.')
     } finally {
       setSaving(false)

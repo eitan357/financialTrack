@@ -60,11 +60,11 @@ export function CashFlow({ month, cashAccountId, categories, existingTransaction
         amount: r.amount,
         currency: 'ILS',
         accountId: cashAccountId,
-        categoryId: r.categoryId ?? undefined,
         source: 'manual' as const,
         isImmediate: true,
         month,
         direction: 'expense' as const,
+        ...(r.categoryId ? { categoryId: r.categoryId } : {}),
       })))
       setNewRows([])
       onDone()
