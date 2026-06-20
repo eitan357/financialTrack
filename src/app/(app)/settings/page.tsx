@@ -42,12 +42,13 @@ const CREDIT_PROVIDERS: { value: AccountProvider; label: string }[] = [
 ]
 
 // ---- Account form ----
-function AccountForm({ type, initial, bankAccounts, onSubmit, onCancel }: {
+function AccountForm({ type, initial, bankAccounts, onSubmit, onCancel, onDelete }: {
   type: AccountType
   initial?: Account
   bankAccounts: Account[]
   onSubmit: (data: Omit<Account, 'id'>) => Promise<void>
   onCancel: () => void
+  onDelete?: () => Promise<void>
 }) {
   const [name, setName] = useState(initial?.name ?? '')
   const [color, setColor] = useState(initial?.color ?? '#6366f1')
@@ -157,6 +158,12 @@ function AccountForm({ type, initial, bankAccounts, onSubmit, onCancel }: {
           {saving ? 'שומר...' : (initial ? 'עדכן' : 'הוסף')}
         </button>
       </div>
+      {onDelete && (
+        <button type="button" onClick={onDelete}
+          className="w-full py-2 text-xs text-red-500 hover:text-red-400 border border-red-900/40 rounded-lg mt-1">
+          מחק חשבון
+        </button>
+      )}
     </form>
   )
 }
@@ -249,7 +256,8 @@ function AccountsSection() {
       <div key={acc.id} className="p-2">
         <AccountForm type={acc.type} initial={acc} bankAccounts={bankAccounts}
           onSubmit={data => handleUpdate(acc.id, data)}
-          onCancel={() => setEditId(null)} />
+          onCancel={() => setEditId(null)}
+          onDelete={acc.type !== 'cash' ? () => handleDelete(acc) : undefined} />
       </div>
     )
     return (
@@ -277,10 +285,6 @@ function AccountsSection() {
             className="text-xs text-slate-400 hover:text-accent">ערוך</button>
           <button onClick={() => handleToggle(acc)}
             className="text-xs text-slate-400 hover:text-amber-400">הסתר</button>
-          {acc.type !== 'cash' && (
-            <button onClick={() => handleDelete(acc)}
-              className="text-xs text-red-500 hover:text-red-400">מחק</button>
-          )}
         </div>
       </div>
     )
