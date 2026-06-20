@@ -7,7 +7,7 @@ import {
   updateAccountMeta, setAccountActive, reorderAccounts, updateCreditLinkage,
   updateCategoryMeta, setCategoryActive, reorderCategories,
 } from '@/lib/settings-mutations'
-import type { Account, AccountType, Category, CategorizationRule, MatchType } from '@/lib/types'
+import type { Account, AccountProvider, AccountType, Category, CategorizationRule, MatchType } from '@/lib/types'
 
 type Tab = 'accounts' | 'categories' | 'rules' | 'maintenance'
 
@@ -24,6 +24,15 @@ const ACCOUNT_TYPE_LABELS: Record<AccountType, string> = {
   cash: 'מזומן',
 }
 
+const PROVIDER_LABELS: Record<AccountProvider, string> = {
+  leumi: 'לאומי',
+  'one-zero': 'One Zero',
+  discount: 'דיסקונט',
+  max: 'Max',
+  poalim: 'פועלים',
+  other: 'אחר',
+}
+
 // ---- Account form ----
 function AccountForm({ initial, bankAccounts, onSubmit, onCancel }: {
   initial?: Account
@@ -36,6 +45,7 @@ function AccountForm({ initial, bankAccounts, onSubmit, onCancel }: {
   const [color, setColor] = useState(initial?.color ?? '#6366f1')
   const [last4, setLast4] = useState(initial?.last4digits ?? '')
   const [csvId, setCsvId] = useState(initial?.csvIdentifier ?? '')
+  const [provider, setProvider] = useState<AccountProvider | ''>(initial?.provider ?? '')
   const [linkedBankId, setLinkedBankId] = useState(initial?.linkedBankAccountId ?? '')
   const [paymentDay, setPaymentDay] = useState(initial?.creditPaymentDay ? String(initial.creditPaymentDay) : '')
   const [saving, setSaving] = useState(false)
@@ -56,6 +66,7 @@ function AccountForm({ initial, bankAccounts, onSubmit, onCancel }: {
       isActive: initial?.isActive ?? true,
       ...(last4.trim() && { last4digits: last4.trim() }),
       ...(type === 'credit' && csvId.trim() && { csvIdentifier: csvId.trim() }),
+      ...(type !== 'cash' && provider && { provider: provider as AccountProvider }),
       ...(type === 'credit' && linkedBankId && { linkedBankAccountId: linkedBankId }),
       ...(type === 'credit' && paymentDay && { creditPaymentDay: Math.min(parseInt(paymentDay), 28) }),
     }
@@ -96,6 +107,21 @@ function AccountForm({ initial, bankAccounts, onSubmit, onCancel }: {
           <label className="text-xs text-slate-400 block mb-1">4 ספרות אחרונות (אופציונלי)</label>
           <input value={last4} onChange={e => setLast4(e.target.value)} maxLength={4} placeholder="1234"
             className="w-full bg-background rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 ring-accent" />
+        </div>
+      )}
+      {type !== 'cash' && (
+        <div>
+          <label className="text-xs text-slate-400 block mb-1">חברה / בנק</label>
+          <select value={provider} onChange={e => setProvider(e.target.value as AccountProvider | '')}
+            className="w-full bg-background rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 ring-accent">
+            <option value="">— לא נבחר —</option>
+            <option value="leumi">לאומי</option>
+            <option value="one-zero">One Zero</option>
+            <option value="discount">דיסקונט</option>
+            <option value="max">Max</option>
+            <option value="poalim">פועלים</option>
+            <option value="other">אחר</option>
+          </select>
         </div>
       )}
       {type === 'credit' && (
@@ -162,6 +188,7 @@ function AccountsSection() {
       color: data.color,
       last4digits: data.last4digits,
       csvIdentifier: data.csvIdentifier,
+      provider: data.provider,
     })
     // Credit linkage goes through updateCreditLinkage (non-retroactive history append)
     if (data.type === 'credit' && data.linkedBankAccountId) {
@@ -225,6 +252,9 @@ function AccountsSection() {
                 <span className="text-sm">{acc.name}</span>
                 <span className="text-xs text-slate-500 mr-2">{ACCOUNT_TYPE_LABELS[acc.type]}</span>
                 {acc.last4digits && <span className="text-xs text-slate-600">****{acc.last4digits}</span>}
+                {acc.provider && (
+                  <span className="text-xs text-slate-500 mr-1">· {PROVIDER_LABELS[acc.provider]}</span>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <div className="flex flex-col gap-0" dir="ltr">
