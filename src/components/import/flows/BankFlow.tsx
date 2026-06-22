@@ -215,7 +215,16 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
             <table className="w-full text-sm" aria-label="עסקאות בנק לייבוא">
               <thead>
                 <tr className="text-slate-400 border-b border-slate-700 text-xs">
-                  <th className="py-2 px-2 w-8 text-center">✓</th>
+                  <th className="py-2 px-2 w-8 text-center">
+                    <input
+                      type="checkbox"
+                      checked={activeRows.length === rows.length && rows.length > 0}
+                      onChange={e => setRows(prev => prev.map(r => ({ ...r, skip: !e.target.checked })))}
+                      className="accent-accent"
+                      aria-label="בחר/בטל הכל"
+                      title="בחר/בטל הכל"
+                    />
+                  </th>
                   <th className="text-right py-2 px-2">תאריך</th>
                   <th className="text-right py-2 px-2">תיאור</th>
                   <th className="text-right py-2 px-2">הערה</th>

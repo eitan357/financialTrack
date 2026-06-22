@@ -11,6 +11,10 @@ import { detectDuplicates } from '@/lib/import/duplicate-detector'
 import { addTransactions } from '@/lib/firestore/transactions'
 import type { AccountProvider, Category, CategorizationRule, ImportedTransaction, Transaction, TransactionSource } from '@/lib/types'
 
+interface CreditRow extends ImportedTransaction {
+  skip: boolean
+}
+
 interface Props {
   month: string
   accountId: string
@@ -41,15 +45,19 @@ function toTransaction(t: ImportedTransaction, accountId: string, month: string)
 
 export function CreditFlow({ month, accountId, accountName, provider, categories, rules, previousTransactions, existingTransactions, onDone }: Props) {
   const router = useRouter()
-  const [transactions, setTransactions] = useState<ImportedTransaction[]>([])
+  const [rows, setRows] = useState<CreditRow[]>([])
   const [xlsxData, setXlsxData] = useState<Uint8Array | null>(null)
   const [availableSheets, setAvailableSheets] = useState<string[]>([])
   const [selectedSheets, setSelectedSheets] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
-  const [duplicateWarning, setDuplicateWarning] = useState<number>(0)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const activeRows = rows.filter(r => !r.skip)
+  const skippedCount = rows.length - activeRows.length
+  const { duplicates: liveDuplicates } = detectDuplicates(activeRows, existingTransactions)
+  const duplicateWarning = liveDuplicates.length
 
   function applyCategories(raw: ReturnType<typeof mapRows>): ImportedTransaction[] {
     return raw.map(r => {
@@ -65,6 +73,10 @@ export function CreditFlow({ month, accountId, accountName, provider, categories
     })
   }
 
+  function setTransactions(txs: ImportedTransaction[]) {
+    setRows(txs.map(t => ({ ...t, skip: false })))
+  }
+
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
@@ -73,10 +85,7 @@ export function CreditFlow({ month, accountId, accountName, provider, categories
       const ext = file.name.toLowerCase()
       if (ext.endsWith('.csv')) {
         const text = await file.text()
-        const mapped = applyCategories(mapRows(parseCSV(text)))
-        const { duplicates } = detectDuplicates(mapped, existingTransactions)
-        setTransactions(mapped)
-        setDuplicateWarning(duplicates.length)
+        setTransactions(applyCategories(mapRows(parseCSV(text))))
         setXlsxData(null); setAvailableSheets([])
       } else if (ext.endsWith('.xlsx') || ext.endsWith('.xls')) {
         const buf = await file.arrayBuffer()
@@ -84,7 +93,7 @@ export function CreditFlow({ month, accountId, accountName, provider, categories
         const sheets = getSheetNames(data)
         setXlsxData(data); setAvailableSheets(sheets)
         setSelectedSheets(sheets.length > 0 ? [sheets[0]] : [])
-        setTransactions([])
+        setRows([])
       } else if (ext.endsWith('.pdf')) {
         const buf = await file.arrayBuffer()
         const mapped = applyCategories(await parseIsracardPdf(new Uint8Array(buf)))
@@ -92,9 +101,7 @@ export function CreditFlow({ month, accountId, accountName, provider, categories
           setError('לא נמצאו עסקאות בקובץ ה-PDF. ייתכן שהפורמט אינו נתמך.')
           return
         }
-        const { duplicates } = detectDuplicates(mapped, existingTransactions)
         setTransactions(mapped)
-        setDuplicateWarning(duplicates.length)
         setXlsxData(null); setAvailableSheets([])
       } else {
         setError('פורמט לא נתמך. השתמש בקובץ CSV, XLSX או PDF.')
@@ -113,26 +120,25 @@ export function CreditFlow({ month, accountId, accountName, provider, categories
         setError('לא נמצאו עסקאות בגליונות שנבחרו. ייתכן שפורמט הקובץ שונה מהצפוי.')
         return
       }
-      const { duplicates } = detectDuplicates(mapped, existingTransactions)
       setTransactions(mapped)
-      setDuplicateWarning(duplicates.length)
       setError(null)
     } catch {
       setError('שגיאה בניתוח הגליונות. נסה שוב.')
     }
   }
 
-  function updateField(index: number, updates: Partial<ImportedTransaction>) {
-    setTransactions(prev => prev.map((t, i) => i === index ? { ...t, ...updates } : t))
+  function updateRow(index: number, updates: Partial<CreditRow>) {
+    setRows(prev => prev.map((t, i) => i === index ? { ...t, ...updates } : t))
   }
 
   async function handleSave() {
     setSaving(true); setError(null)
     try {
-      const { clean, duplicates } = detectDuplicates(transactions, existingTransactions)
+      const toImport = rows.filter(r => !r.skip)
+      const { clean, duplicates } = detectDuplicates(toImport, existingTransactions)
       const toSave = duplicates.length > 0
-        ? (window.confirm(`נמצאו ${duplicates.length} עסקאות כפולות. לשמור בכל זאת?`) ? transactions : clean)
-        : transactions
+        ? (window.confirm(`נמצאו ${duplicates.length} עסקאות כפולות. לשמור בכל זאת?`) ? toImport : clean)
+        : toImport
       await addTransactions(toSave.map(t => toTransaction(t, accountId, month)))
       setSaved(true)
     } catch (err) {
@@ -148,13 +154,15 @@ export function CreditFlow({ month, accountId, accountName, provider, categories
       <div className="text-center py-8">
         <CheckCircle size={48} className="mx-auto text-green-400 mb-4" />
         <h2 className="text-xl font-bold mb-2">נשמר!</h2>
-        <p className="text-slate-400 text-sm mb-6">{transactions.length} עסקאות יובאו</p>
+        <p className="text-slate-400 text-sm mb-6">
+          {activeRows.length} עסקאות יובאו{skippedCount > 0 ? `, ${skippedCount} סוננו` : ''}
+        </p>
         <button onClick={onDone} className="w-full py-3 bg-accent rounded-xl font-semibold">חזור לרשימה</button>
       </div>
     )
   }
 
-  const uncategorized = transactions.filter(t => !t.categoryId && t.direction !== 'income').length
+  const uncategorized = activeRows.filter(t => !t.categoryId && t.direction !== 'income').length
 
   return (
     <div>
@@ -203,8 +211,13 @@ export function CreditFlow({ month, accountId, accountName, provider, categories
         </div>
       )}
 
-      {transactions.length > 0 && (
+      {rows.length > 0 && (
         <>
+          {skippedCount > 0 && (
+            <p className="text-slate-500 text-xs mb-2">
+              {skippedCount} עסקאות סוננו — בטל סימון V בטבלה להכללה
+            </p>
+          )}
           {uncategorized > 0 && (
             <p className="text-blue-400 text-xs mb-2 flex items-center gap-1">
               <Tag size={12} />{uncategorized} עסקאות ממתינות לקיטלוג
@@ -214,6 +227,16 @@ export function CreditFlow({ month, accountId, accountName, provider, categories
             <table className="w-full text-sm" aria-label="עסקאות לייבוא">
               <thead>
                 <tr className="text-slate-400 border-b border-slate-700 text-xs">
+                  <th className="py-2 px-2 w-8 text-center">
+                    <input
+                      type="checkbox"
+                      checked={activeRows.length === rows.length}
+                      onChange={e => setRows(prev => prev.map(r => ({ ...r, skip: !e.target.checked })))}
+                      className="accent-accent"
+                      aria-label="בחר/בטל הכל"
+                      title="בחר/בטל הכל"
+                    />
+                  </th>
                   <th className="text-right py-2 px-2">תאריך</th>
                   <th className="text-right py-2 px-2">בית עסק</th>
                   <th className="text-right py-2 px-2">תיאור</th>
@@ -224,16 +247,26 @@ export function CreditFlow({ month, accountId, accountName, provider, categories
                 </tr>
               </thead>
               <tbody>
-                {transactions.map((tx, i) => (
-                  <tr key={i} className="border-b border-slate-700/40">
+                {rows.map((tx, i) => (
+                  <tr key={i} className={`border-b border-slate-700/40 ${tx.skip ? 'opacity-30' : ''}`}>
+                    <td className="py-1.5 px-2 text-center">
+                      <input
+                        type="checkbox"
+                        checked={!tx.skip}
+                        onChange={e => updateRow(i, { skip: !e.target.checked })}
+                        className="accent-accent"
+                        aria-label={`כלול ${tx.merchantName}`}
+                      />
+                    </td>
                     <td className="py-1.5 px-2 text-slate-400 text-xs">{tx.date}</td>
                     <td className="py-1.5 px-2 text-xs">{tx.merchantName}</td>
                     <td className="py-1.5 px-2">
                       <input
                         value={tx.notes ?? ''}
-                        onChange={e => updateField(i, { notes: e.target.value })}
+                        onChange={e => updateRow(i, { notes: e.target.value })}
                         placeholder="תיאור"
-                        className="w-full bg-background text-xs rounded px-1 py-0.5 min-w-16"
+                        disabled={tx.skip}
+                        className="w-full bg-background text-xs rounded px-1 py-0.5 min-w-16 disabled:opacity-40"
                         aria-label={`תיאור עבור ${tx.merchantName}`}
                       />
                     </td>
@@ -241,8 +274,9 @@ export function CreditFlow({ month, accountId, accountName, provider, categories
                     <td className="py-1.5 px-2">
                       <select
                         value={tx.direction}
-                        onChange={e => updateField(i, { direction: e.target.value as 'income' | 'expense', categoryId: e.target.value === 'income' ? null : tx.categoryId })}
-                        className="bg-background text-xs rounded px-1 py-0.5"
+                        onChange={e => updateRow(i, { direction: e.target.value as 'income' | 'expense', categoryId: e.target.value === 'income' ? null : tx.categoryId })}
+                        disabled={tx.skip}
+                        className="bg-background text-xs rounded px-1 py-0.5 disabled:opacity-40"
                         aria-label={`כיוון עבור ${tx.merchantName}`}
                       >
                         <option value="expense">הוצאה</option>
@@ -253,17 +287,20 @@ export function CreditFlow({ month, accountId, accountName, provider, categories
                       <input
                         type="checkbox"
                         checked={tx.isImmediate}
-                        onChange={e => updateField(i, { isImmediate: e.target.checked })}
-                        className="accent-amber-400"
+                        onChange={e => updateRow(i, { isImmediate: e.target.checked })}
+                        disabled={tx.skip}
+                        className="accent-amber-400 disabled:opacity-40"
                         aria-label={`חיוב מיידי עבור ${tx.merchantName}`}
                         title="חיוב מיידי"
                       />
                     </td>
                     <td className="py-1.5 px-2">
-                      {tx.direction === 'expense' ? (
+                      {tx.skip ? (
+                        <span className="text-xs text-slate-600">מסונן</span>
+                      ) : tx.direction === 'expense' ? (
                         <select
                           value={tx.categoryId ?? ''}
-                          onChange={e => updateField(i, { categoryId: e.target.value || null, categorizationSource: 'manual' })}
+                          onChange={e => updateRow(i, { categoryId: e.target.value || null, categorizationSource: 'manual' })}
                           className="bg-background text-foreground text-xs rounded px-1 py-0.5 w-full"
                           aria-label={`קטגוריה עבור ${tx.merchantName}`}
                         >
@@ -281,10 +318,10 @@ export function CreditFlow({ month, accountId, accountName, provider, categories
           </div>
           <button
             onClick={handleSave}
-            disabled={saving}
+            disabled={saving || activeRows.length === 0}
             className="w-full py-3 bg-accent rounded-xl text-sm font-semibold disabled:opacity-50 mb-3"
           >
-            {saving ? 'שומר...' : `שמור ${transactions.length} עסקאות`}
+            {saving ? 'שומר...' : `שמור ${activeRows.length} עסקאות`}
           </button>
         </>
       )}
