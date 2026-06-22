@@ -9,6 +9,7 @@ import { mapRows } from '@/lib/parsers/transaction-mapper'
 import { categorize } from '@/lib/categorization/engine'
 import { detectDuplicates } from '@/lib/import/duplicate-detector'
 import { addTransactions } from '@/lib/firestore/transactions'
+import { ImportError } from '@/lib/parsers/import-errors'
 import type { Account, Category, CategorizationRule, ImportedTransaction, RawTransaction, SalaryEntry, Transaction, TransactionSource } from '@/lib/types'
 
 export type BankType = 'one-zero' | 'leumi' | 'generic'
@@ -120,10 +121,21 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
         raw = parseOneZeroXlsx(data)
       }
 
+      if (raw.length === 0) {
+        if (bankType === 'leumi') {
+          setError('לא נמצאו עסקאות בקובץ ה-PDF. ודא שהורדת דפדף עסקאות של לאומי.')
+        } else if (bankType === 'one-zero') {
+          setError('לא נמצאו עסקאות בקובץ. ודא שהורדת את קובץ העסקאות מאפליקציית One Zero.')
+        } else {
+          setError('לא נמצאו עסקאות בקובץ. ודא שהורדת את הקובץ ישירות מאתר הבנק.')
+        }
+        return
+      }
+
       const mapped = applyCategories(raw)
       setRows(suggestSkips(mapped, salaryEntries, creditAccounts))
-    } catch {
-      setError('שגיאה בקריאת הקובץ. נסה שוב.')
+    } catch (err) {
+      setError(err instanceof ImportError ? err.message : 'שגיאה בקריאת הקובץ. ייתכן שהוא פגום או לא הורד כראוי.')
     } finally {
       setParsing(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
@@ -201,11 +213,6 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
 
       {rows.length > 0 && (
         <>
-          {skippedCount > 0 && (
-            <p className="text-slate-500 text-xs mb-2">
-              {skippedCount} עסקאות סוננו אוטומטית (משכורת / אשראי) — בטל סימון V בטבלה להכללה
-            </p>
-          )}
           {uncategorized > 0 && (
             <p className="text-blue-400 text-xs mb-2 flex items-center gap-1">
               <Tag size={12} />{uncategorized} עסקאות ממתינות לקיטלוג

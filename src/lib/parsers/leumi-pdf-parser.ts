@@ -1,4 +1,5 @@
 import type { RawTransaction } from '../types'
+import { ImportError } from './import-errors'
 
 export interface PdfTextItem {
   str: string
@@ -36,7 +37,7 @@ export function parseLeumiRows(items: PdfTextItem[]): RawTransaction[] {
   const headerRow = rows.find(row =>
     row.some(item => item.str === 'זכות') && row.some(item => item.str === 'חובה')
   )
-  if (!headerRow) return []
+  if (!headerRow) throw new ImportError('לא נמצאה טבלת עסקאות בקובץ ה-PDF — ודא שהורדת דפדף עסקאות של לאומי')
 
   const getColX = (label: string) => headerRow.find(i => i.str === label)?.x ?? -1
   const creditX = getColX('זכות')

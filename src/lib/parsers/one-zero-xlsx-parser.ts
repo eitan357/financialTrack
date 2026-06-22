@@ -1,5 +1,6 @@
 import * as XLSX from 'xlsx'
 import type { RawTransaction } from '../types'
+import { ImportError } from './import-errors'
 
 function parseOneZeroDate(dateStr: string): string {
   const [d, m, y] = dateStr.split('/')
@@ -7,7 +8,12 @@ function parseOneZeroDate(dateStr: string): string {
 }
 
 export function parseOneZeroXlsx(data: Uint8Array): RawTransaction[] {
-  const workbook = XLSX.read(data, { type: 'array' })
+  let workbook: XLSX.WorkBook
+  try {
+    workbook = XLSX.read(data, { type: 'array' })
+  } catch {
+    throw new ImportError('הקובץ אינו קובץ Excel תקני — ייתכן שהוא פגום או לא הורד כראוי')
+  }
   const sheetName = workbook.SheetNames[0]
   const sheet = workbook.Sheets[sheetName]
   const rows = XLSX.utils.sheet_to_json<(string | number)[]>(sheet, {

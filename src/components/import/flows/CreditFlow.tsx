@@ -9,6 +9,7 @@ import { parseIsracardPdf } from '@/lib/parsers/isracard-pdf-parser'
 import { categorize } from '@/lib/categorization/engine'
 import { detectDuplicates } from '@/lib/import/duplicate-detector'
 import { addTransactions } from '@/lib/firestore/transactions'
+import { ImportError } from '@/lib/parsers/import-errors'
 import type { AccountProvider, Category, CategorizationRule, ImportedTransaction, Transaction, TransactionSource } from '@/lib/types'
 
 interface CreditRow extends ImportedTransaction {
@@ -85,7 +86,12 @@ export function CreditFlow({ month, accountId, accountName, provider, categories
       const ext = file.name.toLowerCase()
       if (ext.endsWith('.csv')) {
         const text = await file.text()
-        setTransactions(applyCategories(mapRows(parseCSV(text))))
+        const mapped = applyCategories(mapRows(parseCSV(text)))
+        if (mapped.length === 0) {
+          setError('לא נמצאו עסקאות בקובץ ה-CSV. ודא שהורדת את הקובץ ישירות מאתר חברת האשראי.')
+          return
+        }
+        setTransactions(mapped)
         setXlsxData(null); setAvailableSheets([])
       } else if (ext.endsWith('.xlsx') || ext.endsWith('.xls')) {
         const buf = await file.arrayBuffer()
@@ -98,16 +104,16 @@ export function CreditFlow({ month, accountId, accountName, provider, categories
         const buf = await file.arrayBuffer()
         const mapped = applyCategories(await parseIsracardPdf(new Uint8Array(buf)))
         if (mapped.length === 0) {
-          setError('לא נמצאו עסקאות בקובץ ה-PDF. ייתכן שהפורמט אינו נתמך.')
+          setError('לא נמצאו עסקאות בקובץ ה-PDF. ודא שהורדת דפדף עסקאות של ישראכרט.')
           return
         }
         setTransactions(mapped)
         setXlsxData(null); setAvailableSheets([])
       } else {
-        setError('פורמט לא נתמך. השתמש בקובץ CSV, XLSX או PDF.')
+        setError(`סוג קובץ זה אינו נתמך. השתמש ב-${provider === 'isracard' ? 'XLSX או PDF' : provider === 'max' ? 'XLSX או CSV' : 'CSV, XLSX או PDF'}.`)
       }
-    } catch {
-      setError('שגיאה בקריאת הקובץ. נסה שוב.')
+    } catch (err) {
+      setError(err instanceof ImportError ? err.message : 'שגיאה בקריאת הקובץ. ייתכן שהוא פגום או לא הורד כראוי.')
     }
   }
 
@@ -117,13 +123,13 @@ export function CreditFlow({ month, accountId, accountName, provider, categories
       const rows = selectedSheets.flatMap(s => parseSheet(xlsxData, s))
       const mapped = applyCategories(mapRows(rows))
       if (mapped.length === 0) {
-        setError('לא נמצאו עסקאות בגליונות שנבחרו. ייתכן שפורמט הקובץ שונה מהצפוי.')
+        setError('לא נמצאו עסקאות בגיליונות שנבחרו. ודא שבחרת את הגיליון הנכון ושהקובץ הורד מאתר חברת האשראי.')
         return
       }
       setTransactions(mapped)
       setError(null)
-    } catch {
-      setError('שגיאה בניתוח הגליונות. נסה שוב.')
+    } catch (err) {
+      setError(err instanceof ImportError ? err.message : 'שגיאה בניתוח הקובץ. ייתכן שהוא פגום.')
     }
   }
 
@@ -213,11 +219,6 @@ export function CreditFlow({ month, accountId, accountName, provider, categories
 
       {rows.length > 0 && (
         <>
-          {skippedCount > 0 && (
-            <p className="text-slate-500 text-xs mb-2">
-              {skippedCount} עסקאות סוננו — בטל סימון V בטבלה להכללה
-            </p>
-          )}
           {uncategorized > 0 && (
             <p className="text-blue-400 text-xs mb-2 flex items-center gap-1">
               <Tag size={12} />{uncategorized} עסקאות ממתינות לקיטלוג

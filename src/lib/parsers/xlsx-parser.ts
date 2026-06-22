@@ -1,9 +1,17 @@
 import * as XLSX from 'xlsx'
 import type { ParsedRow } from './csv-parser'
+import { ImportError } from './import-errors'
+
+function readWorkbook(data: Uint8Array): XLSX.WorkBook {
+  try {
+    return XLSX.read(data, { type: 'array' })
+  } catch {
+    throw new ImportError('הקובץ אינו קובץ Excel תקני — ייתכן שהוא פגום או לא הורד כראוי')
+  }
+}
 
 export function getSheetNames(data: Uint8Array): string[] {
-  const workbook = XLSX.read(data, { type: 'array' })
-  return workbook.SheetNames
+  return readWorkbook(data).SheetNames
 }
 
 // Known column names that signal this row is the real data header.
@@ -14,7 +22,7 @@ const HEADER_SIGNALS = [
 ]
 
 export function parseSheet(data: Uint8Array, sheetName: string): ParsedRow[] {
-  const workbook = XLSX.read(data, { type: 'array' })
+  const workbook = readWorkbook(data)
   const sheet = workbook.Sheets[sheetName]
   if (!sheet) return []
 
