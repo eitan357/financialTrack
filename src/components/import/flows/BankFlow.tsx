@@ -181,8 +181,16 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
         onClick={() => fileInputRef.current?.click()}
       >
         <Upload size={24} className="mx-auto mb-2 text-slate-400" />
-        <p className="text-slate-400 text-sm">העלאת קובץ XLS, XLSX, PDF או CSV</p>
-        <input ref={fileInputRef} type="file" accept=".xls,.xlsx,.pdf,.csv" className="hidden" onChange={handleFileChange} />
+        <p className="text-slate-400 text-sm">
+          {bankType === 'leumi' ? 'העלאת קובץ PDF' : bankType === 'one-zero' ? 'העלאת קובץ XLS' : 'העלאת קובץ XLS, XLSX, PDF או CSV'}
+        </p>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept={bankType === 'leumi' ? '.pdf' : bankType === 'one-zero' ? '.xls,.xlsx' : '.xls,.xlsx,.pdf,.csv'}
+          className="hidden"
+          onChange={handleFileChange}
+        />
       </div>
 
       {parsing && <p className="text-slate-400 text-sm text-center mb-3">מנתח קובץ...</p>}

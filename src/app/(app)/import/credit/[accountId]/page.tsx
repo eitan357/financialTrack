@@ -64,6 +64,7 @@ function CreditPageInner() {
         month={month}
         accountId={accountId}
         accountName={account.name}
+        provider={account.provider}
         categories={categories}
         rules={rules}
         previousTransactions={previousTransactions}

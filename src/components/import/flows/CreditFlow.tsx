@@ -9,12 +9,13 @@ import { parseIsracardPdf } from '@/lib/parsers/isracard-pdf-parser'
 import { categorize } from '@/lib/categorization/engine'
 import { detectDuplicates } from '@/lib/import/duplicate-detector'
 import { addTransactions } from '@/lib/firestore/transactions'
-import type { Category, CategorizationRule, ImportedTransaction, Transaction, TransactionSource } from '@/lib/types'
+import type { AccountProvider, Category, CategorizationRule, ImportedTransaction, Transaction, TransactionSource } from '@/lib/types'
 
 interface Props {
   month: string
   accountId: string
   accountName: string
+  provider?: AccountProvider
   categories: Category[]
   rules: CategorizationRule[]
   previousTransactions: Transaction[]
@@ -38,7 +39,7 @@ function toTransaction(t: ImportedTransaction, accountId: string, month: string)
   }
 }
 
-export function CreditFlow({ month, accountId, accountName, categories, rules, previousTransactions, existingTransactions, onDone }: Props) {
+export function CreditFlow({ month, accountId, accountName, provider, categories, rules, previousTransactions, existingTransactions, onDone }: Props) {
   const router = useRouter()
   const [transactions, setTransactions] = useState<ImportedTransaction[]>([])
   const [xlsxData, setXlsxData] = useState<Uint8Array | null>(null)
@@ -169,8 +170,18 @@ export function CreditFlow({ month, accountId, accountName, categories, rules, p
         onClick={() => fileInputRef.current?.click()}
       >
         <Upload size={24} className="mx-auto mb-2 text-slate-400" />
-        <p className="text-slate-400 text-sm">העלאת קובץ CSV, XLS, XLSX או PDF</p>
-        <input ref={fileInputRef} type="file" accept=".csv,.xlsx,.xls,.pdf" className="hidden" onChange={handleFileChange} />
+        <p className="text-slate-400 text-sm">
+          {provider === 'isracard' ? 'העלאת קובץ XLSX או PDF'
+            : provider === 'max' ? 'העלאת קובץ XLSX או CSV'
+            : 'העלאת קובץ CSV, XLSX או PDF'}
+        </p>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept={provider === 'isracard' ? '.xlsx,.xls,.pdf' : provider === 'max' ? '.xlsx,.xls,.csv' : '.csv,.xlsx,.xls,.pdf'}
+          className="hidden"
+          onChange={handleFileChange}
+        />
       </div>
 
       {error && <p role="alert" className="text-red-400 text-sm mb-3">{error}</p>}

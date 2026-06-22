@@ -121,7 +121,7 @@ export function ImportHub() {
               <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: acc.color }} />
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium">{acc.name}</div>
-                <div className="text-xs text-slate-500">ייבוא קובץ CSV · {count > 0 ? `${count} עסקאות יובאו` : 'לא יובא עדיין'}</div>
+                <div className="text-xs text-slate-500">{count > 0 ? `${count} עסקאות יובאו` : 'לא יובא עדיין'}</div>
               </div>
               <ChevronLeft size={16} className="text-slate-500 flex-shrink-0" />
             </button>
@@ -130,8 +130,6 @@ export function ImportHub() {
 
         {bankAccounts.map(acc => {
           const count = txCount(transactions, acc.id)
-          const bankType = detectBankType(acc)
-          const fileLabel = bankType === 'leumi' ? 'PDF' : bankType === 'one-zero' ? 'XLS' : 'XLS / PDF'
           return (
             <button
               key={acc.id}
@@ -141,7 +139,7 @@ export function ImportHub() {
               <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: acc.color }} />
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium">{acc.name}</div>
-                <div className="text-xs text-slate-500">ייבוא קובץ {fileLabel} · {count > 0 ? `${count} עסקאות יובאו` : 'לא יובא עדיין'}</div>
+                <div className="text-xs text-slate-500">{count > 0 ? `${count} עסקאות יובאו` : 'לא יובא עדיין'}</div>
               </div>
               <ChevronLeft size={16} className="text-slate-500 flex-shrink-0" />
             </button>
