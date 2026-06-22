@@ -42,16 +42,31 @@ export function parseIsracardRows(items: PdfTextItem[]): RawTransaction[] {
     const ilsItem = row.find(i => ILS_RE.test(i.str) && i.x >= 215 && i.x <= 260)
     if (!ilsItem) continue
 
-    // Skip rows where too many items fall in the merchant area — these are legal notice rows
-    // that happen to reference a transaction inline
-    const merchantAreaItems = row.filter(i => i !== dateItem && i.x >= 330 && i.x <= 515)
-    if (merchantAreaItems.length > 4) continue
+    // Detect contamination: the Isracard PDF sometimes overlaps a transaction row with a line
+    // of legal notice text that spans the full width. Non-ILS items in the gap columns
+    // (between invoice column ~150 and ILS column ~231, or between foreign amount ~295 and
+    // merchant column ~360) signal this overlap.
+    const isContaminated =
+      row.some(i => !ILS_RE.test(i.str) && i.x >= 160 && i.x <= 225) ||
+      row.some(i => !ILS_RE.test(i.str) && i.x >= 305 && i.x <= 362)
 
-    // Build merchant name from RTL items in merchant range, sorted high-x first
-    const merchantItems = merchantAreaItems
-      .filter(i => i.x >= 330 && i.x <= 505)
-      .sort((a, b) => b.x - a.x)
-    const merchantName = merchantItems.map(i => i.str).join(' ').replace(/^\.+/, '').trim()
+    let merchantName: string
+    if (isContaminated) {
+      // Legal text is mixed into the row at most x positions. Isolate the merchant by
+      // looking in the merchant band [360, 480] and preferring items with Latin/digit chars
+      // (foreign merchants). Fall back to all band items for Hebrew merchants.
+      const bandItems = row.filter(i => i !== dateItem && i.x >= 360 && i.x <= 480)
+      const latinItems = bandItems.filter(i => /[a-zA-Z0-9]/.test(i.str)).sort((a, b) => b.x - a.x)
+      const merchantItems = latinItems.length > 0 ? latinItems : bandItems.sort((a, b) => b.x - a.x)
+      merchantName = merchantItems.map(i => i.str).join(' ').replace(/^\.+/, '').trim()
+    } else {
+      // Clean row: all items in [330, 505] sorted RTL (high x first)
+      const merchantItems = row
+        .filter(i => i !== dateItem && i.x >= 330 && i.x <= 505)
+        .sort((a, b) => b.x - a.x)
+      merchantName = merchantItems.map(i => i.str).join(' ').replace(/^\.+/, '').trim()
+    }
+
     if (!merchantName) continue
 
     const amount = parseAmount(ilsItem.str)

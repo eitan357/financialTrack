@@ -30,10 +30,13 @@ function getField(row: ParsedRow, ...keys: string[]): string {
 
 export function mapRows(rows: ParsedRow[]): RawTransaction[] {
   return rows
-    .filter(row => getField(row,
-      'שם בית העסק', 'שם בית עסק', 'שם ספק', 'שם בית-עסק',
-      'תיאור', 'פירוט נוסף', 'תיאור העסקה',
-    ))
+    .filter(row =>
+      getField(row,
+        'שם בית העסק', 'שם בית עסק', 'שם ספק', 'שם בית-עסק',
+        'תיאור', 'פירוט נוסף', 'תיאור העסקה',
+      ) &&
+      getField(row, 'תאריך עסקה', 'תאריך', 'תאריך רכישה')
+    )
     .map(row => ({
       date: parseIsraeliDate(
         getField(row, 'תאריך עסקה', 'תאריך', 'תאריך רכישה') ?? ''
