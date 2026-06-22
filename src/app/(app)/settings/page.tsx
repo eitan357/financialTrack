@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { Wallet } from 'lucide-react'
 import { getAccounts, addAccount, deleteAccount, cleanupDuplicateAccounts } from '@/lib/firestore/accounts'
 import { getCategories, addCategory, cleanupDuplicateCategories } from '@/lib/firestore/categories'
 import { getRules, addRule, deleteRule } from '@/lib/firestore/categorization-rules'
@@ -48,9 +49,16 @@ const PROVIDER_LOGO: Partial<Record<AccountProvider, string>> = {
   isracard: '/logos/isracard.webp',
 }
 
-function ProviderLogo({ provider, color, className = 'w-8 h-8' }: { provider?: AccountProvider; color: string; className?: string }) {
+function ProviderLogo({ provider, color, type, className = 'w-8 h-8' }: { provider?: AccountProvider; color: string; type?: string; className?: string }) {
   const [imgFailed, setImgFailed] = useState(false)
   const src = provider && !imgFailed ? PROVIDER_LOGO[provider] : null
+  if (type === 'cash') {
+    return (
+      <div className={`${className} rounded-full flex-shrink-0 flex items-center justify-center`} style={{ background: color }}>
+        <Wallet size={parseInt(className.match(/w-(\d+)/)?.[1] ?? '8') * 3} className="text-white" strokeWidth={1.5} />
+      </div>
+    )
+  }
   if (!src) return <div className={`${className} rounded-full flex-shrink-0`} style={{ background: color }} />
   return (
     <div className={`${className} rounded-full flex-shrink-0 bg-white flex items-center justify-center overflow-hidden`}>
@@ -114,7 +122,7 @@ function AccountForm({ type, initial, bankAccounts, onSubmit, onCancel, onDelete
     <form onSubmit={submit} className="bg-slate-800 rounded-xl p-4 space-y-3">
       {initial && (
         <div className="flex items-center gap-3 pb-3 border-b border-slate-700/50">
-          <ProviderLogo provider={provider || undefined} color={color} className="w-10 h-10" />
+          <ProviderLogo provider={provider || undefined} color={color} type={type} className="w-10 h-10" />
           <div>
             <p className="text-sm font-medium" dir="auto">{name || '—'}</p>
             <p className="text-xs text-slate-500">{ACCOUNT_TYPE_LABELS[type]}</p>
@@ -149,6 +157,13 @@ function AccountForm({ type, initial, bankAccounts, onSubmit, onCancel, onDelete
             setName(e.target.value)
             setNameManuallyEdited(true)
             if (nameError && e.target.value.trim()) setNameError(null)
+          }}
+          onBlur={() => {
+            if (!name.trim()) {
+              const defaultName = type === 'cash' ? 'מזומן' : (provider ? PROVIDER_LABELS[provider as AccountProvider] : '')
+              setName(defaultName)
+              setNameManuallyEdited(false)
+            }
           }}
           className={`w-full bg-background rounded-lg px-3 py-2 text-sm outline-none ${nameError ? 'ring-1 ring-red-500' : 'focus:ring-1 ring-accent'}`} />
         {nameError && <p className="text-xs text-red-400 mt-1">{nameError}</p>}
@@ -327,7 +342,7 @@ function AccountsSection() {
       <div key={acc.id} className="bg-surface rounded-xl overflow-hidden">
         <button type="button" className="w-full flex items-center px-4 py-3 gap-3 text-right"
           onClick={() => { setExpandedId(v => v === acc.id ? null : acc.id); setEditId(null); setShowAddType(null) }}>
-          <ProviderLogo provider={acc.provider} color={acc.color} />
+          <ProviderLogo provider={acc.provider} color={acc.color} type={acc.type} />
           <div className="flex-1 min-w-0">
             <span className="text-sm" dir="auto">{acc.name}</span>
             {acc.last4digits && (
@@ -449,7 +464,7 @@ function AccountsSection() {
                 <div key={acc.id} className="bg-surface rounded-xl overflow-hidden opacity-60">
                   <button type="button" className="w-full flex items-center px-4 py-3 gap-3 text-right"
                     onClick={() => setExpandedId(v => v === acc.id ? null : acc.id)}>
-                    <ProviderLogo provider={acc.provider} color={acc.color} />
+                    <ProviderLogo provider={acc.provider} color={acc.color} type={acc.type} />
                     <div className="flex-1 min-w-0">
                       <span className="text-sm line-through text-slate-500" dir="auto">{acc.name}</span>
                       <span className="text-xs text-slate-500 mr-2">{ACCOUNT_TYPE_LABELS[acc.type]}</span>

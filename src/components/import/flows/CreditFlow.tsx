@@ -5,7 +5,7 @@ import { Upload, CheckCircle, Tag, ChevronRight } from 'lucide-react'
 import { parseCSV } from '@/lib/parsers/csv-parser'
 import { getSheetNames, parseSheet } from '@/lib/parsers/xlsx-parser'
 import { mapRows } from '@/lib/parsers/transaction-mapper'
-import { parseLeumiPdf } from '@/lib/parsers/leumi-pdf-parser'
+import { parseIsracardPdf } from '@/lib/parsers/isracard-pdf-parser'
 import { categorize } from '@/lib/categorization/engine'
 import { detectDuplicates } from '@/lib/import/duplicate-detector'
 import { addTransactions } from '@/lib/firestore/transactions'
@@ -86,7 +86,7 @@ export function CreditFlow({ month, accountId, accountName, categories, rules, p
         setTransactions([])
       } else if (ext.endsWith('.pdf')) {
         const buf = await file.arrayBuffer()
-        const mapped = applyCategories(await parseLeumiPdf(new Uint8Array(buf)))
+        const mapped = applyCategories(await parseIsracardPdf(new Uint8Array(buf)))
         if (mapped.length === 0) {
           setError('לא נמצאו עסקאות בקובץ ה-PDF. ייתכן שהפורמט אינו נתמך.')
           return
