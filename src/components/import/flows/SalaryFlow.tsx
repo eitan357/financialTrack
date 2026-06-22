@@ -2,10 +2,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Plus, Trash2, ChevronRight } from 'lucide-react'
-import { getFirestore, collection, doc, setDoc } from 'firebase/firestore'
-import { app } from '@/lib/firebase/config'
 import { upsertSalaryEntry, deleteSalaryEntry } from '@/lib/firestore/salary'
-import { updateTransaction, deleteTransaction } from '@/lib/firestore/transactions'
+import { addTransactionGetId, updateTransaction, deleteTransaction } from '@/lib/firestore/transactions'
 import type { SalaryEntry, SalaryDeductions, Account } from '@/lib/types'
 
 const EMPTY_DEDUCTIONS: SalaryDeductions = { incomeTax: 0, nationalInsurance: 0, healthInsurance: 0, pension: 0, trainingFund: 0 }
@@ -157,9 +155,7 @@ export function SalaryFlow({ month, existingEntries, bankAccounts, previousSalar
         setEntries(prev => prev.map(e => e.id === form.entryId ? saved : e))
       } else {
         // New entry: create transaction first to capture its ID, then save salary entry with that ID
-        const db = getFirestore(app)
-        const txRef = doc(collection(db, 'transactions'))
-        await setDoc(txRef, {
+        const txId = await addTransactionGetId({
           date: `${month}-01`,
           merchantName: form.employerName || 'משכורת',
           amount: netAmount,
@@ -171,7 +167,7 @@ export function SalaryFlow({ month, existingEntries, bankAccounts, previousSalar
           direction: 'income',
           salaryDetails: { grossAmount: form.grossAmount, deductions: form.deductions, netAmount, employerName: form.employerName },
         })
-        const saved = await upsertSalaryEntry({ ...entryData, salaryTxId: txRef.id })
+        const saved = await upsertSalaryEntry({ ...entryData, salaryTxId: txId })
         setEntries(prev => [...prev, saved])
       }
       setForm(null)

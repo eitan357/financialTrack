@@ -120,12 +120,12 @@ export function CashFlow({ month, cashAccountId, categories, existingTransaction
             <div className="flex gap-2">
               <input type="number" placeholder="סכום" value={row.amount || ''}
                 onChange={e => updateRow(i, { amount: Math.max(0, parseFloat(e.target.value) || 0) })}
-                className="flex-1 bg-background rounded px-3 py-2 text-sm tabular-nums"
+                className="flex-1 min-w-0 bg-background rounded px-3 py-2 text-sm tabular-nums"
                 aria-label={`סכום הוצאה ${i + 1}`}
               />
               <input type="date" value={row.date}
                 onChange={e => updateRow(i, { date: e.target.value })}
-                className="flex-1 bg-background rounded px-3 py-2 text-sm"
+                className="flex-1 min-w-0 bg-background rounded px-3 py-2 text-sm"
                 aria-label={`תאריך הוצאה ${i + 1}`}
               />
             </div>

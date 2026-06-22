@@ -1,4 +1,4 @@
-import { getFirestore, collection, getDocs, writeBatch, updateDoc, deleteDoc, doc, query, where, orderBy, deleteField } from 'firebase/firestore'
+import { getFirestore, collection, getDocs, addDoc, writeBatch, updateDoc, deleteDoc, doc, query, where, orderBy, deleteField } from 'firebase/firestore'
 import { app } from '../firebase/config'
 import { appCache } from '../cache'
 import type { Transaction } from '../types'
@@ -29,6 +29,12 @@ export async function getTransactionsByMerchant(merchantName: string): Promise<T
   )
   const snap = await getDocs(q)
   return snap.docs.map(d => ({ id: d.id, ...d.data() } as Transaction))
+}
+
+export async function addTransactionGetId(tx: Omit<Transaction, 'id'>): Promise<string> {
+  const ref = await addDoc(collection(getDb(), 'transactions'), tx)
+  appCache.del(cacheKey(tx.month))
+  return ref.id
 }
 
 export async function addTransactions(transactions: Omit<Transaction, 'id'>[]): Promise<void> {
