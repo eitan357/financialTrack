@@ -57,8 +57,13 @@ export function CreditFlow({ month, accountId, accountName, provider, categories
 
   const activeRows = rows.filter(r => !r.skip)
   const skippedCount = rows.length - activeRows.length
-  const { duplicates: liveDuplicates } = detectDuplicates(activeRows, existingTransactions)
-  const duplicateWarning = liveDuplicates.length
+
+  function existingMatch(tx: ImportedTransaction) {
+    return existingTransactions.find(e =>
+      e.date === tx.date && Math.abs(e.amount) === tx.amount && e.merchantName === tx.merchantName
+    )
+  }
+  const duplicateCount = activeRows.filter(r => existingMatch(r)).length
 
   function applyCategories(raw: ReturnType<typeof mapRows>): ImportedTransaction[] {
     return raw.map(r => {
@@ -199,8 +204,8 @@ export function CreditFlow({ month, accountId, accountName, provider, categories
       </div>
 
       {error && <p role="alert" className="text-red-400 text-sm mb-3">{error}</p>}
-      {duplicateWarning > 0 && (
-        <p className="text-amber-400 text-xs mb-2">⚠️ {duplicateWarning} עסקאות עלולות להיות כפולות</p>
+      {duplicateCount > 0 && (
+        <p className="text-amber-400 text-xs mb-2">⚠️ {duplicateCount} עסקאות מסומנות כבר קיימות בחשבון — בדוק השורות המסומנות</p>
       )}
 
       {availableSheets.length > 0 && (
@@ -248,8 +253,10 @@ export function CreditFlow({ month, accountId, accountName, provider, categories
                 </tr>
               </thead>
               <tbody>
-                {rows.map((tx, i) => (
-                  <tr key={i} className={`border-b border-slate-700/40 ${tx.skip ? 'opacity-30' : ''}`}>
+                {rows.map((tx, i) => {
+                  const match = tx.skip ? undefined : existingMatch(tx)
+                  return (
+                  <tr key={i} className={`border-b border-slate-700/40 ${tx.skip ? 'opacity-30' : match ? 'bg-amber-900/10' : ''}`}>
                     <td className="py-1.5 px-2 text-center">
                       <input
                         type="checkbox"
@@ -260,7 +267,10 @@ export function CreditFlow({ month, accountId, accountName, provider, categories
                       />
                     </td>
                     <td className="py-1.5 px-2 text-slate-400 text-xs">{tx.date}</td>
-                    <td className="py-1.5 px-2 text-xs">{tx.merchantName}</td>
+                    <td className="py-1.5 px-2 text-xs">
+                      <div>{tx.merchantName}</div>
+                      {match && <div className="text-amber-400 text-xs mt-0.5">⚠️ כבר קיים ({match.date})</div>}
+                    </td>
                     <td className="py-1.5 px-2">
                       <input
                         value={tx.notes ?? ''}
@@ -313,7 +323,8 @@ export function CreditFlow({ month, accountId, accountName, provider, categories
                       )}
                     </td>
                   </tr>
-                ))}
+                  )
+                })}
               </tbody>
             </table>
           </div>

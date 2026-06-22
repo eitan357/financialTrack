@@ -27,9 +27,10 @@ interface SalaryFormState {
   grossAmount: number
   deductions: SalaryDeductions
   bankAccountId: string
+  date: string
 }
 
-function entryToForm(entry: SalaryEntry, defaultBankId: string): SalaryFormState {
+function entryToForm(entry: SalaryEntry, defaultBankId: string, month: string): SalaryFormState {
   return {
     entryId: entry.id,
     salaryTxId: entry.salaryTxId,
@@ -37,15 +38,17 @@ function entryToForm(entry: SalaryEntry, defaultBankId: string): SalaryFormState
     grossAmount: entry.grossAmount,
     deductions: entry.deductions,
     bankAccountId: defaultBankId,
+    date: `${month}-01`,
   }
 }
 
-function emptyForm(defaultBankId: string, prev: Omit<SalaryEntry, 'id'> | null): SalaryFormState {
+function emptyForm(defaultBankId: string, prev: Omit<SalaryEntry, 'id'> | null, month: string): SalaryFormState {
   return {
     employerName: prev?.employerName ?? '',
     grossAmount: 0,
     deductions: EMPTY_DEDUCTIONS,
     bankAccountId: defaultBankId,
+    date: `${month}-01`,
   }
 }
 
@@ -70,6 +73,16 @@ function SalaryForm({ form, bankAccounts, onChange, onSave, onCancel, saving }: 
         className="w-full bg-background rounded-lg px-3 py-2 text-sm"
         aria-label="שם מעסיק"
       />
+      <div>
+        <label className="block text-xs text-slate-400 mb-1">תאריך קבלת משכורת</label>
+        <input
+          type="date"
+          value={form.date}
+          onChange={e => onChange({ date: e.target.value })}
+          className="w-full bg-background rounded-lg px-3 py-2 text-sm"
+          aria-label="תאריך קבלת משכורת"
+        />
+      </div>
       <div>
         <label className="block text-xs text-slate-400 mb-1">ברוטו</label>
         <input
@@ -149,6 +162,7 @@ export function SalaryFlow({ month, existingEntries, bankAccounts, previousSalar
           await updateTransaction(form.salaryTxId, {
             merchantName: form.employerName || 'משכורת',
             amount: netAmount,
+            date: form.date,
             salaryDetails: { grossAmount: form.grossAmount, deductions: form.deductions, netAmount, employerName: form.employerName },
           })
         }
@@ -156,7 +170,7 @@ export function SalaryFlow({ month, existingEntries, bankAccounts, previousSalar
       } else {
         // New entry: create transaction first to capture its ID, then save salary entry with that ID
         const txId = await addTransactionGetId({
-          date: `${month}-01`,
+          date: form.date,
           merchantName: form.employerName || 'משכורת',
           amount: netAmount,
           currency: 'ILS',
@@ -226,7 +240,7 @@ export function SalaryFlow({ month, existingEntries, bankAccounts, previousSalar
                 <div className="text-xs text-slate-400">נטו: <span className="tabular-nums text-foreground">₪{entry.netAmount.toLocaleString('he-IL')}</span></div>
               </div>
               <div className="flex gap-2">
-                <button onClick={() => setForm(entryToForm(entry, defaultBankId))}
+                <button onClick={() => setForm(entryToForm(entry, defaultBankId, month))}
                   className="text-xs text-accent hover:underline">ערוך</button>
                 <button onClick={() => handleDelete(entry.id)}
                   className="text-red-400 hover:text-red-300"><Trash2 size={14} /></button>
@@ -242,7 +256,7 @@ export function SalaryFlow({ month, existingEntries, bankAccounts, previousSalar
       </div>
 
       <button
-        onClick={() => setForm(emptyForm(defaultBankId, previousSalary))}
+        onClick={() => setForm(emptyForm(defaultBankId, previousSalary, month))}
         disabled={!!form}
         className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-slate-600 rounded-xl text-slate-400 text-sm hover:border-accent hover:text-accent transition-colors mb-4 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-slate-600 disabled:hover:text-slate-400"
       >

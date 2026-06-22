@@ -83,8 +83,13 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
 
   const activeRows = rows.filter(r => !r.skip)
   const skippedCount = rows.filter(r => r.skip).length
-  const { duplicates: liveDuplicates } = detectDuplicates(activeRows, existingTransactions)
-  const duplicateWarning = liveDuplicates.length
+
+  function existingMatch(tx: ImportedTransaction) {
+    return existingTransactions.find(e =>
+      e.date === tx.date && Math.abs(e.amount) === tx.amount && e.merchantName === tx.merchantName
+    )
+  }
+  const duplicateCount = activeRows.filter(r => existingMatch(r)).length
 
   function applyCategories(raw: RawTransaction[]): ImportedTransaction[] {
     return raw.map(r => {
@@ -207,8 +212,8 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
 
       {parsing && <p className="text-slate-400 text-sm text-center mb-3">מנתח קובץ...</p>}
       {error && <p role="alert" className="text-red-400 text-sm mb-3">{error}</p>}
-      {duplicateWarning > 0 && (
-        <p className="text-amber-400 text-xs mb-2">⚠️ {duplicateWarning} עסקאות עלולות להיות כפולות</p>
+      {duplicateCount > 0 && (
+        <p className="text-amber-400 text-xs mb-2">⚠️ {duplicateCount} עסקאות מסומנות כבר קיימות בחשבון — בדוק השורות המסומנות</p>
       )}
 
       {rows.length > 0 && (
@@ -242,9 +247,11 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row, i) => (
+                {rows.map((row, i) => {
+                  const match = row.skip ? undefined : existingMatch(row)
+                  return (
                   <tr key={`${row.date}-${row.merchantName}-${i}`}
-                    className={`border-b border-slate-700/40 ${row.skip ? 'opacity-30' : ''}`}>
+                    className={`border-b border-slate-700/40 ${row.skip ? 'opacity-30' : match ? 'bg-amber-900/10' : ''}`}>
                     <td className="py-1.5 px-2 text-center">
                       <input
                         type="checkbox"
@@ -255,7 +262,10 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
                       />
                     </td>
                     <td className="py-1.5 px-2 text-slate-400 text-xs">{row.date}</td>
-                    <td className="py-1.5 px-2 text-xs">{row.merchantName}</td>
+                    <td className="py-1.5 px-2 text-xs">
+                      <div>{row.merchantName}</div>
+                      {match && <div className="text-amber-400 text-xs mt-0.5">⚠️ כבר קיים ({match.date})</div>}
+                    </td>
                     <td className="py-1.5 px-2">
                       <input
                         value={row.notes ?? ''}
@@ -308,7 +318,8 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
                       )}
                     </td>
                   </tr>
-                ))}
+                  )
+                })}
               </tbody>
             </table>
           </div>

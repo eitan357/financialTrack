@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { Wallet } from 'lucide-react'
+import { Wallet, Trash2 } from 'lucide-react'
 import { getAccounts, addAccount, deleteAccount, cleanupDuplicateAccounts } from '@/lib/firestore/accounts'
 import { getCategories, addCategory, cleanupDuplicateCategories } from '@/lib/firestore/categories'
 import { getRules, addRule, deleteRule } from '@/lib/firestore/categorization-rules'
@@ -245,6 +245,8 @@ function AccountsSection() {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [editId, setEditId] = useState<string | null>(null)
   const [showAddType, setShowAddType] = useState<'bank' | 'credit' | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<Account | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -293,11 +295,22 @@ function AccountsSection() {
     setExpandedId(null)
   }
 
-  async function handleDelete(acc: Account) {
-    if (!window.confirm(`למחוק את "${acc.name}"? פעולה זו אינה הפיכה.`)) return
-    await deleteAccount(acc.id)
-    setAccounts(prev => prev.filter(a => a.id !== acc.id))
+  function handleDelete(acc: Account) {
+    setDeleteConfirm(acc)
     setExpandedId(null)
+    setEditId(null)
+  }
+
+  async function confirmDelete() {
+    if (!deleteConfirm) return
+    setDeleting(true)
+    try {
+      await deleteAccount(deleteConfirm.id)
+      setAccounts(prev => prev.filter(a => a.id !== deleteConfirm.id))
+    } finally {
+      setDeleteConfirm(null)
+      setDeleting(false)
+    }
   }
 
   async function moveAccount(id: string, dir: -1 | 1) {
@@ -482,6 +495,43 @@ function AccountsSection() {
                 </div>
               )
             })}
+          </div>
+        </div>
+      )}
+
+      {deleteConfirm && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-end justify-center" onClick={() => setDeleteConfirm(null)}>
+          <div className="bg-surface rounded-t-2xl w-full max-w-lg p-6 space-y-4 shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-red-900/40 rounded-full flex items-center justify-center flex-shrink-0">
+                <Trash2 size={18} className="text-red-400" />
+              </div>
+              <div>
+                <h3 className="font-semibold">מחיקת חשבון</h3>
+                <p className="text-xs text-slate-400" dir="auto">{deleteConfirm.name}</p>
+              </div>
+            </div>
+            <p className="text-sm text-slate-300">
+              מחיקת החשבון היא פעולה <strong>בלתי הפיכה</strong>. החשבון יימחק לצמיתות.
+            </p>
+            <div className="bg-amber-900/20 border border-amber-800/40 rounded-xl px-4 py-3">
+              <p className="text-amber-400 text-xs font-medium mb-1">💡 שקול להסתיר במקום למחוק</p>
+              <p className="text-slate-400 text-xs">הסתרת חשבון מסתירה אותו מהממשק אך שומרת את כל ההיסטוריה. ניתן לשחזר את החשבון בכל עת מרשימת החשבונות הנסתרים.</p>
+            </div>
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={async () => { await handleToggle(deleteConfirm); setDeleteConfirm(null) }}
+                className="w-full py-3 bg-amber-900/20 text-amber-400 border border-amber-800/40 rounded-xl text-sm font-medium">
+                הסתר חשבון (מומלץ)
+              </button>
+              <button onClick={confirmDelete} disabled={deleting}
+                className="w-full py-3 bg-red-900/30 text-red-400 border border-red-800/40 rounded-xl text-sm font-medium disabled:opacity-50">
+                {deleting ? 'מוחק...' : 'מחק לצמיתות'}
+              </button>
+              <button onClick={() => setDeleteConfirm(null)} className="w-full py-2 text-slate-400 text-sm">
+                ביטול
+              </button>
+            </div>
           </div>
         </div>
       )}
