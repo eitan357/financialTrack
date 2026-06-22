@@ -41,31 +41,21 @@ const CREDIT_PROVIDERS: { value: AccountProvider; label: string }[] = [
   { value: 'isracard', label: 'ישראכרט' },
 ]
 
-const PROVIDER_DOMAINS: Partial<Record<AccountProvider, string>> = {
-  leumi: 'leumi.co.il',
-  'one-zero': 'one-zero.co.il',
-  max: 'max.co.il',
-  isracard: 'isracard.co.il',
-}
-
-function logoSources(domain: string): string[] {
-  return [
-    `https://logo.clearbit.com/${domain}`,
-    `https://icons.duckduckgo.com/ip3/${domain}.ico`,
-  ]
+const PROVIDER_LOGO: Partial<Record<AccountProvider, string>> = {
+  leumi: '/logos/leumi.png',
+  'one-zero': '/logos/one-zero.jpeg',
+  max: '/logos/max.jpg',
+  isracard: '/logos/isracard.webp',
 }
 
 function ProviderLogo({ provider, color, className = 'w-8 h-8' }: { provider?: AccountProvider; color: string; className?: string }) {
-  const [sourceIdx, setSourceIdx] = useState(0)
-  const domain = provider ? PROVIDER_DOMAINS[provider] : null
-  const sources = domain ? logoSources(domain) : []
-  const src = sources[sourceIdx]
-
+  const [imgFailed, setImgFailed] = useState(false)
+  const src = provider && !imgFailed ? PROVIDER_LOGO[provider] : null
   if (!src) return <div className={`${className} rounded-full flex-shrink-0`} style={{ background: color }} />
   return (
     <div className={`${className} rounded-full flex-shrink-0 bg-white flex items-center justify-center overflow-hidden`}>
-      <img key={src} src={src} alt={provider}
-        className="w-3/4 h-3/4 object-contain" onError={() => setSourceIdx(i => i + 1)} />
+      <img src={src} alt={provider}
+        className="w-3/4 h-3/4 object-contain" onError={() => setImgFailed(true)} />
     </div>
   )
 }
@@ -805,12 +795,15 @@ function MaintenanceSection() {
         description="מאחד קטגוריות עם אותו שם ומעדכן עסקאות לקטגוריה הנכונה"
         onRun={cleanupDuplicateCategories}
       />
-      <div className="bg-surface rounded-2xl p-4">
-        <h3 className="font-semibold text-sm mb-1">ייבוא היסטורי</h3>
-        <p className="text-xs text-slate-400 mb-3">ייבוא נתונים מקבצי הדוגמה</p>
+      <div className="bg-surface rounded-2xl p-4 space-y-2">
+        <h3 className="font-semibold text-sm mb-1">כלי אדמין</h3>
         <a href="/admin/seed"
           className="block w-full py-2 border border-slate-700 rounded-xl text-sm font-semibold text-center text-slate-300">
-          עבור לעמוד ייבוא היסטורי
+          ייבוא היסטורי
+        </a>
+        <a href="/admin/seed-rules"
+          className="block w-full py-2 border border-slate-700 rounded-xl text-sm font-semibold text-center text-slate-300">
+          צור חוקי קיטלוג
         </a>
       </div>
     </div>
