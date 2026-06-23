@@ -141,52 +141,28 @@ function IncomeBreakdown({ data }: { data: Extract<DrawerData, { type: 'income' 
 function ExpensesBreakdown({ data }: { data: Extract<DrawerData, { type: 'expenses' }> }) {
   const { transactions, accounts } = data
 
-  const creditAccounts = accounts.filter(a => a.type === 'credit')
-  const bankAccountIds = new Set(accounts.filter(a => a.type === 'bank').map(a => a.id))
-  const cashAccountIds = new Set(accounts.filter(a => a.type === 'cash').map(a => a.id))
-
-  const creditSummaries = creditAccounts
-    .map(ca => ({
-      account: ca,
-      total: transactions.filter(t => t.accountId === ca.id).reduce((s, t) => s + t.amount, 0),
+  const accountSections = accounts
+    .map(a => ({
+      account: a,
+      txs: transactions.filter(t => t.accountId === a.id),
+      total: transactions.filter(t => t.accountId === a.id).reduce((s, t) => s + t.amount, 0),
     }))
-    .filter(cs => cs.total > 0)
+    .filter(s => s.txs.length > 0)
     .sort((a, b) => b.total - a.total)
 
-  const bankTxs = transactions.filter(t => bankAccountIds.has(t.accountId))
-  const cashTxs = transactions.filter(t => cashAccountIds.has(t.accountId))
-  const bankTotal = bankTxs.reduce((s, t) => s + t.amount, 0)
-  const cashTotal = cashTxs.reduce((s, t) => s + t.amount, 0)
-
-  const isEmpty = creditSummaries.length === 0 && bankTxs.length === 0 && cashTxs.length === 0
+  const isEmpty = accountSections.length === 0
 
   return (
     <div className="space-y-3">
-      {creditSummaries.map(({ account, total }) => (
+      {accountSections.map(({ account, txs, total }) => (
         <SectionBlock key={account.id} title={account.name} total={total} color={account.color}>
-          {null}
+          {account.type === 'credit' ? null : (
+            [...txs].sort((a, b) => b.date.localeCompare(a.date)).map(t => (
+              <Row key={t.id} label={t.merchantName} sub={formatDate(t.date)} right={txAmount(t)} />
+            ))
+          )}
         </SectionBlock>
       ))}
-
-      {bankTxs.length > 0 && (
-        <SectionBlock title="הוצאות בנק ישיר" total={bankTotal}>
-          {[...bankTxs].sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount)).map(t => (
-            <Row key={t.id} label={t.merchantName}
-              sub={[formatDate(t.date), accounts.find(a => a.id === t.accountId)?.name].filter(Boolean).join(' · ')}
-              right={txAmount(t)} />
-          ))}
-        </SectionBlock>
-      )}
-
-      {cashTxs.length > 0 && (
-        <SectionBlock title="הוצאות מזומן" total={cashTotal}>
-          {[...cashTxs].sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount)).map(t => (
-            <Row key={t.id} label={t.merchantName}
-              sub={[formatDate(t.date), accounts.find(a => a.id === t.accountId)?.name].filter(Boolean).join(' · ')}
-              right={txAmount(t)} />
-          ))}
-        </SectionBlock>
-      )}
 
       {isEmpty && (
         <p className="text-slate-500 text-sm text-center py-8">אין הוצאות לחודש זה</p>
@@ -196,8 +172,7 @@ function ExpensesBreakdown({ data }: { data: Extract<DrawerData, { type: 'expens
 }
 
 function CategoryBreakdown({ data }: { data: Extract<DrawerData, { type: 'expenses-by-category' }> }) {
-  const { transactions, categories, accounts } = data
-  const accountMap = Object.fromEntries(accounts.map(a => [a.id, a.name]))
+  const { transactions, categories } = data
 
   const byCategory: Record<string, Transaction[]> = {}
   const uncategorized: Transaction[] = []
@@ -223,9 +198,7 @@ function CategoryBreakdown({ data }: { data: Extract<DrawerData, { type: 'expens
       {catGroups.map(({ cat, txs, total }) => (
         <SectionBlock key={cat.id} title={cat.name} total={total} color={cat.color}>
           {[...txs].sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount)).map(t => (
-            <Row key={t.id} label={t.merchantName}
-              sub={[formatDate(t.date), accountMap[t.accountId]].filter(Boolean).join(' · ')}
-              right={txAmount(t)} />
+            <Row key={t.id} label={t.merchantName} sub={formatDate(t.date)} right={txAmount(t)} />
           ))}
         </SectionBlock>
       ))}
@@ -233,9 +206,7 @@ function CategoryBreakdown({ data }: { data: Extract<DrawerData, { type: 'expens
       {uncategorized.length > 0 && (
         <SectionBlock title="ללא קטגוריה" total={uncatTotal}>
           {[...uncategorized].sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount)).map(t => (
-            <Row key={t.id} label={t.merchantName}
-              sub={[formatDate(t.date), accountMap[t.accountId]].filter(Boolean).join(' · ')}
-              right={txAmount(t)} />
+            <Row key={t.id} label={t.merchantName} sub={formatDate(t.date)} right={txAmount(t)} />
           ))}
         </SectionBlock>
       )}
