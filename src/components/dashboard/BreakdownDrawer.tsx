@@ -85,45 +85,41 @@ function Row({ label, sub, right }: { label: string; sub?: string; right: React.
 function IncomeBreakdown({ data }: { data: Extract<DrawerData, { type: 'income' }> }) {
   const { salaryItems, accounts, dividends, incomeTransactions } = data
   const hasDivs = dividends.some(d => d.ilsEquivalent)
-  const accountMap = Object.fromEntries(accounts.map(a => [a.id, a.name]))
 
-  type FlatItem = { key: string; date: string | null; label: string; sub?: string; amount: number }
-
-  const items: FlatItem[] = []
-  for (const { entry, date } of salaryItems) {
-    items.push({ key: `salary-${entry.id}`, date, label: entry.employerName || 'משכורת', amount: entry.netAmount })
-  }
+  // Group non-salary income by account
+  const byAccount: Record<string, typeof incomeTransactions> = {}
   for (const tx of incomeTransactions) {
-    items.push({ key: tx.id, date: tx.date, label: tx.merchantName, sub: accountMap[tx.accountId], amount: tx.amount })
+    if (!byAccount[tx.accountId]) byAccount[tx.accountId] = []
+    byAccount[tx.accountId].push(tx)
   }
-  items.sort((a, b) => {
-    if (!a.date) return -1
-    if (!b.date) return 1
-    return b.date.localeCompare(a.date)
-  })
+  const accountSections = accounts
+    .filter(a => byAccount[a.id]?.length)
+    .map(a => ({ account: a, txs: byAccount[a.id], total: byAccount[a.id].reduce((s, t) => s + t.amount, 0) }))
 
-  const isEmpty = items.length === 0 && !hasDivs
+  const salaryTotal = salaryItems.reduce((s, { entry }) => s + entry.netAmount, 0)
+  const isEmpty = salaryItems.length === 0 && incomeTransactions.length === 0 && !hasDivs
 
   return (
     <div className="space-y-3">
-      {items.length > 0 && (
-        <div className="bg-surface rounded-xl px-4 divide-y divide-slate-800/60">
-          {items.map(item => (
-            <div key={item.key} className="flex items-center gap-2 py-2.5">
-              <span className="text-xs text-slate-500 tabular-nums flex-shrink-0" style={{ width: '2.5rem' }}>
-                {item.date ? formatDate(item.date) : '—'}
-              </span>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm truncate">{item.label}</div>
-                {item.sub && <div className="text-xs text-slate-500">{item.sub}</div>}
-              </div>
-              <span className="text-sm tabular-nums text-green-400 flex-shrink-0" dir="ltr">
-                {fmtIls(item.amount)}
-              </span>
-            </div>
+      {salaryItems.length > 0 && (
+        <SectionBlock title="משכורות" total={salaryTotal}>
+          {[...salaryItems].sort((a, b) => b.date.localeCompare(a.date)).map(({ entry, date }) => (
+            <Row key={`salary-${entry.id}`}
+              label={entry.employerName || 'משכורת'}
+              sub={formatDate(date)}
+              right={<span className="text-green-400">{fmtIls(entry.netAmount)}</span>} />
           ))}
-        </div>
+        </SectionBlock>
       )}
+
+      {accountSections.map(({ account, txs, total }) => (
+        <SectionBlock key={account.id} title={account.name} total={total} color={account.color}>
+          {[...txs].sort((a, b) => b.date.localeCompare(a.date)).map(t => (
+            <Row key={t.id} label={t.merchantName} sub={formatDate(t.date)}
+              right={<span className="text-green-400">{fmtIls(t.amount)}</span>} />
+          ))}
+        </SectionBlock>
+      ))}
 
       {hasDivs && (
         <SectionBlock title="דיבידנדים" total={dividends.reduce((s, d) => s + (d.ilsEquivalent ?? 0), 0)}>
