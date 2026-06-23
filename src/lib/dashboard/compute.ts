@@ -19,7 +19,7 @@ export interface DashboardSummary {
 
 export interface DashboardInput {
   transactions: Transaction[]
-  salaryEntry: SalaryEntry | null
+  salaryEntries: SalaryEntry[]
   dividends: Dividend[]
   investmentEntries: InvestmentEntry[]
   categories: Category[]
@@ -27,9 +27,9 @@ export interface DashboardInput {
 }
 
 export function computeDashboard(input: DashboardInput): DashboardSummary {
-  const { transactions, salaryEntry, dividends, investmentEntries, categories, monthlySettings } = input
+  const { transactions, salaryEntries, dividends, investmentEntries, categories, monthlySettings } = input
 
-  const salaryNet = salaryEntry?.netAmount ?? 0
+  const salaryNet = salaryEntries.reduce((s, e) => s + e.netAmount, 0)
   const dividendTotal = dividends.reduce((s, d) => s + (d.ilsEquivalent ?? 0), 0)
   // Exclude salary transactions — already counted via salaryEntry.netAmount
   const txIncomeTotal = transactions

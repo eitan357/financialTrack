@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { usePersistedMonth } from '@/hooks/usePersistedMonth'
 import { MonthHeader } from '@/components/layout/MonthHeader'
 import { getTransactions } from '@/lib/firestore/transactions'
-import { getSalaryEntry } from '@/lib/firestore/salary'
+import { getSalaryEntries } from '@/lib/firestore/salary'
 import { getIncomeEntries } from '@/lib/firestore/income'
 import { getDividends } from '@/lib/firestore/dividends'
 import { getInvestmentEntries, getInvestmentTypes } from '@/lib/firestore/investments'
@@ -28,7 +28,7 @@ function prevMonth(month: string): string {
 
 interface RawData {
   transactions: Transaction[]
-  salary: SalaryEntry | null
+  salaries: SalaryEntry[]
   investmentEntries: InvestmentEntry[]
   categories: Category[]
   accounts: Account[]
@@ -52,9 +52,9 @@ export default function DashboardPage() {
     setDrawer(null)
     async function load() {
       try {
-        const [txs, salary, income, divs, invEntries, invTypes, recs, prevRecs, cats, settings, accs] = await Promise.all([
+        const [txs, salaries, income, divs, invEntries, invTypes, recs, prevRecs, cats, settings, accs] = await Promise.all([
           getTransactions(month),
-          getSalaryEntry(month),
+          getSalaryEntries(month),
           getIncomeEntries(month),
           getDividends(month),
           getInvestmentEntries(month),
@@ -68,10 +68,10 @@ export default function DashboardPage() {
         const creditIds = new Set(accs.filter(a => a.type === 'credit').map(a => a.id))
         const txsForCompute = txs.filter(t => !(t.isImmediate && creditIds.has(t.accountId)))
         setSummary(computeDashboard({
-          transactions: txsForCompute, salaryEntry: salary,
+          transactions: txsForCompute, salaryEntries: salaries,
           dividends: divs, investmentEntries: invEntries, categories: cats, monthlySettings: settings,
         }))
-        setRawData({ transactions: txs, salary, investmentEntries: invEntries, categories: cats, accounts: accs })
+        setRawData({ transactions: txs, salaries, investmentEntries: invEntries, categories: cats, accounts: accs })
         setReconciliations(recs)
         setPrevReconciliations(prevRecs)
         setDividends(divs)
@@ -88,14 +88,16 @@ export default function DashboardPage() {
 
   function openIncome() {
     if (!rawData || !summary) return
-    const salaryTx = rawData.salary?.salaryTxId
-      ? rawData.transactions.find(t => t.id === rawData.salary!.salaryTxId)
-      : undefined
+    const salaryItems = rawData.salaries.map(entry => {
+      const tx = rawData.transactions.find(t => t.id === entry.salaryTxId)
+              ?? rawData.transactions.find(t => t.id === entry.cashTxId)
+      return { entry, date: tx?.date ?? `${entry.month}-01` }
+    })
     setDrawer({
       type: 'income',
       total: summary.totalIncome,
-      salary: rawData.salary,
-      salaryDate: salaryTx?.date,
+      salaryItems,
+      accounts: rawData.accounts,
       dividends,
       incomeTransactions: rawData.transactions.filter(t => t.direction === 'income' && !t.salaryDetails),
     })
@@ -127,6 +129,7 @@ export default function DashboardPage() {
       total: summary.totalExpenses,
       transactions: expenseTxs,
       categories: rawData.categories,
+      accounts: rawData.accounts,
     })
   }
 

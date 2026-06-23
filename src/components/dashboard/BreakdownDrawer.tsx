@@ -5,8 +5,8 @@ export type DrawerData =
   | {
       type: 'income'
       total: number
-      salary: SalaryEntry | null
-      salaryDate?: string
+      salaryItems: { entry: SalaryEntry; date: string }[]
+      accounts: Account[]
       dividends: Dividend[]
       incomeTransactions: Transaction[]
     }
@@ -22,6 +22,7 @@ export type DrawerData =
       total: number
       transactions: Transaction[]
       categories: Category[]
+      accounts: Account[]
     }
   | {
       type: 'investments'
@@ -82,17 +83,18 @@ function Row({ label, sub, right }: { label: string; sub?: string; right: React.
 }
 
 function IncomeBreakdown({ data }: { data: Extract<DrawerData, { type: 'income' }> }) {
-  const { salary, salaryDate, dividends, incomeTransactions } = data
+  const { salaryItems, accounts, dividends, incomeTransactions } = data
   const hasDivs = dividends.some(d => d.ilsEquivalent)
+  const accountMap = Object.fromEntries(accounts.map(a => [a.id, a.name]))
 
-  type FlatItem = { key: string; date: string | null; label: string; amount: number }
+  type FlatItem = { key: string; date: string | null; label: string; sub?: string; amount: number }
 
   const items: FlatItem[] = []
-  if (salary) {
-    items.push({ key: 'salary', date: salaryDate ?? null, label: salary.employerName || 'משכורת', amount: salary.netAmount })
+  for (const { entry, date } of salaryItems) {
+    items.push({ key: `salary-${entry.id}`, date, label: entry.employerName || 'משכורת', amount: entry.netAmount })
   }
   for (const tx of incomeTransactions) {
-    items.push({ key: tx.id, date: tx.date, label: tx.merchantName, amount: tx.amount })
+    items.push({ key: tx.id, date: tx.date, label: tx.merchantName, sub: accountMap[tx.accountId], amount: tx.amount })
   }
   items.sort((a, b) => {
     if (!a.date) return -1
@@ -111,7 +113,10 @@ function IncomeBreakdown({ data }: { data: Extract<DrawerData, { type: 'income' 
               <span className="text-xs text-slate-500 tabular-nums flex-shrink-0" style={{ width: '2.5rem' }}>
                 {item.date ? formatDate(item.date) : '—'}
               </span>
-              <span className="flex-1 text-sm truncate">{item.label}</span>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm truncate">{item.label}</div>
+                {item.sub && <div className="text-xs text-slate-500">{item.sub}</div>}
+              </div>
               <span className="text-sm tabular-nums text-green-400 flex-shrink-0" dir="ltr">
                 {fmtIls(item.amount)}
               </span>
@@ -170,7 +175,9 @@ function ExpensesBreakdown({ data }: { data: Extract<DrawerData, { type: 'expens
       {bankTxs.length > 0 && (
         <SectionBlock title="הוצאות בנק ישיר" total={bankTotal}>
           {[...bankTxs].sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount)).map(t => (
-            <Row key={t.id} label={t.merchantName} sub={formatDate(t.date)} right={txAmount(t)} />
+            <Row key={t.id} label={t.merchantName}
+              sub={[formatDate(t.date), accounts.find(a => a.id === t.accountId)?.name].filter(Boolean).join(' · ')}
+              right={txAmount(t)} />
           ))}
         </SectionBlock>
       )}
@@ -178,7 +185,9 @@ function ExpensesBreakdown({ data }: { data: Extract<DrawerData, { type: 'expens
       {cashTxs.length > 0 && (
         <SectionBlock title="הוצאות מזומן" total={cashTotal}>
           {[...cashTxs].sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount)).map(t => (
-            <Row key={t.id} label={t.merchantName} sub={formatDate(t.date)} right={txAmount(t)} />
+            <Row key={t.id} label={t.merchantName}
+              sub={[formatDate(t.date), accounts.find(a => a.id === t.accountId)?.name].filter(Boolean).join(' · ')}
+              right={txAmount(t)} />
           ))}
         </SectionBlock>
       )}
@@ -191,7 +200,8 @@ function ExpensesBreakdown({ data }: { data: Extract<DrawerData, { type: 'expens
 }
 
 function CategoryBreakdown({ data }: { data: Extract<DrawerData, { type: 'expenses-by-category' }> }) {
-  const { transactions, categories } = data
+  const { transactions, categories, accounts } = data
+  const accountMap = Object.fromEntries(accounts.map(a => [a.id, a.name]))
 
   const byCategory: Record<string, Transaction[]> = {}
   const uncategorized: Transaction[] = []
@@ -217,7 +227,9 @@ function CategoryBreakdown({ data }: { data: Extract<DrawerData, { type: 'expens
       {catGroups.map(({ cat, txs, total }) => (
         <SectionBlock key={cat.id} title={cat.name} total={total} color={cat.color}>
           {[...txs].sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount)).map(t => (
-            <Row key={t.id} label={t.merchantName} sub={formatDate(t.date)} right={txAmount(t)} />
+            <Row key={t.id} label={t.merchantName}
+              sub={[formatDate(t.date), accountMap[t.accountId]].filter(Boolean).join(' · ')}
+              right={txAmount(t)} />
           ))}
         </SectionBlock>
       ))}
@@ -225,7 +237,9 @@ function CategoryBreakdown({ data }: { data: Extract<DrawerData, { type: 'expens
       {uncategorized.length > 0 && (
         <SectionBlock title="ללא קטגוריה" total={uncatTotal}>
           {[...uncategorized].sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount)).map(t => (
-            <Row key={t.id} label={t.merchantName} sub={formatDate(t.date)} right={txAmount(t)} />
+            <Row key={t.id} label={t.merchantName}
+              sub={[formatDate(t.date), accountMap[t.accountId]].filter(Boolean).join(' · ')}
+              right={txAmount(t)} />
           ))}
         </SectionBlock>
       )}
