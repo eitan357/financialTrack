@@ -347,7 +347,7 @@ function AccountsSection() {
         <AccountForm type={acc.type} initial={acc} bankAccounts={bankAccounts}
           onSubmit={data => handleUpdate(acc.id, data)}
           onCancel={() => { setEditId(null); setExpandedId(acc.id) }}
-          onDelete={acc.type !== 'cash' ? () => handleDelete(acc) : undefined} />
+          onDelete={acc.type !== 'cash' ? async () => handleDelete(acc) : undefined} />
       </div>
     )
 
