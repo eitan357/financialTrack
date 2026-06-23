@@ -35,7 +35,7 @@ function CashPageInner() {
         const cash = accs.find(a => a.type === 'cash' && a.isActive)
         setCashAccount(cash ?? null)
         setCategories(cats)
-        setExistingTransactions(cash ? txs.filter(t => t.accountId === cash.id) : [])
+        setExistingTransactions(cash ? txs.filter(t => t.accountId === cash.id && !t.salaryDetails) : [])
       } catch {
         setError('שגיאה בטעינת הנתונים.')
       } finally {

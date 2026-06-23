@@ -25,6 +25,7 @@ function SalaryPageInner() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [bankAccounts, setBankAccounts] = useState<Account[]>([])
+  const [cashAccounts, setCashAccounts] = useState<Account[]>([])
   const [existingEntries, setExistingEntries] = useState<SalaryEntry[]>([])
   const [previousSalary, setPreviousSalary] = useState<Omit<SalaryEntry, 'id'> | null>(null)
 
@@ -38,6 +39,7 @@ function SalaryPageInner() {
           getSalaryEntry(prevMonthStr(month)),
         ])
         setBankAccounts(accs.filter(a => a.type === 'bank' && a.isActive))
+        setCashAccounts(accs.filter(a => a.type === 'cash' && a.isActive))
         setExistingEntries(entries)
         if (prevSal) {
           const { id: _id, ...rest } = prevSal
@@ -61,6 +63,7 @@ function SalaryPageInner() {
         month={month}
         existingEntries={existingEntries}
         bankAccounts={bankAccounts}
+        cashAccounts={cashAccounts}
         previousSalary={previousSalary}
         onDone={() => router.push(`/import?month=${month}`)}
       />

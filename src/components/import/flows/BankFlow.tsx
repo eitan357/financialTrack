@@ -264,7 +264,7 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
                     <td className="py-1.5 px-2 text-slate-400 text-xs">{row.date}</td>
                     <td className="py-1.5 px-2 text-xs">
                       <div>{row.merchantName}</div>
-                      {match && <div className="text-amber-400 text-xs mt-0.5">⚠️ כבר קיים ({match.date})</div>}
+                      {match && <div className="text-amber-400 text-xs mt-0.5">⚠️ כבר קיים</div>}
                     </td>
                     <td className="py-1.5 px-2">
                       <input

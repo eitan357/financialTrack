@@ -269,7 +269,7 @@ export function CreditFlow({ month, accountId, accountName, provider, categories
                     <td className="py-1.5 px-2 text-slate-400 text-xs">{tx.date}</td>
                     <td className="py-1.5 px-2 text-xs">
                       <div>{tx.merchantName}</div>
-                      {match && <div className="text-amber-400 text-xs mt-0.5">⚠️ כבר קיים ({match.date})</div>}
+                      {match && <div className="text-amber-400 text-xs mt-0.5">⚠️ כבר קיים</div>}
                     </td>
                     <td className="py-1.5 px-2">
                       <input

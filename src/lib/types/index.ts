@@ -60,6 +60,7 @@ export interface SalaryDetails {
   deductions: SalaryDeductions
   netAmount: number
   employerName?: string
+  cashAmount?: number // portion paid in cash (bank transaction receives netAmount - cashAmount)
 }
 
 export interface Transaction {
@@ -84,9 +85,12 @@ export interface SalaryEntry {
   employerName: string
   grossAmount: number
   deductions: SalaryDeductions
+  additionalDeductions?: { name: string; amount: number }[]
   netAmount: number
+  cashAmount?: number   // portion paid in cash
   notes?: string
-  salaryTxId?: string // linked income transaction ID
+  salaryTxId?: string  // linked bank income transaction ID
+  cashTxId?: string    // linked cash income transaction ID
 }
 
 export interface IncomeEntry {

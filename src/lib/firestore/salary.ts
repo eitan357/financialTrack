@@ -37,7 +37,9 @@ export async function upsertSalaryEntry(entry: Omit<SalaryEntry, 'id'> & { id?: 
   const docRef = id
     ? doc(getDb(), 'salary_entries', id)
     : doc(collection(getDb(), 'salary_entries'))
-  await setDoc(docRef, data, { merge: true })
+  // Firestore rejects undefined field values — strip them before writing
+  const cleanData = JSON.parse(JSON.stringify(data))
+  await setDoc(docRef, cleanData, { merge: true })
   appCache.del(`salary:${data.month}`)
   return { id: docRef.id, ...data } as SalaryEntry
 }

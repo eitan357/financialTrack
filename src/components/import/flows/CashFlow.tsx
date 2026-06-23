@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Trash2, Pencil, ChevronRight } from 'lucide-react'
+import { Plus, Trash2, ChevronRight } from 'lucide-react'
 import { addTransactions, updateTransaction, deleteTransaction } from '@/lib/firestore/transactions'
 import type { Category, Transaction } from '@/lib/types'
 
@@ -24,6 +24,21 @@ interface EditValues {
 
 function emptyRow(month: string): CashRow {
   return { id: crypto.randomUUID(), description: '', amount: 0, date: `${month}-01`, categoryId: null, direction: 'income' }
+}
+
+function DirectionToggle({ value, onChange }: { value: 'income' | 'expense'; onChange: (v: 'income' | 'expense') => void }) {
+  return (
+    <div className="flex rounded-lg overflow-hidden border border-slate-700">
+      <button type="button" onClick={() => onChange('expense')}
+        className={`flex-1 py-2 text-sm font-medium transition-colors ${value === 'expense' ? 'bg-red-500/20 text-red-400' : 'text-slate-400'}`}>
+        הוצאה
+      </button>
+      <button type="button" onClick={() => onChange('income')}
+        className={`flex-1 py-2 text-sm font-medium transition-colors ${value === 'income' ? 'bg-green-500/20 text-green-400' : 'text-slate-400'}`}>
+        הכנסה
+      </button>
+    </div>
+  )
 }
 
 interface Props {
@@ -58,6 +73,8 @@ export function CashFlow({ month, cashAccountId, categories, existingTransaction
     })
   }
 
+  function cancelEdit() { setEditingId(null); setEditValues(null) }
+
   async function saveEdit() {
     if (!editingId || !editValues || !editValues.description.trim() || editValues.amount <= 0) return
     setSaving(true); setError(null)
@@ -77,8 +94,7 @@ export function CashFlow({ month, cashAccountId, categories, existingTransaction
         direction: editValues.direction,
         categoryId: editValues.categoryId ?? undefined,
       } : e))
-      setEditingId(null)
-      setEditValues(null)
+      cancelEdit()
     } catch {
       setError('שגיאה בעדכון. נסה שוב.')
     } finally {
@@ -138,51 +154,64 @@ export function CashFlow({ month, cashAccountId, categories, existingTransaction
 
       <div className="space-y-2 mb-4">
         {entries.length === 0 && newRows.length === 0 && (
-          <p className="text-slate-400 text-sm text-center py-4">אין הוצאות מזומן לחודש זה</p>
+          <p className="text-slate-400 text-sm text-center py-4">אין פעולות מזומן לחודש זה</p>
         )}
 
         {entries.map(entry => {
           if (editingId === entry.id && editValues) {
             return (
-              <div key={entry.id} className="bg-surface rounded-xl p-3 space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-xs text-slate-400">עריכה</span>
-                  <button onClick={() => { setEditingId(null); setEditValues(null) }} className="text-slate-400 text-xs">ביטול</button>
+              <div key={entry.id} className="bg-surface rounded-xl p-4 space-y-3">
+                <div className="flex justify-between items-center pb-2 border-b border-slate-700/50">
+                  <p className="text-sm font-medium">עריכת פעולה</p>
+                  <button onClick={cancelEdit} className="text-xs text-slate-400 hover:text-foreground">ביטול</button>
                 </div>
-                <input type="text" placeholder="תיאור" value={editValues.description}
-                  onChange={e => setEditValues(v => v ? { ...v, description: e.target.value } : v)}
-                  className="w-full bg-background rounded px-3 py-2 text-sm"
-                />
+                <DirectionToggle value={editValues.direction}
+                  onChange={dir => setEditValues(v => v ? { ...v, direction: dir } : v)} />
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">תיאור</label>
+                  <input type="text" value={editValues.description}
+                    onChange={e => setEditValues(v => v ? { ...v, description: e.target.value } : v)}
+                    className="w-full bg-background rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 ring-accent"
+                  />
+                </div>
                 <div className="flex gap-2">
-                  <input type="number" placeholder="סכום" value={editValues.amount || ''}
-                    onChange={e => setEditValues(v => v ? { ...v, amount: Math.max(0, parseFloat(e.target.value) || 0) } : v)}
-                    className="flex-1 min-w-0 bg-background rounded px-3 py-2 text-sm tabular-nums"
-                  />
-                  <input type="date" value={editValues.date}
-                    onChange={e => setEditValues(v => v ? { ...v, date: e.target.value } : v)}
-                    className="flex-1 min-w-0 bg-background rounded px-3 py-2 text-sm"
-                  />
+                  <div className="flex-1 min-w-0">
+                    <label className="block text-xs text-slate-400 mb-1">סכום (₪)</label>
+                    <input type="number" value={editValues.amount || ''}
+                      onChange={e => setEditValues(v => v ? { ...v, amount: Math.max(0, parseFloat(e.target.value) || 0) } : v)}
+                      className="w-full bg-background rounded-lg px-3 py-2 text-sm tabular-nums outline-none focus:ring-1 ring-accent"
+                    />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <label className="block text-xs text-slate-400 mb-1">תאריך</label>
+                    <input type="date" value={editValues.date}
+                      onChange={e => setEditValues(v => v ? { ...v, date: e.target.value } : v)}
+                      dir="rtl"
+                      className="w-full bg-background rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 ring-accent"
+                    />
+                  </div>
                 </div>
-                <select value={editValues.direction}
-                  onChange={e => setEditValues(v => v ? { ...v, direction: e.target.value as 'income' | 'expense' } : v)}
-                  className="w-full bg-background rounded px-3 py-2 text-sm">
-                  <option value="income">הכנסה</option>
-                  <option value="expense">הוצאה</option>
-                </select>
-                <select value={editValues.categoryId ?? ''}
-                  onChange={e => setEditValues(v => v ? { ...v, categoryId: e.target.value || null } : v)}
-                  className="w-full bg-background rounded px-3 py-2 text-sm">
-                  <option value="">— ללא קטגוריה —</option>
-                  {categories.filter(c => c.isActive).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                </select>
-                <button onClick={saveEdit} disabled={saving || !editValues.description.trim() || editValues.amount <= 0}
-                  className="w-full py-2 bg-accent rounded-lg text-sm font-semibold disabled:opacity-50">
-                  {saving ? 'שומר...' : 'שמור שינויים'}
-                </button>
+                <div>
+                  <label className="block text-xs text-slate-400 mb-1">קטגוריה</label>
+                  <select value={editValues.categoryId ?? ''}
+                    onChange={e => setEditValues(v => v ? { ...v, categoryId: e.target.value || null } : v)}
+                    className="w-full bg-background text-foreground rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 ring-accent">
+                    <option value="">— ללא קטגוריה —</option>
+                    {categories.filter(c => c.isActive).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </div>
+                <div className="flex gap-2 pt-1">
+                  <button onClick={cancelEdit} className="flex-1 py-2 border border-slate-600 rounded-lg text-sm">ביטול</button>
+                  <button onClick={saveEdit} disabled={saving || !editValues.description.trim() || editValues.amount <= 0}
+                    className="flex-1 py-2 bg-accent rounded-lg text-sm font-semibold disabled:opacity-50">
+                    {saving ? 'שומר...' : 'שמור שינויים'}
+                  </button>
+                </div>
               </div>
             )
           }
-          const amountColor = (entry.direction ?? 'expense') === 'income' ? 'text-green-400' : 'text-red-400'
+
+          const isIncome = (entry.direction ?? 'expense') === 'income'
           return (
             <div key={entry.id} className="bg-surface rounded-xl px-4 py-3 flex justify-between items-center">
               <div>
@@ -190,13 +219,15 @@ export function CashFlow({ month, cashAccountId, categories, existingTransaction
                 <div className="text-xs text-slate-400">{entry.date}</div>
               </div>
               <div className="flex items-center gap-3">
-                <span className={`tabular-nums text-sm ${amountColor}`}>
-                  {(entry.direction ?? 'expense') === 'income' ? '+' : ''}₪{entry.amount.toLocaleString('he-IL')}
+                <span className={`tabular-nums text-sm ${isIncome ? 'text-green-400' : 'text-red-400'}`}>
+                  {isIncome ? '+' : ''}₪{entry.amount.toLocaleString('he-IL')}
                 </span>
-                <button onClick={() => startEdit(entry)} disabled={saving} className="text-slate-400 hover:text-accent disabled:opacity-50">
-                  <Pencil size={14} />
+                <button onClick={() => startEdit(entry)} disabled={saving}
+                  className="text-xs text-accent hover:underline disabled:opacity-50">
+                  ערוך
                 </button>
-                <button onClick={() => deleteEntry(entry.id)} disabled={saving} className="text-red-400 hover:text-red-300 disabled:opacity-50">
+                <button onClick={() => deleteEntry(entry.id)} disabled={saving}
+                  className="text-red-400 hover:text-red-300 disabled:opacity-50">
                   <Trash2 size={14} />
                 </button>
               </div>
@@ -205,40 +236,50 @@ export function CashFlow({ month, cashAccountId, categories, existingTransaction
         })}
 
         {newRows.map((row, i) => (
-          <div key={row.id} className="bg-surface rounded-xl p-3 space-y-2">
-            <div className="flex justify-between items-center">
-              <span className="text-xs text-slate-400">{row.direction === 'income' ? 'הכנסה חדשה' : 'הוצאה חדשה'}</span>
-              <button onClick={() => removeRow(i)} disabled={saving} className="text-red-400 disabled:opacity-50"><Trash2 size={14} /></button>
+          <div key={row.id} className="bg-surface rounded-xl p-4 space-y-3">
+            <div className="flex justify-between items-center pb-2 border-b border-slate-700/50">
+              <p className="text-sm font-medium">{row.direction === 'income' ? 'הכנסה חדשה' : 'הוצאה חדשה'}</p>
+              <button onClick={() => removeRow(i)} disabled={saving} className="text-red-400 disabled:opacity-50">
+                <Trash2 size={14} />
+              </button>
             </div>
-            <input type="text" placeholder="תיאור" value={row.description}
-              onChange={e => updateRow(i, { description: e.target.value })}
-              className="w-full bg-background rounded px-3 py-2 text-sm"
-              aria-label={`תיאור הוצאה ${i + 1}`}
-            />
+            <DirectionToggle value={row.direction} onChange={dir => updateRow(i, { direction: dir })} />
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">תיאור</label>
+              <input type="text" placeholder="למשל: שם מעסיק / שם עסק" value={row.description}
+                onChange={e => updateRow(i, { description: e.target.value })}
+                className="w-full bg-background rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 ring-accent"
+                aria-label={`תיאור פעולה ${i + 1}`}
+              />
+            </div>
             <div className="flex gap-2">
-              <input type="number" placeholder="סכום" value={row.amount || ''}
-                onChange={e => updateRow(i, { amount: Math.max(0, parseFloat(e.target.value) || 0) })}
-                className="flex-1 min-w-0 bg-background rounded px-3 py-2 text-sm tabular-nums"
-                aria-label={`סכום פעולה ${i + 1}`}
-              />
-              <input type="date" value={row.date}
-                onChange={e => updateRow(i, { date: e.target.value })}
-                className="flex-1 min-w-0 bg-background rounded px-3 py-2 text-sm"
-                aria-label={`תאריך פעולה ${i + 1}`}
-              />
+              <div className="flex-1 min-w-0">
+                <label className="block text-xs text-slate-400 mb-1">סכום (₪)</label>
+                <input type="number" placeholder="0" value={row.amount || ''}
+                  onChange={e => updateRow(i, { amount: Math.max(0, parseFloat(e.target.value) || 0) })}
+                  className="w-full bg-background rounded-lg px-3 py-2 text-sm tabular-nums outline-none focus:ring-1 ring-accent"
+                  aria-label={`סכום פעולה ${i + 1}`}
+                />
+              </div>
+              <div className="flex-1 min-w-0">
+                <label className="block text-xs text-slate-400 mb-1">תאריך</label>
+                <input type="date" value={row.date}
+                  onChange={e => updateRow(i, { date: e.target.value })}
+                  dir="rtl"
+                  className="w-full bg-background rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 ring-accent"
+                  aria-label={`תאריך פעולה ${i + 1}`}
+                />
+              </div>
             </div>
-            <select value={row.direction} onChange={e => updateRow(i, { direction: e.target.value as 'income' | 'expense' })}
-              className="w-full bg-background rounded px-3 py-2 text-sm"
-              aria-label={`כיוון פעולה ${i + 1}`}>
-              <option value="income">הכנסה</option>
-              <option value="expense">הוצאה</option>
-            </select>
-            <select value={row.categoryId ?? ''} onChange={e => updateRow(i, { categoryId: e.target.value || null })}
-              className="w-full bg-background rounded px-3 py-2 text-sm"
-              aria-label={`קטגוריה הוצאה ${i + 1}`}>
-              <option value="">— ללא קטגוריה —</option>
-              {categories.filter(c => c.isActive).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-            </select>
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">קטגוריה</label>
+              <select value={row.categoryId ?? ''} onChange={e => updateRow(i, { categoryId: e.target.value || null })}
+                className="w-full bg-background text-foreground rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 ring-accent"
+                aria-label={`קטגוריה פעולה ${i + 1}`}>
+                <option value="">— ללא קטגוריה —</option>
+                {categories.filter(c => c.isActive).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+            </div>
           </div>
         ))}
       </div>

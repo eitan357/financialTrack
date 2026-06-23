@@ -125,16 +125,18 @@ function EditForm({ transaction, categories, onUpdate, onDelete, onClose }: {
           </select>
         </FormField>
       )}
-      <label className="flex items-center gap-2 text-sm text-slate-400 py-1">
-        <input
-          type="checkbox"
-          checked={isImmediate}
-          onChange={e => setIsImmediate(e.target.checked)}
-          className="accent-amber-400"
-          aria-label="חיוב מיידי"
-        />
-        חיוב מיידי
-      </label>
+      {direction !== 'income' && (
+        <label className="flex items-center gap-2 text-sm text-slate-400 py-1">
+          <input
+            type="checkbox"
+            checked={isImmediate}
+            onChange={e => setIsImmediate(e.target.checked)}
+            className="accent-amber-400"
+            aria-label="חיוב מיידי"
+          />
+          חיוב מיידי
+        </label>
+      )}
       <div className="flex gap-2 pt-1">
         <button
           onClick={() => { onDelete(transaction.id); onClose() }}
@@ -193,7 +195,7 @@ function DetailView({ transaction, categories, onEdit, onClose }: {
           ) : (
             <div className="text-xs text-amber-400 mt-0.5">ללא קטגוריה</div>
           )}
-          {transaction.isImmediate && (
+          {!isIncome && transaction.isImmediate && (
             <div className="text-xs text-amber-400/80 mt-0.5">חיוב מיידי</div>
           )}
         </div>
@@ -207,6 +209,12 @@ function DetailView({ transaction, categories, onEdit, onClose }: {
           {transaction.salaryDetails.deductions.pension > 0 && <div className="flex justify-between"><span>פנסיה</span><span className="tabular-nums text-red-400/70" dir="ltr">₪-{transaction.salaryDetails.deductions.pension.toLocaleString('he-IL')}</span></div>}
           {transaction.salaryDetails.deductions.trainingFund > 0 && <div className="flex justify-between"><span>קרן השתלמות</span><span className="tabular-nums text-red-400/70" dir="ltr">₪-{transaction.salaryDetails.deductions.trainingFund.toLocaleString('he-IL')}</span></div>}
           <div className="flex justify-between font-medium text-slate-400 border-t border-slate-800 pt-0.5 mt-0.5"><span>נטו</span><span className="tabular-nums text-green-400/80" dir="ltr">₪{transaction.salaryDetails.netAmount.toLocaleString('he-IL')}</span></div>
+          {transaction.salaryDetails.cashAmount && transaction.salaryDetails.cashAmount > 0 && (
+            <>
+              <div className="flex justify-between text-slate-500 pt-0.5"><span>מתוכו במזומן</span><span className="tabular-nums" dir="ltr">₪{transaction.salaryDetails.cashAmount.toLocaleString('he-IL')}</span></div>
+              <div className="flex justify-between text-slate-500"><span>לבנק</span><span className="tabular-nums" dir="ltr">₪{(transaction.salaryDetails.netAmount - transaction.salaryDetails.cashAmount).toLocaleString('he-IL')}</span></div>
+            </>
+          )}
         </div>
       )}
       <div className="flex justify-end" onClick={e => e.stopPropagation()}>

@@ -17,3 +17,7 @@ body {
 
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Right-align date text in Hebrew RTL context */
+input[type="date"] { text-align: right; }
+input[type="date"]::-webkit-datetime-edit { text-align: right; }
