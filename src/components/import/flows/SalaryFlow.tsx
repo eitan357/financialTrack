@@ -270,6 +270,7 @@ export function SalaryFlow({ month, existingEntries, bankAccounts, cashAccounts,
       const salaryDetails = {
         grossAmount: form.grossAmount,
         deductions: form.deductions,
+        ...(form.additionalDeductions.length > 0 ? { additionalDeductions: form.additionalDeductions } : {}),
         netAmount,
         employerName: form.employerName,
         ...(cashAmount > 0 ? { cashAmount } : {}),

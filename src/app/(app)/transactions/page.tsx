@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import { usePersistedMonth } from '@/hooks/usePersistedMonth'
 import { MonthHeader } from '@/components/layout/MonthHeader'
 import { getTransactions, updateTransaction, deleteTransaction } from '@/lib/firestore/transactions'
@@ -34,6 +35,7 @@ function CreditPaymentRow({ info }: { info: CreditPaymentInfo }) {
 }
 
 export default function TransactionsPage() {
+  const router = useRouter()
   const [month, setMonth] = usePersistedMonth()
   const [loading, setLoading] = useState(true)
   const [transactions, setTransactions] = useState<Transaction[]>([])
@@ -96,9 +98,12 @@ export default function TransactionsPage() {
 
   if (accountFilter === 'all') {
     // All tab: bank + cash transactions + all credit payment rows
+    // Cash salary transactions are excluded — they appear as part of the bank salary entry
     baseTransactions = transactions.filter(t => {
       const type = accountTypeMap[t.accountId]
-      return type === 'bank' || type === 'cash'
+      if (type !== 'bank' && type !== 'cash') return false
+      if (t.salaryDetails && type === 'cash') return false
+      return true
     })
     baseCreditPayments = creditPayments
   } else if (selectedAccount?.type === 'bank') {
@@ -133,7 +138,10 @@ export default function TransactionsPage() {
 
   const uncategorizedCount = baseTransactions.filter(t => !t.categoryId && t.direction !== 'income' && t.amount > 0).length
 
-  const incomeTotal = filteredTx.filter(t => t.direction === 'income').reduce((s, t) => s + t.amount, 0)
+  const incomeTotal = filteredTx.filter(t => t.direction === 'income').reduce((s, t) => {
+    if (accountFilter === 'all' && t.salaryDetails) return s + t.salaryDetails.netAmount
+    return s + t.amount
+  }, 0)
   const expenseTotal = filteredTx.filter(t => t.direction !== 'income').reduce((s, t) => s + t.amount, 0)
     + visibleCreditPayments.reduce((s, cp) => s + cp.amount, 0)
   const net = incomeTotal - expenseTotal
@@ -215,6 +223,8 @@ export default function TransactionsPage() {
                 onCategoryChange={handleCategoryChange}
                 onUpdate={handleUpdate}
                 onDelete={handleDelete}
+                displayAmount={accountFilter === 'all' && item.tx.salaryDetails ? item.tx.salaryDetails.netAmount : undefined}
+                onEditSalary={item.tx.salaryDetails ? () => router.push(`/import/salary?month=${month}`) : undefined}
               />
             ) : (
               <CreditPaymentRow key={`cp-${item.info.creditAccountId}`} info={item.info} />

@@ -58,6 +58,7 @@ export interface SalaryDeductions {
 export interface SalaryDetails {
   grossAmount: number
   deductions: SalaryDeductions
+  additionalDeductions?: { name: string; amount: number }[]
   netAmount: number
   employerName?: string
   cashAmount?: number // portion paid in cash (bank transaction receives netAmount - cashAmount)
