@@ -88,10 +88,14 @@ export default function DashboardPage() {
 
   function openIncome() {
     if (!rawData || !summary) return
+    const salaryTx = rawData.salary?.salaryTxId
+      ? rawData.transactions.find(t => t.id === rawData.salary!.salaryTxId)
+      : undefined
     setDrawer({
       type: 'income',
       total: summary.totalIncome,
       salary: rawData.salary,
+      salaryDate: salaryTx?.date,
       dividends,
       incomeTransactions: rawData.transactions.filter(t => t.direction === 'income' && !t.salaryDetails),
     })

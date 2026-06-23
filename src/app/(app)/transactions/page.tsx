@@ -225,6 +225,11 @@ export default function TransactionsPage() {
                 onDelete={handleDelete}
                 displayAmount={accountFilter === 'all' && item.tx.salaryDetails ? item.tx.salaryDetails.netAmount : undefined}
                 onEditSalary={item.tx.salaryDetails ? () => router.push(`/import/salary?month=${month}`) : undefined}
+                accountLabel={accountFilter === 'all'
+                  ? (item.tx.salaryDetails && (item.tx.salaryDetails.cashAmount ?? 0) > 0
+                    ? 'משכורת'
+                    : accounts.find(a => a.id === item.tx.accountId)?.name)
+                  : undefined}
               />
             ) : (
               <CreditPaymentRow key={`cp-${item.info.creditAccountId}`} info={item.info} />

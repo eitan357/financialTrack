@@ -103,7 +103,9 @@ export function ImportHub() {
     )
   }
 
-  const cashTxCount = cashAccount ? txCount(transactions, cashAccount.id) : 0
+  const cashTxCount = cashAccount
+    ? transactions.filter(t => t.accountId === cashAccount.id && !t.salaryDetails).length
+    : 0
 
   return (
     <main className="p-4 max-w-lg mx-auto pb-24">
@@ -170,7 +172,7 @@ export function ImportHub() {
             <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: cashAccount.color }} />
             <div className="flex-1 min-w-0">
               <div className="text-sm font-medium">מזומן</div>
-              <div className="text-xs text-slate-500">{cashTxCount > 0 ? `${cashTxCount} הוצאות` : 'לחץ להוספה / עריכה'}</div>
+              <div className="text-xs text-slate-500">{cashTxCount > 0 ? `${cashTxCount} עסקאות` : 'לחץ להוספה / עריכה'}</div>
             </div>
             <ChevronLeft size={16} className="text-slate-500 flex-shrink-0" />
           </button>

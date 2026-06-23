@@ -6,6 +6,7 @@ export type DrawerData =
       type: 'income'
       total: number
       salary: SalaryEntry | null
+      salaryDate?: string
       dividends: Dividend[]
       incomeTransactions: Transaction[]
     }
@@ -81,14 +82,14 @@ function Row({ label, sub, right }: { label: string; sub?: string; right: React.
 }
 
 function IncomeBreakdown({ data }: { data: Extract<DrawerData, { type: 'income' }> }) {
-  const { salary, dividends, incomeTransactions } = data
+  const { salary, salaryDate, dividends, incomeTransactions } = data
   const hasDivs = dividends.some(d => d.ilsEquivalent)
 
   type FlatItem = { key: string; date: string | null; label: string; amount: number }
 
   const items: FlatItem[] = []
   if (salary) {
-    items.push({ key: 'salary', date: null, label: salary.employerName || 'משכורת', amount: salary.netAmount })
+    items.push({ key: 'salary', date: salaryDate ?? null, label: salary.employerName || 'משכורת', amount: salary.netAmount })
   }
   for (const tx of incomeTransactions) {
     items.push({ key: tx.id, date: tx.date, label: tx.merchantName, amount: tx.amount })

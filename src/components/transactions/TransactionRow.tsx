@@ -11,6 +11,7 @@ interface Props {
   onDelete: (transactionId: string) => void
   onEditSalary?: () => void
   displayAmount?: number
+  accountLabel?: string
 }
 
 function amountDisplay(amount: number, direction: Transaction['direction']): { text: string; colorClass: string } {
@@ -239,7 +240,7 @@ function DetailView({ transaction, categories, onEdit, onClose, onEditSalary, di
   )
 }
 
-export function TransactionRow({ transaction, categories, onCategoryChange: _onCategoryChange, onUpdate, onDelete, onEditSalary, displayAmount }: Props) {
+export function TransactionRow({ transaction, categories, onCategoryChange: _onCategoryChange, onUpdate, onDelete, onEditSalary, displayAmount, accountLabel }: Props) {
   const [mode, setMode] = useState<'row' | 'detail' | 'edit'>('row')
   const [, mm, dd] = transaction.date.split('-')
   const hasCategory = !!transaction.categoryId
@@ -277,9 +278,12 @@ export function TransactionRow({ transaction, categories, onCategoryChange: _onC
       onClick={() => setMode('detail')}
     >
       <span className="text-xs text-slate-500 w-10 flex-shrink-0 tabular-nums">{dd}/{mm}</span>
-      <span className={`flex-1 text-sm truncate ${isIncome ? 'text-foreground' : !hasCategory ? 'text-amber-400' : 'text-foreground'}`}>
-        {transaction.merchantName}
-      </span>
+      <div className="flex-1 min-w-0">
+        <div className={`text-sm truncate ${isIncome ? 'text-foreground' : !hasCategory ? 'text-amber-400' : 'text-foreground'}`}>
+          {transaction.merchantName}
+        </div>
+        {accountLabel && <div className="text-xs text-slate-500">{accountLabel}</div>}
+      </div>
       <span className={`text-sm tabular-nums flex-shrink-0 ${colorClass}`} dir="ltr">
         {text}
       </span>
