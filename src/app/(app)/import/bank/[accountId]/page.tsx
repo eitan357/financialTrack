@@ -6,8 +6,10 @@ import { getCategories } from '@/lib/firestore/categories'
 import { getRules } from '@/lib/firestore/categorization-rules'
 import { getTransactions } from '@/lib/firestore/transactions'
 import { getSalaryEntries } from '@/lib/firestore/salary'
+import { getInvestmentEntries } from '@/lib/firestore/investments'
+import { getDividends } from '@/lib/firestore/dividends'
 import { BankFlow, type BankType } from '@/components/import/flows/BankFlow'
-import type { Account, Category, CategorizationRule, Transaction, SalaryEntry } from '@/lib/types'
+import type { Account, Category, CategorizationRule, Transaction, SalaryEntry, InvestmentEntry, Dividend } from '@/lib/types'
 
 function currentMonth(): string {
   const n = new Date()
@@ -39,17 +41,21 @@ function BankPageInner() {
   const [salaryEntries, setSalaryEntries] = useState<SalaryEntry[]>([])
   const [creditAccounts, setCreditAccounts] = useState<Account[]>([])
   const [creditImmediateAmounts, setCreditImmediateAmounts] = useState<Set<number>>(new Set())
+  const [investmentDeposits, setInvestmentDeposits] = useState<InvestmentEntry[]>([])
+  const [dividendPayouts, setDividendPayouts] = useState<Dividend[]>([])
 
   useEffect(() => {
     async function load() {
       setLoading(true)
       try {
-        const [accs, cats, rls, txs, salaries] = await Promise.all([
+        const [accs, cats, rls, txs, salaries, invEntries, monthDivs] = await Promise.all([
           getAccounts(),
           getCategories(),
           getRules(),
           getTransactions(month),
           getSalaryEntries(month),
+          getInvestmentEntries(month),
+          getDividends(month),
         ])
         const acc = accs.find(a => a.id === accountId)
         if (!acc) { router.replace('/import'); return }
@@ -65,6 +71,8 @@ function BankPageInner() {
         setCreditImmediateAmounts(
           new Set(txs.filter(t => t.isImmediate && creditIds.has(t.accountId)).map(t => t.amount))
         )
+        setInvestmentDeposits(invEntries.filter(e => e.sourceAccountId === accountId))
+        setDividendPayouts(monthDivs.filter(d => !d.staysInPortfolio && d.destinationAccountId === accountId))
       } catch {
         setError('שגיאה בטעינת הנתונים.')
       } finally {
@@ -92,6 +100,8 @@ function BankPageInner() {
         salaryEntries={salaryEntries}
         creditAccounts={creditAccounts}
         creditImmediateAmounts={creditImmediateAmounts}
+        investmentDeposits={investmentDeposits}
+        dividendPayouts={dividendPayouts}
         onDone={() => router.push(`/import?month=${month}`)}
       />
     </main>

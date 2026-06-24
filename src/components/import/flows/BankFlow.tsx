@@ -10,13 +10,13 @@ import { categorize } from '@/lib/categorization/engine'
 import { detectDuplicates } from '@/lib/import/duplicate-detector'
 import { addTransactions } from '@/lib/firestore/transactions'
 import { ImportError } from '@/lib/parsers/import-errors'
-import type { Account, Category, CategorizationRule, ImportedTransaction, RawTransaction, SalaryEntry, Transaction, TransactionSource } from '@/lib/types'
+import type { Account, Category, CategorizationRule, ImportedTransaction, RawTransaction, SalaryEntry, Transaction, TransactionSource, InvestmentEntry, Dividend } from '@/lib/types'
 
 export type BankType = 'one-zero' | 'leumi' | 'generic'
 
 interface BankImportRow extends ImportedTransaction {
   skip: boolean
-  skipReason?: 'salary' | 'credit-payment'
+  skipReason?: 'salary' | 'credit-payment' | 'investment-transfer'
 }
 
 interface Props {
@@ -31,6 +31,8 @@ interface Props {
   salaryEntries?: SalaryEntry[]
   creditAccounts?: Account[]
   creditImmediateAmounts?: Set<number>
+  investmentDeposits?: InvestmentEntry[]
+  dividendPayouts?: Dividend[]
   onDone: () => void
 }
 
@@ -51,12 +53,30 @@ function toTransaction(t: ImportedTransaction, accountId: string, month: string,
 }
 
 
-function suggestSkips(txs: ImportedTransaction[], salaryEntries: SalaryEntry[], creditAccounts: Account[]): BankImportRow[] {
+export function suggestSkips(
+  txs: ImportedTransaction[],
+  salaryEntries: SalaryEntry[],
+  creditAccounts: Account[],
+  investmentDeposits: InvestmentEntry[] = [],
+  dividendPayouts: Dividend[] = []
+): BankImportRow[] {
   const salaryAmounts = new Set(salaryEntries.map(e => e.netAmount))
   const creditTerms = creditAccounts.flatMap(a => [
     a.name.toLowerCase(),
     ...(a.csvIdentifier ? [a.csvIdentifier.toLowerCase()] : []),
   ])
+
+  const depositIlsAmounts = new Set<number>(
+    investmentDeposits
+      .map(e => e.ilsEquivalent ?? (e.currency === 'ILS' ? e.amount : null))
+      .filter((v): v is number => v !== null)
+  )
+
+  const dividendIlsAmounts = new Set<number>(
+    dividendPayouts
+      .map(d => d.ilsEquivalent ?? (d.currency === 'ILS' ? d.amount : null))
+      .filter((v): v is number => v !== null)
+  )
 
   return txs.map(t => {
     if (t.direction === 'income' && salaryAmounts.size > 0 && salaryAmounts.has(t.amount)) {
@@ -68,11 +88,17 @@ function suggestSkips(txs: ImportedTransaction[], salaryEntries: SalaryEntry[], 
         return { ...t, skip: true, skipReason: 'credit-payment' as const }
       }
     }
+    if (t.direction === 'expense' && depositIlsAmounts.size > 0 && depositIlsAmounts.has(t.amount)) {
+      return { ...t, skip: true, skipReason: 'investment-transfer' as const }
+    }
+    if (t.direction === 'income' && dividendIlsAmounts.size > 0 && dividendIlsAmounts.has(t.amount)) {
+      return { ...t, skip: true, skipReason: 'investment-transfer' as const }
+    }
     return { ...t, skip: false }
   })
 }
 
-export function BankFlow({ month, accountId, accountName, bankType, categories, rules = [], previousTransactions = [], existingTransactions, salaryEntries = [], creditAccounts = [], creditImmediateAmounts, onDone }: Props) {
+export function BankFlow({ month, accountId, accountName, bankType, categories, rules = [], previousTransactions = [], existingTransactions, salaryEntries = [], creditAccounts = [], creditImmediateAmounts, investmentDeposits = [], dividendPayouts = [], onDone }: Props) {
   const router = useRouter()
   const [rows, setRows] = useState<BankImportRow[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -138,7 +164,7 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
       }
 
       const mapped = applyCategories(raw)
-      setRows(suggestSkips(mapped, salaryEntries, creditAccounts))
+      setRows(suggestSkips(mapped, salaryEntries, creditAccounts, investmentDeposits, dividendPayouts))
     } catch (err) {
       setError(err instanceof ImportError ? err.message : 'שגיאה בקריאת הקובץ. ייתכן שהוא פגום או לא הורד כראוי.')
     } finally {
@@ -302,7 +328,11 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
                     </td>
                     <td className="py-1.5 px-2">
                       {row.skip ? (
-                        <span className="text-xs text-slate-600">מסונן</span>
+                        row.skipReason === 'investment-transfer' ? (
+                          <span className="text-xs text-purple-400">העברה להשקעות</span>
+                        ) : (
+                          <span className="text-xs text-slate-600">מסונן</span>
+                        )
                       ) : row.direction === 'expense' ? (
                         <select
                           value={row.categoryId ?? ''}
