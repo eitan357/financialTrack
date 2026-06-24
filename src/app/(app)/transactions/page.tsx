@@ -9,12 +9,18 @@ import { getAccounts } from '@/lib/firestore/accounts'
 import { TransactionRow } from '@/components/transactions/TransactionRow'
 import { AddTransactionForm } from '@/components/transactions/AddTransactionForm'
 import { computeCreditPayments } from '@/lib/creditPayment'
+import { getInvestmentEntries, getInvestmentTypes } from '@/lib/firestore/investments'
+import { getDividends } from '@/lib/firestore/dividends'
+import { InvestmentDepositRow, DividendPayoutRow } from '@/components/transactions/InvestmentTransferRow'
 import type { Transaction, Category, Account } from '@/lib/types'
 import type { CreditPaymentInfo } from '@/lib/creditPayment'
+import type { InvestmentEntry, Dividend, InvestmentType } from '@/lib/types'
 
 type DisplayItem =
   | { kind: 'tx'; tx: Transaction }
   | { kind: 'cp'; info: CreditPaymentInfo }
+  | { kind: 'inv-deposit'; entry: InvestmentEntry; typeName: string; bankName: string | undefined }
+  | { kind: 'div-payout'; dividend: Dividend; typeName: string }
 
 function CreditPaymentRow({ info }: { info: CreditPaymentInfo }) {
   const parts = info.date.split('-')
@@ -46,20 +52,29 @@ export default function TransactionsPage() {
   const [showAddForm, setShowAddForm] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
   const [error, setError] = useState<string | null>(null)
+  const [investmentEntries, setInvestmentEntries] = useState<InvestmentEntry[]>([])
+  const [dividends, setDividends] = useState<Dividend[]>([])
+  const [investmentTypes, setInvestmentTypes] = useState<InvestmentType[]>([])
 
   useEffect(() => {
     setLoading(true)
     setError(null)
     async function load() {
       try {
-        const [txs, cats, accs] = await Promise.all([
+        const [txs, cats, accs, invEntries, divs, invTypes] = await Promise.all([
           getTransactions(month),
           getCategories(),
           getAccounts(),
+          getInvestmentEntries(month),
+          getDividends(month),
+          getInvestmentTypes(),
         ])
         setTransactions(txs)
         setCategories(cats)
         setAccounts(accs)
+        setInvestmentEntries(invEntries)
+        setDividends(divs)
+        setInvestmentTypes(invTypes)
       } catch (e) {
         setError('שגיאה בטעינת העסקאות. בדוק את חיבור הרשת.')
         console.error(e)
@@ -91,6 +106,8 @@ export default function TransactionsPage() {
 
   // Build a fast lookup for account type
   const accountTypeMap = Object.fromEntries(accounts.map(a => [a.id, a.type]))
+  const invTypeMap = Object.fromEntries(investmentTypes.map(t => [t.id, t]))
+  const accountNameMap = Object.fromEntries(accounts.map(a => [a.id, a.name]))
 
   // Compute credit payment summary rows (virtual, not stored)
   const creditPayments = computeCreditPayments(accounts, transactions, month)
@@ -131,15 +148,41 @@ export default function TransactionsPage() {
   // Credit payment rows only show when category filter is 'all'
   const visibleCreditPayments = categoryFilter === 'all' ? baseCreditPayments : []
 
+  const selectedBankIds: string[] = accountFilter === 'all'
+    ? accounts.filter(a => a.type === 'bank').map(a => a.id)
+    : selectedAccount?.type === 'bank' ? [accountFilter] : []
+
+  const visibleDeposits = categoryFilter === 'all'
+    ? investmentEntries.filter(e => e.sourceAccountId && selectedBankIds.includes(e.sourceAccountId))
+    : []
+
+  const visibleDividendPayouts = categoryFilter === 'all'
+    ? dividends.filter(d => !d.staysInPortfolio && d.destinationAccountId && selectedBankIds.includes(d.destinationAccountId))
+    : []
+
   // Combine and sort by date descending
+  function itemDate(item: DisplayItem): string {
+    if (item.kind === 'tx') return item.tx.date
+    if (item.kind === 'cp') return item.info.date
+    if (item.kind === 'inv-deposit') return item.entry.date
+    return item.dividend.date
+  }
+
   const displayItems: DisplayItem[] = [
     ...filteredTx.map(tx => ({ kind: 'tx' as const, tx })),
     ...visibleCreditPayments.map(info => ({ kind: 'cp' as const, info })),
-  ].sort((a, b) => {
-    const da = a.kind === 'tx' ? a.tx.date : a.info.date
-    const db = b.kind === 'tx' ? b.tx.date : b.info.date
-    return db.localeCompare(da)
-  })
+    ...visibleDeposits.map(e => ({
+      kind: 'inv-deposit' as const,
+      entry: e,
+      typeName: invTypeMap[e.investmentTypeId]?.name ?? e.investmentTypeId,
+      bankName: accountNameMap[e.sourceAccountId ?? ''],
+    })),
+    ...visibleDividendPayouts.map(d => ({
+      kind: 'div-payout' as const,
+      dividend: d,
+      typeName: invTypeMap[d.investmentTypeId]?.name ?? d.investmentTypeId,
+    })),
+  ].sort((a, b) => itemDate(b).localeCompare(itemDate(a)))
 
   const uncategorizedCount = baseTransactions.filter(t => !t.categoryId && t.direction !== 'income' && t.amount > 0).length
 
@@ -238,8 +281,12 @@ export default function TransactionsPage() {
                     : accounts.find(a => a.id === item.tx.accountId)?.name)
                   : undefined}
               />
-            ) : (
+            ) : item.kind === 'cp' ? (
               <CreditPaymentRow key={`cp-${item.info.creditAccountId}`} info={item.info} />
+            ) : item.kind === 'inv-deposit' ? (
+              <InvestmentDepositRow key={`dep-${item.entry.id}`} entry={item.entry} typeName={item.typeName} bankName={item.bankName} />
+            ) : (
+              <DividendPayoutRow key={`div-${item.dividend.id}`} dividend={item.dividend} typeName={item.typeName} />
             )
           )}
           <div className="py-3 border-t border-slate-700 space-y-1.5">
