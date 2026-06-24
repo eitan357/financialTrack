@@ -117,4 +117,30 @@ describe('AddInvestmentEntryForm', () => {
     fireEvent.change(screen.getAllByRole('combobox')[0], { target: { value: 't1' } })
     expect(screen.queryByLabelText('שווי ב-₪')).not.toBeInTheDocument()
   })
+
+  it('includes ilsEquivalent in submission when non-ILS type and value entered', () => {
+    const onSubmit = jest.fn()
+    const usdTypes: InvestmentType[] = [{ id: 'u1', name: 'MSTY', currency: 'USD', portfolioAccountId: 'p1' }]
+    render(<AddInvestmentEntryForm types={usdTypes} bankAccounts={bankAccounts} onSubmit={onSubmit} onCancel={jest.fn()} />)
+    fireEvent.change(screen.getAllByRole('combobox')[0], { target: { value: 'u1' } })
+    fireEvent.change(screen.getAllByRole('combobox')[1], { target: { value: 'b1' } })
+    fireEvent.change(screen.getByLabelText('סכום'), { target: { value: '100' } })
+    fireEvent.change(screen.getByLabelText('שווי ב-₪'), { target: { value: '3700' } })
+    fireEvent.change(screen.getByLabelText('תאריך'), { target: { value: '2026-06-10' } })
+    fireEvent.click(screen.getByRole('button', { name: 'הוסף' }))
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ ilsEquivalent: 3700 }))
+  })
+
+  it('omits ilsEquivalent from submission when ILS equivalent field is left empty', () => {
+    const onSubmit = jest.fn()
+    const usdTypes: InvestmentType[] = [{ id: 'u1', name: 'MSTY', currency: 'USD', portfolioAccountId: 'p1' }]
+    render(<AddInvestmentEntryForm types={usdTypes} bankAccounts={bankAccounts} onSubmit={onSubmit} onCancel={jest.fn()} />)
+    fireEvent.change(screen.getAllByRole('combobox')[0], { target: { value: 'u1' } })
+    fireEvent.change(screen.getAllByRole('combobox')[1], { target: { value: 'b1' } })
+    fireEvent.change(screen.getByLabelText('סכום'), { target: { value: '100' } })
+    fireEvent.change(screen.getByLabelText('תאריך'), { target: { value: '2026-06-10' } })
+    fireEvent.click(screen.getByRole('button', { name: 'הוסף' }))
+    const call = onSubmit.mock.calls[0][0]
+    expect(call.ilsEquivalent).toBeUndefined()
+  })
 })
