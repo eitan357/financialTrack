@@ -127,9 +127,11 @@ export interface InvestmentEntry {
 export interface InvestmentConversion {
   id: string
   date: string // ISO date string
+  month: string // YYYY-MM, derived from date, used for Firestore queries
   investmentTypeId: string
-  ilsReceived: number
-  foreignAmountReduced?: number
+  ilsReceived: number // ILS that arrived in bank account
+  foreignAmountReduced?: number // how many units of foreign currency were sold
+  destinationAccountId?: string // bank account that received the ILS
   notes?: string
 }
 
