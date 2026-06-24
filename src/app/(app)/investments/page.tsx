@@ -1,38 +1,40 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { usePersistedMonth } from '@/hooks/usePersistedMonth'
-import { MonthHeader } from '@/components/layout/MonthHeader'
-import { getInvestmentTypes, addInvestmentType, getInvestmentEntries, addInvestmentEntry, deleteInvestmentEntry, deleteInvestmentType, getInvestmentPortfolios } from '@/lib/firestore/investments'
-import { getDividends, addDividend, deleteDividend } from '@/lib/firestore/dividends'
+import { ChevronRight, ChevronLeft } from 'lucide-react'
+import { getInvestmentTypes, getInvestmentEntriesByYear, addInvestmentEntry, deleteInvestmentEntry } from '@/lib/firestore/investments'
+import { getDividendsByYear, addDividend, deleteDividend } from '@/lib/firestore/dividends'
+import { getAccounts } from '@/lib/firestore/accounts'
 import { AddInvestmentEntryForm } from '@/components/investments/AddInvestmentEntryForm'
 import { AddDividendForm } from '@/components/investments/AddDividendForm'
-import { AddInvestmentTypeForm } from '@/components/investments/AddInvestmentTypeForm'
-import type { InvestmentType, InvestmentEntry, Dividend } from '@/lib/types'
+import type { InvestmentType, InvestmentEntry, Dividend, Account } from '@/lib/types'
 
 export default function InvestmentsPage() {
-  const [month, setMonth] = usePersistedMonth()
+  const [year, setYear] = useState(() => new Date().getFullYear().toString())
   const [loading, setLoading] = useState(true)
+  const [portfolios, setPortfolios] = useState<Account[]>([])
+  const [bankAccounts, setBankAccounts] = useState<Account[]>([])
   const [investmentTypes, setInvestmentTypes] = useState<InvestmentType[]>([])
   const [entries, setEntries] = useState<InvestmentEntry[]>([])
   const [dividends, setDividends] = useState<Dividend[]>([])
   const [showAddEntry, setShowAddEntry] = useState(false)
   const [showAddDividend, setShowAddDividend] = useState(false)
-  const [showAddType, setShowAddType] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [deletingEntryId, setDeletingEntryId] = useState<string | null>(null)
   const [deletingDividendId, setDeletingDividendId] = useState<string | null>(null)
-  const [deletingTypeId, setDeletingTypeId] = useState<string | null>(null)
 
   useEffect(() => {
     setLoading(true)
     setError(null)
     async function load() {
       try {
-        const [types, ents, divs] = await Promise.all([
+        const [accs, types, ents, divs] = await Promise.all([
+          getAccounts(),
           getInvestmentTypes(),
-          getInvestmentEntries(month),
-          getDividends(month),
+          getInvestmentEntriesByYear(year),
+          getDividendsByYear(year),
         ])
+        setPortfolios(accs.filter(a => a.type === 'investment'))
+        setBankAccounts(accs.filter(a => a.type === 'bank' && a.isActive))
         setInvestmentTypes(types)
         setEntries(ents)
         setDividends(divs)
@@ -44,7 +46,7 @@ export default function InvestmentsPage() {
       }
     }
     load()
-  }, [month])
+  }, [year])
 
   async function handleAddEntry(entry: Omit<InvestmentEntry, 'id'>) {
     const newEntry = await addInvestmentEntry(entry)
@@ -56,15 +58,6 @@ export default function InvestmentsPage() {
     const newDividend = await addDividend(dividend)
     setDividends(prev => [...prev, newDividend])
     setShowAddDividend(false)
-  }
-
-  async function handleAddType(type: { name: string; currency: string }) {
-    const portfolios = await getInvestmentPortfolios()
-    if (portfolios.length === 0) { setError('אין תיקי השקעות זמינים'); return }
-    const portfolioAccountId = portfolios[0].id
-    const newType = await addInvestmentType({ ...type, portfolioAccountId })
-    setInvestmentTypes(prev => [...prev, newType])
-    setShowAddType(false)
   }
 
   async function handleDeleteEntry(id: string) {
@@ -79,17 +72,35 @@ export default function InvestmentsPage() {
     setDeletingDividendId(null)
   }
 
-  async function handleDeleteType(id: string) {
-    await deleteInvestmentType(id)
-    setInvestmentTypes(prev => prev.filter(t => t.id !== id))
-    setDeletingTypeId(null)
-  }
-
   const typeMap = Object.fromEntries(investmentTypes.map(t => [t.id, t]))
+  const bankMap = Object.fromEntries(bankAccounts.map(a => [a.id, a]))
+
+  // Group entries by portfolio
+  const entriesByPortfolio: Record<string, InvestmentEntry[]> = {}
+  for (const entry of entries) {
+    const pId = typeMap[entry.investmentTypeId]?.portfolioAccountId ?? 'unassigned'
+    if (!entriesByPortfolio[pId]) entriesByPortfolio[pId] = []
+    entriesByPortfolio[pId].push(entry)
+  }
 
   return (
     <main className="p-4 max-w-lg mx-auto pb-24 space-y-6">
-      <MonthHeader month={month} onMonthChange={setMonth} />
+      {/* Year navigation — dir="ltr" so chevrons point correctly */}
+      <div className="flex items-center justify-between" dir="ltr">
+        <button
+          onClick={() => setYear(y => String(parseInt(y) - 1))}
+          className="p-2 text-slate-400 hover:text-foreground transition-colors"
+        >
+          <ChevronLeft size={20} />
+        </button>
+        <h1 className="text-lg font-bold">{year}</h1>
+        <button
+          onClick={() => setYear(y => String(parseInt(y) + 1))}
+          className="p-2 text-slate-400 hover:text-foreground transition-colors"
+        >
+          <ChevronRight size={20} />
+        </button>
+      </div>
 
       {loading ? (
         <div className="flex justify-center items-center min-h-40">
@@ -99,69 +110,168 @@ export default function InvestmentsPage() {
         <div className="bg-red-900/20 border border-red-800 rounded-2xl p-4 text-red-400 text-sm">{error}</div>
       ) : (
         <>
+          {/* הפקדות section */}
           <section>
             <div className="flex justify-between items-center mb-2">
-              <h2 className="font-semibold text-sm">תרומות החודש</h2>
+              <h2 className="font-semibold text-sm">הפקדות {year}</h2>
               <button onClick={() => setShowAddEntry(v => !v)} className="text-xs text-accent">
-                {showAddEntry ? 'ביטול' : '+ הוסף תרומה'}
+                {showAddEntry ? 'ביטול' : '+ הוסף הפקדה'}
               </button>
             </div>
+
             {showAddEntry && (
               <div className="mb-3">
-                <AddInvestmentEntryForm types={investmentTypes} onSubmit={handleAddEntry} onCancel={() => setShowAddEntry(false)} />
+                <AddInvestmentEntryForm
+                  types={investmentTypes}
+                  portfolios={portfolios}
+                  onSubmit={handleAddEntry}
+                  onCancel={() => setShowAddEntry(false)}
+                />
               </div>
             )}
-            <div className="bg-surface rounded-2xl divide-y divide-slate-800">
-              {entries.length === 0 ? (
-                <p className="text-slate-500 text-sm text-center py-6">אין תרומות החודש</p>
-              ) : entries.map(e => (
-                <div key={e.id} className="flex items-center justify-between px-4 py-3">
-                  <div>
-                    <span className="text-sm">{typeMap[e.investmentTypeId]?.name ?? e.investmentTypeId}</span>
-                    <span className="text-xs text-slate-500 mr-2">{e.date.slice(5).replace('-', '/')}</span>
+
+            {entries.length === 0 ? (
+              <div className="bg-surface rounded-2xl p-4">
+                <p className="text-slate-500 text-sm text-center py-2">אין הפקדות ב-{year}</p>
+              </div>
+            ) : portfolios.length > 0 ? (
+              <>
+                {portfolios.map(portfolio => {
+                  const pEntries = entriesByPortfolio[portfolio.id] ?? []
+                  if (pEntries.length === 0) return null
+                  const total = pEntries.reduce((s, e) => s + e.amount, 0)
+                  const currency = pEntries[0]?.currency ?? ''
+                  return (
+                    <div key={portfolio.id} className="mb-3">
+                      <div className="flex items-center gap-2 mb-1 px-1">
+                        <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: portfolio.color }} />
+                        <span className="text-xs text-slate-400 flex-1">{portfolio.name}</span>
+                        <span className="text-xs text-slate-500 tabular-nums">
+                          {total.toLocaleString('he-IL')} {currency}
+                        </span>
+                      </div>
+                      <div className="bg-surface rounded-2xl divide-y divide-slate-800">
+                        {pEntries.map(e => (
+                          <div key={e.id} className="flex items-center justify-between px-4 py-3">
+                            <div>
+                              <span className="text-sm">{typeMap[e.investmentTypeId]?.name ?? e.investmentTypeId}</span>
+                              <span className="text-xs text-slate-500 mr-2">{e.date.slice(5).replace('-', '/')}</span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <span className="text-sm tabular-nums">{e.amount.toLocaleString('he-IL')} {e.currency}</span>
+                              {deletingEntryId === e.id ? (
+                                <span className="flex items-center gap-1 text-xs">
+                                  <button onClick={() => handleDeleteEntry(e.id)} className="text-red-400 hover:text-red-300">מחק</button>
+                                  <span className="text-slate-600">|</span>
+                                  <button onClick={() => setDeletingEntryId(null)} className="text-slate-400">ביטול</button>
+                                </span>
+                              ) : (
+                                <button onClick={() => setDeletingEntryId(e.id)} className="text-slate-600 hover:text-red-400 text-xs">✕</button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })}
+                {/* Show unassigned entries if any */}
+                {(entriesByPortfolio['unassigned'] ?? []).length > 0 && (
+                  <div className="mb-3">
+                    <div className="flex items-center gap-2 mb-1 px-1">
+                      <span className="text-xs text-slate-400 flex-1">לא משויך</span>
+                    </div>
+                    <div className="bg-surface rounded-2xl divide-y divide-slate-800">
+                      {(entriesByPortfolio['unassigned'] ?? []).map(e => (
+                        <div key={e.id} className="flex items-center justify-between px-4 py-3">
+                          <div>
+                            <span className="text-sm">{typeMap[e.investmentTypeId]?.name ?? e.investmentTypeId}</span>
+                            <span className="text-xs text-slate-500 mr-2">{e.date.slice(5).replace('-', '/')}</span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <span className="text-sm tabular-nums">{e.amount.toLocaleString('he-IL')} {e.currency}</span>
+                            {deletingEntryId === e.id ? (
+                              <span className="flex items-center gap-1 text-xs">
+                                <button onClick={() => handleDeleteEntry(e.id)} className="text-red-400 hover:text-red-300">מחק</button>
+                                <span className="text-slate-600">|</span>
+                                <button onClick={() => setDeletingEntryId(null)} className="text-slate-400">ביטול</button>
+                              </span>
+                            ) : (
+                              <button onClick={() => setDeletingEntryId(e.id)} className="text-slate-600 hover:text-red-400 text-xs">✕</button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm tabular-nums">{e.amount.toLocaleString('he-IL')} {e.currency}</span>
-                    {deletingEntryId === e.id ? (
-                      <span className="flex items-center gap-1 text-xs">
-                        <button onClick={() => handleDeleteEntry(e.id)} className="text-red-400 hover:text-red-300">מחק</button>
-                        <span className="text-slate-600">|</span>
-                        <button onClick={() => setDeletingEntryId(null)} className="text-slate-400">ביטול</button>
-                      </span>
-                    ) : (
-                      <button onClick={() => setDeletingEntryId(e.id)} className="text-slate-600 hover:text-red-400 text-xs">✕</button>
-                    )}
+                )}
+              </>
+            ) : (
+              <div className="bg-surface rounded-2xl divide-y divide-slate-800">
+                {entries.map(e => (
+                  <div key={e.id} className="flex items-center justify-between px-4 py-3">
+                    <div>
+                      <span className="text-sm">{typeMap[e.investmentTypeId]?.name ?? e.investmentTypeId}</span>
+                      <span className="text-xs text-slate-500 mr-2">{e.date.slice(5).replace('-', '/')}</span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm tabular-nums">{e.amount.toLocaleString('he-IL')} {e.currency}</span>
+                      {deletingEntryId === e.id ? (
+                        <span className="flex items-center gap-1 text-xs">
+                          <button onClick={() => handleDeleteEntry(e.id)} className="text-red-400 hover:text-red-300">מחק</button>
+                          <span className="text-slate-600">|</span>
+                          <button onClick={() => setDeletingEntryId(null)} className="text-slate-400">ביטול</button>
+                        </span>
+                      ) : (
+                        <button onClick={() => setDeletingEntryId(e.id)} className="text-slate-600 hover:text-red-400 text-xs">✕</button>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </section>
 
+          {/* הכנסות מהשקעות section */}
           <section>
             <div className="flex justify-between items-center mb-2">
-              <h2 className="font-semibold text-sm">דיבידנדים החודש</h2>
+              <h2 className="font-semibold text-sm">הכנסות מהשקעות {year}</h2>
               <button onClick={() => setShowAddDividend(v => !v)} className="text-xs text-accent">
-                {showAddDividend ? 'ביטול' : '+ הוסף דיבידנד'}
+                {showAddDividend ? 'ביטול' : '+ הוסף הכנסה'}
               </button>
             </div>
+
             {showAddDividend && (
               <div className="mb-3">
-                <AddDividendForm types={investmentTypes} onSubmit={handleAddDividend} onCancel={() => setShowAddDividend(false)} />
+                <AddDividendForm
+                  types={investmentTypes}
+                  bankAccounts={bankAccounts}
+                  onSubmit={handleAddDividend}
+                  onCancel={() => setShowAddDividend(false)}
+                />
               </div>
             )}
+
             <div className="bg-surface rounded-2xl divide-y divide-slate-800">
               {dividends.length === 0 ? (
-                <p className="text-slate-500 text-sm text-center py-6">אין דיבידנדים החודש</p>
+                <p className="text-slate-500 text-sm text-center py-6">אין הכנסות מהשקעות ב-{year}</p>
               ) : dividends.map(d => (
                 <div key={d.id} className="flex items-center justify-between px-4 py-3">
                   <div>
                     <span className="text-sm">{typeMap[d.investmentTypeId]?.name ?? d.investmentTypeId}</span>
                     <span className="text-xs text-slate-500 mr-2">{d.date.slice(5).replace('-', '/')}</span>
+                    {!d.staysInPortfolio && d.destinationAccountId && (
+                      <span className="block text-xs text-slate-500">
+                        → {bankMap[d.destinationAccountId]?.name ?? d.destinationAccountId}
+                      </span>
+                    )}
                   </div>
                   <div className="flex items-center gap-3">
                     <div className="text-left">
                       <span className="text-sm tabular-nums">{d.amount.toLocaleString('he-IL')} {d.currency}</span>
-                      {d.ilsEquivalent && <span className="text-xs text-slate-400 block">₪{d.ilsEquivalent.toLocaleString('he-IL')}</span>}
+                      {d.ilsEquivalent && (
+                        <span className="text-xs text-slate-400 block">₪{d.ilsEquivalent.toLocaleString('he-IL')}</span>
+                      )}
                     </div>
                     {deletingDividendId === d.id ? (
                       <span className="flex items-center gap-1 text-xs">
@@ -171,41 +281,6 @@ export default function InvestmentsPage() {
                       </span>
                     ) : (
                       <button onClick={() => setDeletingDividendId(d.id)} className="text-slate-600 hover:text-red-400 text-xs">✕</button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section>
-            <div className="flex justify-between items-center mb-2">
-              <h2 className="font-semibold text-sm">סוגי השקעות</h2>
-              <button onClick={() => setShowAddType(v => !v)} className="text-xs text-accent">
-                {showAddType ? 'ביטול' : '+ הוסף סוג'}
-              </button>
-            </div>
-            {showAddType && (
-              <div className="mb-3">
-                <AddInvestmentTypeForm onSubmit={handleAddType} onCancel={() => setShowAddType(false)} />
-              </div>
-            )}
-            <div className="bg-surface rounded-2xl divide-y divide-slate-800">
-              {investmentTypes.length === 0 ? (
-                <p className="text-slate-500 text-sm text-center py-6">אין סוגי השקעות עדיין</p>
-              ) : investmentTypes.map(t => (
-                <div key={t.id} className="flex items-center justify-between px-4 py-3">
-                  <span className="text-sm">{t.name}</span>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-slate-400">{t.currency}</span>
-                    {deletingTypeId === t.id ? (
-                      <span className="flex items-center gap-1 text-xs">
-                        <button onClick={() => handleDeleteType(t.id)} className="text-red-400 hover:text-red-300">מחק</button>
-                        <span className="text-slate-600">|</span>
-                        <button onClick={() => setDeletingTypeId(null)} className="text-slate-400">ביטול</button>
-                      </span>
-                    ) : (
-                      <button onClick={() => setDeletingTypeId(t.id)} className="text-slate-600 hover:text-red-400 text-xs">✕</button>
                     )}
                   </div>
                 </div>
