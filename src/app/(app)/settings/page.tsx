@@ -23,6 +23,7 @@ const ACCOUNT_TYPE_LABELS: Record<AccountType, string> = {
   credit: 'אשראי',
   bank: 'בנק',
   cash: 'מזומן',
+  investment: 'תיק השקעות',
 }
 
 const PROVIDER_LABELS: Record<AccountProvider, string> = {

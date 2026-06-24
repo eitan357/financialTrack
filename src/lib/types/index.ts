@@ -1,4 +1,4 @@
-export type AccountType = 'credit' | 'bank' | 'cash'
+export type AccountType = 'credit' | 'bank' | 'cash' | 'investment'
 
 export type AccountProvider = 'leumi' | 'one-zero' | 'max' | 'isracard'
 
@@ -108,6 +108,7 @@ export interface InvestmentType {
   id: string
   name: string
   currency: string
+  portfolioAccountId: string
   notes?: string
 }
 
@@ -138,6 +139,8 @@ export interface Dividend {
   currency: string
   ilsEquivalent?: number
   date: string // ISO date string
+  destinationAccountId?: string
+  staysInPortfolio?: boolean
   notes?: string
 }
 
