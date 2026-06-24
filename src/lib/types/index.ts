@@ -119,6 +119,8 @@ export interface InvestmentEntry {
   investmentTypeId: string
   amount: number
   currency: string
+  sourceAccountId?: string  // bank account the transfer came from
+  ilsEquivalent?: number    // ILS cost (for non-ILS investments; used for CSV skip matching)
   notes?: string
 }
 
