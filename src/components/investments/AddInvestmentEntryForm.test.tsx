@@ -1,10 +1,18 @@
 import { render, screen, fireEvent } from '@testing-library/react'
 import { AddInvestmentEntryForm } from './AddInvestmentEntryForm'
-import type { InvestmentType } from '@/lib/types'
+import type { InvestmentType, Account } from '@/lib/types'
 
 const types: InvestmentType[] = [
-  { id: 't1', name: 'הראל', currency: 'ILS' },
-  { id: 't2', name: 'MSTY', currency: 'USD' },
+  { id: 't1', name: 'הראל', currency: 'ILS', portfolioAccountId: 'p1' },
+  { id: 't2', name: 'MSTY', currency: 'USD', portfolioAccountId: 'p1' },
+]
+
+const portfolios: Account[] = [
+  { id: 'p1', name: 'תיק ראשי', type: 'investment', color: '#6366f1', isActive: true },
+]
+
+const typesWithPortfolio = [
+  { id: 't1', name: 'MSTY', currency: 'USD', portfolioAccountId: 'p1' },
 ]
 
 describe('AddInvestmentEntryForm', () => {
@@ -49,5 +57,20 @@ describe('AddInvestmentEntryForm', () => {
     fireEvent.change(screen.getByLabelText('סכום'), { target: { value: '500' } })
     fireEvent.click(screen.getByRole('button', { name: 'הוסף' }))
     expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('groups types by portfolio using optgroup when portfolios provided', () => {
+    render(<AddInvestmentEntryForm types={typesWithPortfolio} portfolios={portfolios} onSubmit={jest.fn()} onCancel={jest.fn()} />)
+    expect(screen.getByRole('group', { name: 'תיק ראשי' })).toBeInTheDocument()
+  })
+
+  it('shows message when no types available', () => {
+    render(<AddInvestmentEntryForm types={[]} portfolios={[]} onSubmit={jest.fn()} onCancel={jest.fn()} />)
+    expect(screen.getByText('יש להוסיף השקעות בהגדרות')).toBeInTheDocument()
+  })
+
+  it('hides submit button when no types available', () => {
+    render(<AddInvestmentEntryForm types={[]} portfolios={[]} onSubmit={jest.fn()} onCancel={jest.fn()} />)
+    expect(screen.queryByRole('button', { name: 'הוסף' })).not.toBeInTheDocument()
   })
 })

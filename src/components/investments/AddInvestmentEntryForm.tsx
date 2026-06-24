@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { InvestmentType, InvestmentEntry } from '@/lib/types'
+import type { InvestmentType, InvestmentEntry, Account } from '@/lib/types'
 
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10)
@@ -7,17 +7,19 @@ function todayISO(): string {
 
 interface Props {
   types: InvestmentType[]
+  portfolios?: Account[]
   onSubmit: (entry: Omit<InvestmentEntry, 'id'>) => void
   onCancel: () => void
 }
 
-export function AddInvestmentEntryForm({ types, onSubmit, onCancel }: Props) {
+export function AddInvestmentEntryForm({ types, portfolios = [], onSubmit, onCancel }: Props) {
   const [typeId, setTypeId] = useState('')
   const [amount, setAmount] = useState('')
   const [date, setDate] = useState(todayISO)
   const [errors, setErrors] = useState<{ typeId?: string; amount?: string }>({})
 
   const selectedType = types.find(t => t.id === typeId)
+  const hasTypes = types.length > 0
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -36,23 +38,40 @@ export function AddInvestmentEntryForm({ types, onSubmit, onCancel }: Props) {
     })
   }
 
+  const portfolioMap = Object.fromEntries(portfolios.map(p => [p.id, p]))
+  const unassignedTypes = types.filter(t => !t.portfolioAccountId || !portfolioMap[t.portfolioAccountId])
+
   return (
     <form onSubmit={handleSubmit} className="bg-slate-800 rounded-2xl p-4 space-y-3">
       <div>
         <label htmlFor="inv-type" className="text-xs text-slate-400 block mb-1">סוג השקעה</label>
-        <select
-          id="inv-type"
-          value={typeId}
-          onChange={e => { setTypeId(e.target.value); if (errors.typeId && e.target.value) setErrors(p => ({ ...p, typeId: undefined })) }}
-          className={`w-full bg-slate-700 border rounded-lg px-3 py-2 text-sm text-foreground ${errors.typeId ? 'border-red-500 ring-1 ring-red-500' : 'border-slate-600'}`}
-        >
-          <option value="">בחר סוג...</option>
-          {types.map(t => (
-            <option key={t.id} value={t.id}>{t.name}</option>
-          ))}
-        </select>
+        {!hasTypes ? (
+          <p className="text-sm text-slate-500 py-2">יש להוסיף השקעות בהגדרות</p>
+        ) : (
+          <select
+            id="inv-type"
+            value={typeId}
+            onChange={e => { setTypeId(e.target.value); if (errors.typeId && e.target.value) setErrors(p => ({ ...p, typeId: undefined })) }}
+            className={`w-full bg-slate-700 border rounded-lg px-3 py-2 text-sm text-foreground ${errors.typeId ? 'border-red-500 ring-1 ring-red-500' : 'border-slate-600'}`}
+          >
+            <option value="">בחר סוג...</option>
+            {portfolios.map(p => {
+              const pTypes = types.filter(t => t.portfolioAccountId === p.id)
+              if (pTypes.length === 0) return null
+              return (
+                <optgroup key={p.id} label={p.name}>
+                  {pTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </optgroup>
+              )
+            })}
+            {unassignedTypes.map(t => (
+              <option key={t.id} value={t.id}>{t.name}</option>
+            ))}
+          </select>
+        )}
         {errors.typeId && <p className="text-xs text-red-400 mt-1">{errors.typeId}</p>}
       </div>
+
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label htmlFor="inv-amount" className="text-xs text-slate-400 block mb-1">סכום</label>
@@ -79,9 +98,12 @@ export function AddInvestmentEntryForm({ types, onSubmit, onCancel }: Props) {
           />
         </div>
       </div>
+
       <div className="flex gap-2 justify-end">
         <button type="button" onClick={onCancel} aria-label="ביטול" className="text-sm text-slate-400 px-4 py-2">ביטול</button>
-        <button type="submit" aria-label="הוסף" className="bg-accent text-white text-sm px-4 py-2 rounded-lg">הוסף</button>
+        {hasTypes && (
+          <button type="submit" aria-label="הוסף" className="bg-accent text-white text-sm px-4 py-2 rounded-lg">הוסף</button>
+        )}
       </div>
     </form>
   )
