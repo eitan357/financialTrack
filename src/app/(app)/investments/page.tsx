@@ -124,6 +124,7 @@ export default function InvestmentsPage() {
                 <AddInvestmentEntryForm
                   types={investmentTypes}
                   portfolios={portfolios}
+                  bankAccounts={bankAccounts}
                   onSubmit={handleAddEntry}
                   onCancel={() => setShowAddEntry(false)}
                 />
@@ -156,6 +157,9 @@ export default function InvestmentsPage() {
                             <div>
                               <span className="text-sm">{typeMap[e.investmentTypeId]?.name ?? e.investmentTypeId}</span>
                               <span className="text-xs text-slate-500 mr-2">{e.date.slice(5).replace('-', '/')}</span>
+                              {e.sourceAccountId && bankMap[e.sourceAccountId] && (
+                                <span className="text-xs text-slate-600 block">מ-{bankMap[e.sourceAccountId].name}</span>
+                              )}
                             </div>
                             <div className="flex items-center gap-3">
                               <span className="text-sm tabular-nums">{e.amount.toLocaleString('he-IL')} {e.currency}</span>
@@ -187,6 +191,9 @@ export default function InvestmentsPage() {
                           <div>
                             <span className="text-sm">{typeMap[e.investmentTypeId]?.name ?? e.investmentTypeId}</span>
                             <span className="text-xs text-slate-500 mr-2">{e.date.slice(5).replace('-', '/')}</span>
+                            {e.sourceAccountId && bankMap[e.sourceAccountId] && (
+                              <span className="text-xs text-slate-600 block">מ-{bankMap[e.sourceAccountId].name}</span>
+                            )}
                           </div>
                           <div className="flex items-center gap-3">
                             <span className="text-sm tabular-nums">{e.amount.toLocaleString('he-IL')} {e.currency}</span>
@@ -213,6 +220,9 @@ export default function InvestmentsPage() {
                     <div>
                       <span className="text-sm">{typeMap[e.investmentTypeId]?.name ?? e.investmentTypeId}</span>
                       <span className="text-xs text-slate-500 mr-2">{e.date.slice(5).replace('-', '/')}</span>
+                      {e.sourceAccountId && bankMap[e.sourceAccountId] && (
+                        <span className="text-xs text-slate-600 block">מ-{bankMap[e.sourceAccountId].name}</span>
+                      )}
                     </div>
                     <div className="flex items-center gap-3">
                       <span className="text-sm tabular-nums">{e.amount.toLocaleString('he-IL')} {e.currency}</span>
