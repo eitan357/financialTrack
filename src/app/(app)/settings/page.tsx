@@ -9,13 +9,16 @@ import {
   updateCategoryMeta, setCategoryActive, reorderCategories,
 } from '@/lib/settings-mutations'
 import type { Account, AccountProvider, AccountType, Category, CategorizationRule, MatchType } from '@/lib/types'
+import { getInvestmentTypes, addInvestmentType, deleteInvestmentType } from '@/lib/firestore/investments'
+import { AddInvestmentTypeForm } from '@/components/investments/AddInvestmentTypeForm'
+import type { InvestmentType } from '@/lib/types'
 
-type Tab = 'accounts' | 'categories' | 'rules' | 'maintenance'
+type Tab = 'accounts' | 'categories' | 'investments' | 'maintenance'
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'accounts', label: 'חשבונות' },
   { id: 'categories', label: 'קטגוריות' },
-  { id: 'rules', label: 'חוקים' },
+  { id: 'investments', label: 'השקעות' },
   { id: 'maintenance', label: 'תחזוקה' },
 ]
 
@@ -254,11 +257,12 @@ function AccountsSection() {
     async function load() {
       try {
         const accs = await getAccounts()
-        if (!accs.some(a => a.type === 'cash')) {
+        const nonInvestment = accs.filter(a => a.type !== 'investment')
+        if (!nonInvestment.some(a => a.type === 'cash')) {
           const cash = await addAccount({ name: 'מזומן', type: 'cash', color: '#22c55e', isActive: true })
-          setAccounts([...accs, cash])
+          setAccounts([...nonInvestment, cash])
         } else {
-          setAccounts(accs)
+          setAccounts(nonInvestment)
         }
       } catch (e) {
         setLoadError('שגיאה בטעינת חשבונות')
@@ -600,6 +604,7 @@ function CategoriesSection() {
   const [editId, setEditId] = useState<string | null>(null)
   const [showAdd, setShowAdd] = useState(false)
   const [showInactive, setShowInactive] = useState(false)
+  const [showRules, setShowRules] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -705,6 +710,21 @@ function CategoriesSection() {
           )}
         </div>
       )}
+
+      <div className="mt-4 pt-4 border-t border-slate-700/50">
+        <button
+          onClick={() => setShowRules(v => !v)}
+          className="w-full flex items-center justify-between text-xs text-slate-400 hover:text-foreground py-1"
+        >
+          <span>חוקי קיטלוג אוטומטי</span>
+          <span>{showRules ? '▲' : '▼'}</span>
+        </button>
+        {showRules && (
+          <div className="mt-3">
+            <RulesSection />
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -892,6 +912,155 @@ function MaintenanceSection() {
   )
 }
 
+// ---- Investments section (portfolio management) ----
+function InvestmentsSection() {
+  const [portfolios, setPortfolios] = useState<Account[]>([])
+  const [types, setTypes] = useState<InvestmentType[]>([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [showAddPortfolio, setShowAddPortfolio] = useState(false)
+  const [addPortfolioName, setAddPortfolioName] = useState('')
+  const [addPortfolioColor, setAddPortfolioColor] = useState('#6366f1')
+  const [addPortfolioError, setAddPortfolioError] = useState<string | null>(null)
+  const [showAddTypeForPortfolio, setShowAddTypeForPortfolio] = useState<string | null>(null)
+  const [deletingTypeId, setDeletingTypeId] = useState<string | null>(null)
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const [accs, allTypes] = await Promise.all([getAccounts(), getInvestmentTypes()])
+        setPortfolios(accs.filter(a => a.type === 'investment'))
+        setTypes(allTypes)
+      } catch (e) {
+        setLoadError('שגיאה בטעינת נתוני השקעות')
+        console.error(e)
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [])
+
+  async function handleAddPortfolio(e: React.FormEvent) {
+    e.preventDefault()
+    if (!addPortfolioName.trim()) { setAddPortfolioError('שדה חובה'); return }
+    setAddPortfolioError(null)
+    const acc = await addAccount({
+      name: addPortfolioName.trim(),
+      type: 'investment',
+      color: addPortfolioColor,
+      isActive: true,
+    })
+    setPortfolios(prev => [...prev, acc])
+    setAddPortfolioName('')
+    setShowAddPortfolio(false)
+  }
+
+  async function handleAddType(portfolioId: string, typeData: { name: string; currency: string }) {
+    const newType = await addInvestmentType({ ...typeData, portfolioAccountId: portfolioId })
+    setTypes(prev => [...prev, newType])
+    setShowAddTypeForPortfolio(null)
+  }
+
+  async function handleDeleteType(id: string) {
+    await deleteInvestmentType(id)
+    setTypes(prev => prev.filter(t => t.id !== id))
+    setDeletingTypeId(null)
+  }
+
+  if (loading) return <p className="text-slate-400 text-sm text-center py-6">טוען...</p>
+  if (loadError) return <p className="text-red-400 text-sm text-center py-6">{loadError}</p>
+
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <button onClick={() => setShowAddPortfolio(v => !v)} className="text-xs text-accent">
+          {showAddPortfolio ? 'ביטול' : '+ הוסף תיק השקעות'}
+        </button>
+      </div>
+
+      {showAddPortfolio && (
+        <form onSubmit={handleAddPortfolio} className="bg-slate-800 rounded-xl p-3 flex items-end gap-2">
+          <div className="flex-1">
+            <label className="text-xs text-slate-400 block mb-1">שם תיק</label>
+            <input
+              value={addPortfolioName}
+              onChange={e => { setAddPortfolioName(e.target.value); if (addPortfolioError && e.target.value.trim()) setAddPortfolioError(null) }}
+              autoFocus
+              className={`w-full bg-background rounded-lg px-3 py-2 text-sm outline-none ${addPortfolioError ? 'ring-1 ring-red-500' : 'focus:ring-1 ring-accent'}`}
+            />
+            {addPortfolioError && <p className="text-xs text-red-400 mt-1">{addPortfolioError}</p>}
+          </div>
+          <div>
+            <label className="text-xs text-slate-400 block mb-1">צבע</label>
+            <input type="color" value={addPortfolioColor} onChange={e => setAddPortfolioColor(e.target.value)}
+              className="h-9 w-12 rounded cursor-pointer border border-slate-700" />
+          </div>
+          <button type="button" onClick={() => setShowAddPortfolio(false)}
+            className="py-2 px-3 border border-slate-600 rounded-lg text-sm h-9 flex items-center">ביטול</button>
+          <button type="submit"
+            className="py-2 px-3 bg-accent rounded-lg text-sm font-semibold h-9 flex items-center">הוסף</button>
+        </form>
+      )}
+
+      {portfolios.length === 0 && !showAddPortfolio && (
+        <p className="text-slate-500 text-sm text-center py-6">אין תיקי השקעות. לחץ על ״+ הוסף תיק השקעות״ להתחלה.</p>
+      )}
+
+      {portfolios.map(portfolio => {
+        const portfolioTypes = types.filter(t => t.portfolioAccountId === portfolio.id)
+        const isAddingType = showAddTypeForPortfolio === portfolio.id
+
+        return (
+          <div key={portfolio.id} className="bg-surface rounded-2xl overflow-hidden">
+            <div className="flex items-center px-4 py-3 gap-3">
+              <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: portfolio.color }} />
+              <span className="flex-1 text-sm font-medium">{portfolio.name}</span>
+              <button
+                onClick={() => setShowAddTypeForPortfolio(v => v === portfolio.id ? null : portfolio.id)}
+                className="text-xs text-accent"
+              >
+                {isAddingType ? 'ביטול' : '+ הוסף השקעה'}
+              </button>
+            </div>
+
+            {isAddingType && (
+              <div className="px-3 pb-3 border-t border-slate-800">
+                <div className="pt-3">
+                  <AddInvestmentTypeForm
+                    onSubmit={data => handleAddType(portfolio.id, data)}
+                    onCancel={() => setShowAddTypeForPortfolio(null)}
+                  />
+                </div>
+              </div>
+            )}
+
+            <div className="divide-y divide-slate-800 border-t border-slate-800">
+              {portfolioTypes.length === 0 && !isAddingType ? (
+                <p className="text-slate-500 text-xs text-center py-3 px-4">אין השקעות בתיק זה</p>
+              ) : portfolioTypes.map(t => (
+                <div key={t.id} className="flex items-center px-4 py-2.5 gap-3">
+                  <span className="flex-1 text-sm">{t.name}</span>
+                  <span className="text-xs text-slate-400">{t.currency}</span>
+                  {deletingTypeId === t.id ? (
+                    <span className="flex items-center gap-1 text-xs">
+                      <button onClick={() => handleDeleteType(t.id)} className="text-red-400 hover:text-red-300">מחק</button>
+                      <span className="text-slate-600">|</span>
+                      <button onClick={() => setDeletingTypeId(null)} className="text-slate-400">ביטול</button>
+                    </span>
+                  ) : (
+                    <button onClick={() => setDeletingTypeId(t.id)} className="text-slate-600 hover:text-red-400 text-xs">✕</button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 // ---- Main page ----
 export default function SettingsPage() {
   const [tab, setTab] = useState<Tab>('accounts')
@@ -913,7 +1082,7 @@ export default function SettingsPage() {
 
       {tab === 'accounts' && <AccountsSection />}
       {tab === 'categories' && <CategoriesSection />}
-      {tab === 'rules' && <RulesSection />}
+      {tab === 'investments' && <InvestmentsSection />}
       {tab === 'maintenance' && <MaintenanceSection />}
     </main>
   )
