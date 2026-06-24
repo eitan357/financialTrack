@@ -10,7 +10,7 @@ import { categorize } from '@/lib/categorization/engine'
 import { detectDuplicates } from '@/lib/import/duplicate-detector'
 import { addTransactions } from '@/lib/firestore/transactions'
 import { ImportError } from '@/lib/parsers/import-errors'
-import type { Account, Category, CategorizationRule, ImportedTransaction, RawTransaction, SalaryEntry, Transaction, TransactionSource, InvestmentEntry, Dividend } from '@/lib/types'
+import type { Account, Category, CategorizationRule, ImportedTransaction, RawTransaction, SalaryEntry, Transaction, TransactionSource, InvestmentEntry, Dividend, InvestmentConversion } from '@/lib/types'
 
 export type BankType = 'one-zero' | 'leumi' | 'generic'
 
@@ -33,6 +33,7 @@ interface Props {
   creditImmediateAmounts?: Set<number>
   investmentDeposits?: InvestmentEntry[]
   dividendPayouts?: Dividend[]
+  conversionPayouts?: InvestmentConversion[]
   onDone: () => void
 }
 
@@ -58,7 +59,8 @@ export function suggestSkips(
   salaryEntries: SalaryEntry[],
   creditAccounts: Account[],
   investmentDeposits: InvestmentEntry[] = [],
-  dividendPayouts: Dividend[] = []
+  dividendPayouts: Dividend[] = [],
+  conversionPayouts: InvestmentConversion[] = []
 ): BankImportRow[] {
   const salaryAmounts = new Set(salaryEntries.map(e => e.netAmount))
   const creditTerms = creditAccounts.flatMap(a => [
@@ -78,6 +80,10 @@ export function suggestSkips(
       .filter((v): v is number => v !== null)
   )
 
+  const conversionIlsAmounts = new Set<number>(
+    conversionPayouts.map(c => c.ilsReceived)
+  )
+
   return txs.map(t => {
     if (t.direction === 'income' && salaryAmounts.size > 0 && salaryAmounts.has(t.amount)) {
       return { ...t, skip: true, skipReason: 'salary' as const }
@@ -94,11 +100,14 @@ export function suggestSkips(
     if (t.direction === 'income' && dividendIlsAmounts.size > 0 && dividendIlsAmounts.has(t.amount)) {
       return { ...t, skip: true, skipReason: 'investment-transfer' as const }
     }
+    if (t.direction === 'income' && conversionIlsAmounts.size > 0 && conversionIlsAmounts.has(t.amount)) {
+      return { ...t, skip: true, skipReason: 'investment-transfer' as const }
+    }
     return { ...t, skip: false }
   })
 }
 
-export function BankFlow({ month, accountId, accountName, bankType, categories, rules = [], previousTransactions = [], existingTransactions, salaryEntries = [], creditAccounts = [], creditImmediateAmounts, investmentDeposits = [], dividendPayouts = [], onDone }: Props) {
+export function BankFlow({ month, accountId, accountName, bankType, categories, rules = [], previousTransactions = [], existingTransactions, salaryEntries = [], creditAccounts = [], creditImmediateAmounts, investmentDeposits = [], dividendPayouts = [], conversionPayouts = [], onDone }: Props) {
   const router = useRouter()
   const [rows, setRows] = useState<BankImportRow[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -164,7 +173,7 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
       }
 
       const mapped = applyCategories(raw)
-      setRows(suggestSkips(mapped, salaryEntries, creditAccounts, investmentDeposits, dividendPayouts))
+      setRows(suggestSkips(mapped, salaryEntries, creditAccounts, investmentDeposits, dividendPayouts, conversionPayouts))
     } catch (err) {
       setError(err instanceof ImportError ? err.message : 'שגיאה בקריאת הקובץ. ייתכן שהוא פגום או לא הורד כראוי.')
     } finally {

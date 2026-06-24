@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { BankFlow, suggestSkips } from './BankFlow'
-import type { ImportedTransaction, InvestmentEntry, Dividend } from '@/lib/types'
+import type { ImportedTransaction, InvestmentEntry, Dividend, InvestmentConversion } from '@/lib/types'
 
 jest.mock('@/lib/firestore/transactions', () => ({
   addTransactions: jest.fn().mockResolvedValue(undefined),
@@ -60,6 +60,26 @@ describe('suggestSkips — investment transfers', () => {
     const result = suggestSkips([incomeRow], [], [], [], [dividendPayout])
     expect(result[0].skip).toBe(true)
     expect(result[0].skipReason).toBe('investment-transfer')
+  })
+})
+
+describe('suggestSkips — conversion payouts', () => {
+  const conversion: InvestmentConversion = {
+    id: 'c1', date: '2026-06-15', month: '2026-06',
+    investmentTypeId: 't1', ilsReceived: 5000, destinationAccountId: 'b1',
+  }
+
+  it('skips income row matching conversion ilsReceived', () => {
+    const incomeRow: ImportedTransaction = { ...baseExpenseRow, amount: 5000, direction: 'income' }
+    const result = suggestSkips([incomeRow], [], [], [], [], [conversion])
+    expect(result[0].skip).toBe(true)
+    expect(result[0].skipReason).toBe('investment-transfer')
+  })
+
+  it('does not skip income row that does not match any conversion', () => {
+    const incomeRow: ImportedTransaction = { ...baseExpenseRow, amount: 9999, direction: 'income' }
+    const result = suggestSkips([incomeRow], [], [], [], [], [conversion])
+    expect(result[0].skip).toBe(false)
   })
 })
 
