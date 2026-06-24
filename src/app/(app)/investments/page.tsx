@@ -140,16 +140,22 @@ export default function InvestmentsPage() {
                 {portfolios.map(portfolio => {
                   const pEntries = entriesByPortfolio[portfolio.id] ?? []
                   if (pEntries.length === 0) return null
-                  const total = pEntries.reduce((s, e) => s + e.amount, 0)
-                  const currency = pEntries[0]?.currency ?? ''
+                  const currencyTotals: Record<string, number> = {}
+                  for (const e of pEntries) {
+                    currencyTotals[e.currency] = (currencyTotals[e.currency] ?? 0) + e.amount
+                  }
                   return (
                     <div key={portfolio.id} className="mb-3">
                       <div className="flex items-center gap-2 mb-1 px-1">
                         <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: portfolio.color }} />
                         <span className="text-xs text-slate-400 flex-1">{portfolio.name}</span>
-                        <span className="text-xs text-slate-500 tabular-nums">
-                          {total.toLocaleString('he-IL')} {currency}
-                        </span>
+                        <div className="flex gap-2">
+                          {Object.entries(currencyTotals).map(([cur, amt]) => (
+                            <span key={cur} className="text-xs text-slate-500 tabular-nums">
+                              {amt.toLocaleString('he-IL')} {cur}
+                            </span>
+                          ))}
+                        </div>
                       </div>
                       <div className="bg-surface rounded-2xl divide-y divide-slate-800">
                         {pEntries.map(e => (
