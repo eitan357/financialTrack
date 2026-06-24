@@ -3,10 +3,12 @@ import { useState, useEffect } from 'react'
 import { ChevronRight, ChevronLeft } from 'lucide-react'
 import { getInvestmentTypes, getInvestmentEntriesByYear, addInvestmentEntry, deleteInvestmentEntry } from '@/lib/firestore/investments'
 import { getDividendsByYear, addDividend, deleteDividend } from '@/lib/firestore/dividends'
+import { getInvestmentConversionsByYear, addInvestmentConversion, deleteInvestmentConversion } from '@/lib/firestore/conversions'
 import { getAccounts } from '@/lib/firestore/accounts'
 import { AddInvestmentEntryForm } from '@/components/investments/AddInvestmentEntryForm'
 import { AddDividendForm } from '@/components/investments/AddDividendForm'
-import type { InvestmentType, InvestmentEntry, Dividend, Account } from '@/lib/types'
+import { AddInvestmentConversionForm } from '@/components/investments/AddInvestmentConversionForm'
+import type { InvestmentType, InvestmentEntry, Dividend, Account, InvestmentConversion } from '@/lib/types'
 
 export default function InvestmentsPage() {
   const [year, setYear] = useState(() => new Date().getFullYear().toString())
@@ -21,23 +23,28 @@ export default function InvestmentsPage() {
   const [error, setError] = useState<string | null>(null)
   const [deletingEntryId, setDeletingEntryId] = useState<string | null>(null)
   const [deletingDividendId, setDeletingDividendId] = useState<string | null>(null)
+  const [conversions, setConversions] = useState<InvestmentConversion[]>([])
+  const [showAddConversion, setShowAddConversion] = useState(false)
+  const [deletingConversionId, setDeletingConversionId] = useState<string | null>(null)
 
   useEffect(() => {
     setLoading(true)
     setError(null)
     async function load() {
       try {
-        const [accs, types, ents, divs] = await Promise.all([
+        const [accs, types, ents, divs, convs] = await Promise.all([
           getAccounts(),
           getInvestmentTypes(),
           getInvestmentEntriesByYear(year),
           getDividendsByYear(year),
+          getInvestmentConversionsByYear(year),
         ])
         setPortfolios(accs.filter(a => a.type === 'investment'))
         setBankAccounts(accs.filter(a => a.type === 'bank' && a.isActive))
         setInvestmentTypes(types)
         setEntries(ents)
         setDividends(divs)
+        setConversions(convs)
       } catch (e) {
         setError('שגיאה בטעינת נתוני השקעות. בדוק את חיבור הרשת.')
         console.error(e)
@@ -70,6 +77,18 @@ export default function InvestmentsPage() {
     await deleteDividend(id)
     setDividends(prev => prev.filter(d => d.id !== id))
     setDeletingDividendId(null)
+  }
+
+  async function handleAddConversion(conv: Omit<InvestmentConversion, 'id'>) {
+    const newConv = await addInvestmentConversion(conv)
+    setConversions(prev => [...prev, newConv])
+    setShowAddConversion(false)
+  }
+
+  async function handleDeleteConversion(id: string) {
+    await deleteInvestmentConversion(id)
+    setConversions(prev => prev.filter(c => c.id !== id))
+    setDeletingConversionId(null)
   }
 
   const typeMap = Object.fromEntries(investmentTypes.map(t => [t.id, t]))
@@ -297,6 +316,57 @@ export default function InvestmentsPage() {
                       </span>
                     ) : (
                       <button onClick={() => setDeletingDividendId(d.id)} className="text-slate-600 hover:text-red-400 text-xs">✕</button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* המרות section */}
+          <section>
+            <div className="flex justify-between items-center mb-2">
+              <h2 className="font-semibold text-sm">המרות {year}</h2>
+              <button onClick={() => setShowAddConversion(v => !v)} className="text-xs text-accent">
+                {showAddConversion ? 'ביטול' : '+ הוסף המרה'}
+              </button>
+            </div>
+
+            {showAddConversion && (
+              <div className="mb-3">
+                <AddInvestmentConversionForm
+                  types={investmentTypes}
+                  bankAccounts={bankAccounts}
+                  onSubmit={handleAddConversion}
+                  onCancel={() => setShowAddConversion(false)}
+                />
+              </div>
+            )}
+
+            <div className="bg-surface rounded-2xl divide-y divide-slate-800">
+              {conversions.length === 0 ? (
+                <p className="text-slate-500 text-sm text-center py-6">אין המרות ב-{year}</p>
+              ) : conversions.map(c => (
+                <div key={c.id} className="flex items-center justify-between px-4 py-3">
+                  <div>
+                    <span className="text-sm">{typeMap[c.investmentTypeId]?.name ?? c.investmentTypeId}</span>
+                    <span className="text-xs text-slate-500 mr-2">{c.date.slice(5).replace('-', '/')}</span>
+                    {c.foreignAmountReduced !== undefined && (
+                      <span className="text-xs text-slate-600 block">
+                        {c.foreignAmountReduced.toLocaleString('he-IL')} {typeMap[c.investmentTypeId]?.currency ?? ''}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm tabular-nums text-green-400">₪{c.ilsReceived.toLocaleString('he-IL')}</span>
+                    {deletingConversionId === c.id ? (
+                      <span className="flex items-center gap-1 text-xs">
+                        <button onClick={() => handleDeleteConversion(c.id)} className="text-red-400 hover:text-red-300">מחק</button>
+                        <span className="text-slate-600">|</span>
+                        <button onClick={() => setDeletingConversionId(null)} className="text-slate-400">ביטול</button>
+                      </span>
+                    ) : (
+                      <button onClick={() => setDeletingConversionId(c.id)} className="text-slate-600 hover:text-red-400 text-xs">✕</button>
                     )}
                   </div>
                 </div>
