@@ -19,7 +19,7 @@ export function DividendsCard({ dividends, investmentTypes }: Props) {
         )}
       </div>
       {dividends.length === 0 ? (
-        <p className="text-slate-500 text-sm">אין דיבידנדים החודש</p>
+        <p className="text-slate-500 text-sm">אין הכנסות מהשקעות החודש</p>
       ) : (
         <div className="space-y-1.5">
           {dividends.map(d => (
