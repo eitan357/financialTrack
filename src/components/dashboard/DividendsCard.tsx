@@ -11,7 +11,7 @@ export function DividendsCard({ dividends, investmentTypes }: Props) {
   return (
     <div className="bg-surface rounded-2xl p-4">
       <div className="flex justify-between items-center mb-3">
-        <h2 className="text-sm font-semibold text-slate-400">דיבידנדים החודש</h2>
+        <h2 className="text-sm font-semibold text-slate-400">הכנסות מהשקעות</h2>
         {totalIls > 0 && (
           <span data-testid="dividends-total" className="text-sm font-bold text-green-400 tabular-nums">
             ₪{totalIls.toLocaleString('he-IL')}
