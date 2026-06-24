@@ -206,8 +206,8 @@ export function CashFlow({ month, cashAccountId, categories, existingTransaction
                 <div className="text-xs text-slate-400">{entry.date}</div>
               </div>
               <div className="flex items-center gap-3">
-                <span className={`tabular-nums text-sm ${isIncome ? 'text-green-400' : 'text-red-400'}`}>
-                  ₪{isIncome ? '' : '-'}{entry.amount.toLocaleString('he-IL')}
+                <span className={`tabular-nums text-sm ${isIncome ? 'text-green-400' : 'text-red-400'}`} dir="ltr">
+                  {isIncome ? '₪' : '₪-'}{entry.amount.toLocaleString('he-IL')}
                 </span>
                 <button onClick={() => startEdit(entry)} disabled={saving}
                   className="text-xs text-accent hover:underline disabled:opacity-50">
