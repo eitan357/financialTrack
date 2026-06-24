@@ -73,4 +73,48 @@ describe('AddInvestmentEntryForm', () => {
     render(<AddInvestmentEntryForm types={[]} portfolios={[]} onSubmit={jest.fn()} onCancel={jest.fn()} />)
     expect(screen.queryByRole('button', { name: 'הוסף' })).not.toBeInTheDocument()
   })
+
+  const bankAccounts: Account[] = [
+    { id: 'b1', name: 'בנק לאומי', type: 'bank', color: '#6366f1', isActive: true },
+    { id: 'b2', name: 'One Zero', type: 'bank', color: '#10b981', isActive: true },
+  ]
+
+  it('shows source bank selector when bankAccounts provided', () => {
+    render(<AddInvestmentEntryForm types={types} bankAccounts={bankAccounts} onSubmit={jest.fn()} onCancel={jest.fn()} />)
+    expect(screen.getByLabelText('חשבון מקור')).toBeInTheDocument()
+  })
+
+  it('shows validation error when source bank not selected and bankAccounts provided', () => {
+    const onSubmit = jest.fn()
+    render(<AddInvestmentEntryForm types={types} bankAccounts={bankAccounts} onSubmit={onSubmit} onCancel={jest.fn()} />)
+    fireEvent.change(screen.getAllByRole('combobox')[0], { target: { value: 't1' } })
+    fireEvent.change(screen.getByLabelText('סכום'), { target: { value: '500' } })
+    fireEvent.click(screen.getByRole('button', { name: 'הוסף' }))
+    expect(onSubmit).not.toHaveBeenCalled()
+    expect(screen.getByText('יש לבחור חשבון מקור')).toBeInTheDocument()
+  })
+
+  it('includes sourceAccountId in submission when bank selected', () => {
+    const onSubmit = jest.fn()
+    render(<AddInvestmentEntryForm types={types} bankAccounts={bankAccounts} onSubmit={onSubmit} onCancel={jest.fn()} />)
+    fireEvent.change(screen.getAllByRole('combobox')[0], { target: { value: 't1' } })
+    fireEvent.change(screen.getAllByRole('combobox')[1], { target: { value: 'b1' } })
+    fireEvent.change(screen.getByLabelText('סכום'), { target: { value: '500' } })
+    fireEvent.change(screen.getByLabelText('תאריך'), { target: { value: '2026-06-10' } })
+    fireEvent.click(screen.getByRole('button', { name: 'הוסף' }))
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ sourceAccountId: 'b1' }))
+  })
+
+  it('shows ILS equivalent field when non-ILS type selected', () => {
+    const usdTypes: InvestmentType[] = [{ id: 'u1', name: 'MSTY', currency: 'USD', portfolioAccountId: 'p1' }]
+    render(<AddInvestmentEntryForm types={usdTypes} bankAccounts={bankAccounts} onSubmit={jest.fn()} onCancel={jest.fn()} />)
+    fireEvent.change(screen.getAllByRole('combobox')[0], { target: { value: 'u1' } })
+    expect(screen.getByLabelText('שווי ב-₪')).toBeInTheDocument()
+  })
+
+  it('does not show ILS equivalent field when ILS type selected', () => {
+    render(<AddInvestmentEntryForm types={types} bankAccounts={bankAccounts} onSubmit={jest.fn()} onCancel={jest.fn()} />)
+    fireEvent.change(screen.getAllByRole('combobox')[0], { target: { value: 't1' } })
+    expect(screen.queryByLabelText('שווי ב-₪')).not.toBeInTheDocument()
+  })
 })

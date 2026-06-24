@@ -8,24 +8,29 @@ function todayISO(): string {
 interface Props {
   types: InvestmentType[]
   portfolios?: Account[]
+  bankAccounts?: Account[]
   onSubmit: (entry: Omit<InvestmentEntry, 'id'>) => void
   onCancel: () => void
 }
 
-export function AddInvestmentEntryForm({ types, portfolios = [], onSubmit, onCancel }: Props) {
+export function AddInvestmentEntryForm({ types, portfolios = [], bankAccounts = [], onSubmit, onCancel }: Props) {
   const [typeId, setTypeId] = useState('')
   const [amount, setAmount] = useState('')
+  const [ilsEquivalent, setIlsEquivalent] = useState('')
   const [date, setDate] = useState(todayISO)
-  const [errors, setErrors] = useState<{ typeId?: string; amount?: string }>({})
+  const [sourceAccountId, setSourceAccountId] = useState('')
+  const [errors, setErrors] = useState<{ typeId?: string; amount?: string; sourceAccountId?: string }>({})
 
   const selectedType = types.find(t => t.id === typeId)
   const hasTypes = types.length > 0
+  const showIlsField = selectedType !== undefined && selectedType.currency !== 'ILS'
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     const errs: typeof errors = {}
     if (!typeId) errs.typeId = 'יש לבחור ערך'
     if (!amount || parseFloat(amount) <= 0) errs.amount = 'יש להזין סכום חיובי'
+    if (bankAccounts.length > 0 && !sourceAccountId) errs.sourceAccountId = 'יש לבחור חשבון מקור'
     if (Object.keys(errs).length > 0) { setErrors(errs); return }
     if (!date || !selectedType) return
     setErrors({})
@@ -35,6 +40,8 @@ export function AddInvestmentEntryForm({ types, portfolios = [], onSubmit, onCan
       currency: selectedType.currency,
       date,
       month: date.slice(0, 7),
+      ...(sourceAccountId ? { sourceAccountId } : {}),
+      ...(ilsEquivalent && parseFloat(ilsEquivalent) > 0 ? { ilsEquivalent: parseFloat(ilsEquivalent) } : {}),
     })
   }
 
@@ -72,6 +79,24 @@ export function AddInvestmentEntryForm({ types, portfolios = [], onSubmit, onCan
         {errors.typeId && <p className="text-xs text-red-400 mt-1">{errors.typeId}</p>}
       </div>
 
+      {bankAccounts.length > 0 && (
+        <div>
+          <label htmlFor="inv-source" className="text-xs text-slate-400 block mb-1">חשבון מקור</label>
+          <select
+            id="inv-source"
+            value={sourceAccountId}
+            onChange={e => { setSourceAccountId(e.target.value); if (errors.sourceAccountId) setErrors(p => ({ ...p, sourceAccountId: undefined })) }}
+            className={`w-full bg-slate-700 border rounded-lg px-3 py-2 text-sm text-foreground ${errors.sourceAccountId ? 'border-red-500 ring-1 ring-red-500' : 'border-slate-600'}`}
+          >
+            <option value="">בחר חשבון...</option>
+            {bankAccounts.map(a => (
+              <option key={a.id} value={a.id}>{a.name}</option>
+            ))}
+          </select>
+          {errors.sourceAccountId && <p className="text-xs text-red-400 mt-1">{errors.sourceAccountId}</p>}
+        </div>
+      )}
+
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label htmlFor="inv-amount" className="text-xs text-slate-400 block mb-1">סכום</label>
@@ -98,6 +123,22 @@ export function AddInvestmentEntryForm({ types, portfolios = [], onSubmit, onCan
           />
         </div>
       </div>
+
+      {showIlsField && (
+        <div>
+          <label htmlFor="inv-ils" className="text-xs text-slate-400 block mb-1">שווי ב-₪</label>
+          <input
+            id="inv-ils"
+            type="number"
+            min="0"
+            step="0.01"
+            value={ilsEquivalent}
+            onChange={e => setIlsEquivalent(e.target.value)}
+            placeholder="אופציונלי"
+            className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-foreground"
+          />
+        </div>
+      )}
 
       <div className="flex gap-2 justify-end">
         <button type="button" onClick={onCancel} aria-label="ביטול" className="text-sm text-slate-400 px-4 py-2">ביטול</button>
