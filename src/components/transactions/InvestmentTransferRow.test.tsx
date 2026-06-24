@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
-import { InvestmentDepositRow, DividendPayoutRow } from './InvestmentTransferRow'
-import type { InvestmentEntry, Dividend } from '@/lib/types'
+import { InvestmentDepositRow, DividendPayoutRow, ConversionRow } from './InvestmentTransferRow'
+import type { InvestmentEntry, Dividend, InvestmentConversion } from '@/lib/types'
 
 const ilsEntry: InvestmentEntry = {
   id: 'e1', date: '2026-06-15', month: '2026-06',
@@ -40,5 +40,21 @@ describe('DividendPayoutRow', () => {
     expect(screen.getByText(/MSTY/)).toBeInTheDocument()
     expect(screen.getByText('20/06')).toBeInTheDocument()
     expect(screen.getByText(/185/)).toBeInTheDocument()
+  })
+})
+
+describe('ConversionRow', () => {
+  it('renders type name, date, and ILS received amount', () => {
+    const conversion: InvestmentConversion = {
+      id: 'c1',
+      date: '2026-06-10',
+      month: '2026-06',
+      investmentTypeId: 't1',
+      ilsReceived: 5000,
+    }
+    render(<ConversionRow conversion={conversion} typeName="MSTY" />)
+    expect(screen.getByText('מכירה: MSTY')).toBeInTheDocument()
+    expect(screen.getByText('10/06')).toBeInTheDocument()
+    expect(screen.getByText(/5,000/)).toBeInTheDocument()
   })
 })

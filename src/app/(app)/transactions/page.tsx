@@ -11,15 +11,17 @@ import { AddTransactionForm } from '@/components/transactions/AddTransactionForm
 import { computeCreditPayments } from '@/lib/creditPayment'
 import { getInvestmentEntries, getInvestmentTypes } from '@/lib/firestore/investments'
 import { getDividends } from '@/lib/firestore/dividends'
-import { InvestmentDepositRow, DividendPayoutRow } from '@/components/transactions/InvestmentTransferRow'
+import { getInvestmentConversions } from '@/lib/firestore/conversions'
+import { InvestmentDepositRow, DividendPayoutRow, ConversionRow } from '@/components/transactions/InvestmentTransferRow'
 import type { Transaction, Category, Account } from '@/lib/types'
 import type { CreditPaymentInfo } from '@/lib/creditPayment'
-import type { InvestmentEntry, Dividend, InvestmentType } from '@/lib/types'
+import type { InvestmentEntry, Dividend, InvestmentType, InvestmentConversion } from '@/lib/types'
 
 type DisplayItem =
   | { kind: 'tx'; tx: Transaction }
   | { kind: 'cp'; info: CreditPaymentInfo }
   | { kind: 'inv-deposit'; entry: InvestmentEntry; typeName: string; bankName: string | undefined }
+  | { kind: 'inv-conversion'; conversion: InvestmentConversion; typeName: string }
   | { kind: 'div-payout'; dividend: Dividend; typeName: string }
 
 function CreditPaymentRow({ info }: { info: CreditPaymentInfo }) {
@@ -55,19 +57,21 @@ export default function TransactionsPage() {
   const [investmentEntries, setInvestmentEntries] = useState<InvestmentEntry[]>([])
   const [dividends, setDividends] = useState<Dividend[]>([])
   const [investmentTypes, setInvestmentTypes] = useState<InvestmentType[]>([])
+  const [conversions, setConversions] = useState<InvestmentConversion[]>([])
 
   useEffect(() => {
     setLoading(true)
     setError(null)
     async function load() {
       try {
-        const [txs, cats, accs, invEntries, divs, invTypes] = await Promise.all([
+        const [txs, cats, accs, invEntries, divs, invTypes, invConvs] = await Promise.all([
           getTransactions(month),
           getCategories(),
           getAccounts(),
           getInvestmentEntries(month),
           getDividends(month),
           getInvestmentTypes(),
+          getInvestmentConversions(month),
         ])
         setTransactions(txs)
         setCategories(cats)
@@ -75,6 +79,7 @@ export default function TransactionsPage() {
         setInvestmentEntries(invEntries)
         setDividends(divs)
         setInvestmentTypes(invTypes)
+        setConversions(invConvs)
       } catch (e) {
         setError('שגיאה בטעינת העסקאות. בדוק את חיבור הרשת.')
         console.error(e)
@@ -160,11 +165,16 @@ export default function TransactionsPage() {
     ? dividends.filter(d => !d.staysInPortfolio && d.destinationAccountId && selectedBankIds.includes(d.destinationAccountId))
     : []
 
+  const visibleConversions = categoryFilter === 'all'
+    ? conversions.filter(c => c.destinationAccountId && selectedBankIds.includes(c.destinationAccountId))
+    : []
+
   // Combine and sort by date descending
   function itemDate(item: DisplayItem): string {
     if (item.kind === 'tx') return item.tx.date
     if (item.kind === 'cp') return item.info.date
     if (item.kind === 'inv-deposit') return item.entry.date
+    if (item.kind === 'inv-conversion') return item.conversion.date
     return item.dividend.date
   }
 
@@ -176,6 +186,11 @@ export default function TransactionsPage() {
       entry: e,
       typeName: invTypeMap[e.investmentTypeId]?.name ?? e.investmentTypeId,
       bankName: accountNameMap[e.sourceAccountId ?? ''],
+    })),
+    ...visibleConversions.map(c => ({
+      kind: 'inv-conversion' as const,
+      conversion: c,
+      typeName: invTypeMap[c.investmentTypeId]?.name ?? c.investmentTypeId,
     })),
     ...visibleDividendPayouts.map(d => ({
       kind: 'div-payout' as const,
@@ -285,6 +300,8 @@ export default function TransactionsPage() {
               <CreditPaymentRow key={`cp-${item.info.creditAccountId}`} info={item.info} />
             ) : item.kind === 'inv-deposit' ? (
               <InvestmentDepositRow key={`dep-${item.entry.id}`} entry={item.entry} typeName={item.typeName} bankName={item.bankName} />
+            ) : item.kind === 'inv-conversion' ? (
+              <ConversionRow key={`conv-${item.conversion.id}`} conversion={item.conversion} typeName={item.typeName} />
             ) : (
               <DividendPayoutRow key={`div-${item.dividend.id}`} dividend={item.dividend} typeName={item.typeName} />
             )

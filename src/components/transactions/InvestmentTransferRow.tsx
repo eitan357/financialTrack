@@ -1,4 +1,4 @@
-import type { InvestmentEntry, Dividend } from '@/lib/types'
+import type { InvestmentEntry, Dividend, InvestmentConversion } from '@/lib/types'
 
 export function InvestmentDepositRow({ entry, typeName, bankName }: {
   entry: InvestmentEntry
@@ -40,6 +40,24 @@ export function DividendPayoutRow({ dividend, typeName }: {
           ₪+{ilsAmount.toLocaleString('he-IL')}
         </span>
       )}
+    </div>
+  )
+}
+
+export function ConversionRow({ conversion, typeName }: {
+  conversion: InvestmentConversion
+  typeName: string
+}) {
+  const [, mm, dd] = conversion.date.split('-')
+  return (
+    <div className="flex items-center gap-2 py-2.5 border-b border-slate-800 last:border-0">
+      <span className="text-xs text-slate-500 tabular-nums flex-shrink-0" style={{ width: '2.5rem' }}>{dd}/{mm}</span>
+      <div className="flex-1 min-w-0">
+        <span className="text-sm text-purple-400">מכירה: {typeName}</span>
+      </div>
+      <span className="text-sm tabular-nums text-green-400 flex-shrink-0" dir="ltr">
+        ₪+{conversion.ilsReceived.toLocaleString('he-IL')}
+      </span>
     </div>
   )
 }
