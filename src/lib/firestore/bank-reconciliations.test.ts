@@ -30,6 +30,14 @@ jest.mock('firebase/firestore', () => ({
   writeBatch: (...a: unknown[]) => mockWriteBatch(...a),
 }))
 jest.mock('@/lib/firebase/config', () => ({ app: {} }))
+jest.mock('@/lib/cache', () => ({
+  appCache: {
+    get: jest.fn(() => undefined),
+    set: jest.fn(),
+    del: jest.fn(),
+    delPrefix: jest.fn(),
+  },
+}))
 
 import { getBankReconciliations, saveBankReconciliation } from './bank-reconciliations'
 
@@ -48,6 +56,19 @@ describe('getBankReconciliations', () => {
   it('returns empty array when no reconciliations', async () => {
     mockGetDocs.mockResolvedValue({ docs: [] })
     expect(await getBankReconciliations('2026-06')).toEqual([])
+  })
+
+  it('uses cache on second call', async () => {
+    const { appCache } = jest.requireMock('@/lib/cache')
+    const recData = { month: '2026-06', accountId: 'a1', balance: 5000, note: '' }
+    appCache.get
+      .mockReturnValueOnce(undefined)
+      .mockReturnValueOnce([{ id: 'r1', ...recData }])
+    mockGetDocs.mockResolvedValueOnce({ docs: [{ id: 'r1', data: () => recData }] })
+
+    await getBankReconciliations('2026-06')
+    await getBankReconciliations('2026-06')
+    expect(mockGetDocs).toHaveBeenCalledTimes(1)
   })
 })
 

@@ -45,9 +45,11 @@ export default function TransactionsPage() {
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
   const [showAddForm, setShowAddForm] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     setLoading(true)
+    setError(null)
     async function load() {
       try {
         const [txs, cats, accs] = await Promise.all([
@@ -58,6 +60,9 @@ export default function TransactionsPage() {
         setTransactions(txs)
         setCategories(cats)
         setAccounts(accs)
+      } catch (e) {
+        setError('שגיאה בטעינת העסקאות. בדוק את חיבור הרשת.')
+        console.error(e)
       } finally {
         setLoading(false)
       }
@@ -208,6 +213,8 @@ export default function TransactionsPage() {
         <div className="flex justify-center items-center min-h-40">
           <p className="text-slate-400">טוען...</p>
         </div>
+      ) : error ? (
+        <div className="bg-red-900/20 border border-red-800 rounded-2xl p-4 text-red-400 text-sm">{error}</div>
       ) : displayItems.length === 0 ? (
         <div className="text-center py-12 text-slate-500">
           {categoryFilter !== 'all' ? 'אין עסקאות בקטגוריה זו' : 'אין עסקאות בחודש זה'}

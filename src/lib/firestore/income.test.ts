@@ -29,6 +29,14 @@ jest.mock('firebase/firestore', () => ({
   writeBatch: (...a: unknown[]) => mockWriteBatch(...a),
 }))
 jest.mock('@/lib/firebase/config', () => ({ app: {} }))
+jest.mock('@/lib/cache', () => ({
+  appCache: {
+    get: jest.fn(() => undefined),
+    set: jest.fn(),
+    del: jest.fn(),
+    delPrefix: jest.fn(),
+  },
+}))
 
 import { getIncomeEntries, addIncomeEntry, deleteIncomeEntry } from './income'
 
@@ -42,6 +50,19 @@ describe('getIncomeEntries', () => {
     const entries = await getIncomeEntries('2026-06')
     expect(entries[0]).toEqual({ id: 'i1', ...incomeData })
     expect(mockWhere).toHaveBeenCalledWith('month', '==', '2026-06')
+  })
+
+  it('caches results — getDocs called only once on second call', async () => {
+    const { appCache } = jest.requireMock('@/lib/cache')
+    appCache.get
+      .mockReturnValueOnce(undefined)
+      .mockReturnValueOnce([{ id: 'i1', month: '2026-06', sourceName: 'מילואים', amount: 3000, currency: 'ILS', date: '2026-06-15' }])
+
+    mockGetDocs.mockResolvedValueOnce({ docs: [{ id: 'i1', data: () => incomeData }] })
+
+    await getIncomeEntries('2026-06')
+    await getIncomeEntries('2026-06')
+    expect(mockGetDocs).toHaveBeenCalledTimes(1)
   })
 })
 

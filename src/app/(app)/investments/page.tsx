@@ -2,8 +2,8 @@
 import { useState, useEffect } from 'react'
 import { usePersistedMonth } from '@/hooks/usePersistedMonth'
 import { MonthHeader } from '@/components/layout/MonthHeader'
-import { getInvestmentTypes, addInvestmentType, getInvestmentEntries, addInvestmentEntry } from '@/lib/firestore/investments'
-import { getDividends, addDividend } from '@/lib/firestore/dividends'
+import { getInvestmentTypes, addInvestmentType, getInvestmentEntries, addInvestmentEntry, deleteInvestmentEntry, deleteInvestmentType } from '@/lib/firestore/investments'
+import { getDividends, addDividend, deleteDividend } from '@/lib/firestore/dividends'
 import { AddInvestmentEntryForm } from '@/components/investments/AddInvestmentEntryForm'
 import { AddDividendForm } from '@/components/investments/AddDividendForm'
 import { AddInvestmentTypeForm } from '@/components/investments/AddInvestmentTypeForm'
@@ -18,9 +18,14 @@ export default function InvestmentsPage() {
   const [showAddEntry, setShowAddEntry] = useState(false)
   const [showAddDividend, setShowAddDividend] = useState(false)
   const [showAddType, setShowAddType] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [deletingEntryId, setDeletingEntryId] = useState<string | null>(null)
+  const [deletingDividendId, setDeletingDividendId] = useState<string | null>(null)
+  const [deletingTypeId, setDeletingTypeId] = useState<string | null>(null)
 
   useEffect(() => {
     setLoading(true)
+    setError(null)
     async function load() {
       try {
         const [types, ents, divs] = await Promise.all([
@@ -31,6 +36,9 @@ export default function InvestmentsPage() {
         setInvestmentTypes(types)
         setEntries(ents)
         setDividends(divs)
+      } catch (e) {
+        setError('שגיאה בטעינת נתוני השקעות. בדוק את חיבור הרשת.')
+        console.error(e)
       } finally {
         setLoading(false)
       }
@@ -56,6 +64,24 @@ export default function InvestmentsPage() {
     setShowAddType(false)
   }
 
+  async function handleDeleteEntry(id: string) {
+    await deleteInvestmentEntry(id)
+    setEntries(prev => prev.filter(e => e.id !== id))
+    setDeletingEntryId(null)
+  }
+
+  async function handleDeleteDividend(id: string) {
+    await deleteDividend(id)
+    setDividends(prev => prev.filter(d => d.id !== id))
+    setDeletingDividendId(null)
+  }
+
+  async function handleDeleteType(id: string) {
+    await deleteInvestmentType(id)
+    setInvestmentTypes(prev => prev.filter(t => t.id !== id))
+    setDeletingTypeId(null)
+  }
+
   const typeMap = Object.fromEntries(investmentTypes.map(t => [t.id, t]))
 
   return (
@@ -66,6 +92,8 @@ export default function InvestmentsPage() {
         <div className="flex justify-center items-center min-h-40">
           <p className="text-slate-400">טוען...</p>
         </div>
+      ) : error ? (
+        <div className="bg-red-900/20 border border-red-800 rounded-2xl p-4 text-red-400 text-sm">{error}</div>
       ) : (
         <>
           <section>
@@ -89,7 +117,18 @@ export default function InvestmentsPage() {
                     <span className="text-sm">{typeMap[e.investmentTypeId]?.name ?? e.investmentTypeId}</span>
                     <span className="text-xs text-slate-500 mr-2">{e.date.slice(5).replace('-', '/')}</span>
                   </div>
-                  <span className="text-sm tabular-nums">{e.amount.toLocaleString('he-IL')} {e.currency}</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm tabular-nums">{e.amount.toLocaleString('he-IL')} {e.currency}</span>
+                    {deletingEntryId === e.id ? (
+                      <span className="flex items-center gap-1 text-xs">
+                        <button onClick={() => handleDeleteEntry(e.id)} className="text-red-400 hover:text-red-300">מחק</button>
+                        <span className="text-slate-600">|</span>
+                        <button onClick={() => setDeletingEntryId(null)} className="text-slate-400">ביטול</button>
+                      </span>
+                    ) : (
+                      <button onClick={() => setDeletingEntryId(e.id)} className="text-slate-600 hover:text-red-400 text-xs">✕</button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>
@@ -116,9 +155,20 @@ export default function InvestmentsPage() {
                     <span className="text-sm">{typeMap[d.investmentTypeId]?.name ?? d.investmentTypeId}</span>
                     <span className="text-xs text-slate-500 mr-2">{d.date.slice(5).replace('-', '/')}</span>
                   </div>
-                  <div className="text-left">
-                    <span className="text-sm tabular-nums">{d.amount.toLocaleString('he-IL')} {d.currency}</span>
-                    {d.ilsEquivalent && <span className="text-xs text-slate-400 block">₪{d.ilsEquivalent.toLocaleString('he-IL')}</span>}
+                  <div className="flex items-center gap-3">
+                    <div className="text-left">
+                      <span className="text-sm tabular-nums">{d.amount.toLocaleString('he-IL')} {d.currency}</span>
+                      {d.ilsEquivalent && <span className="text-xs text-slate-400 block">₪{d.ilsEquivalent.toLocaleString('he-IL')}</span>}
+                    </div>
+                    {deletingDividendId === d.id ? (
+                      <span className="flex items-center gap-1 text-xs">
+                        <button onClick={() => handleDeleteDividend(d.id)} className="text-red-400 hover:text-red-300">מחק</button>
+                        <span className="text-slate-600">|</span>
+                        <button onClick={() => setDeletingDividendId(null)} className="text-slate-400">ביטול</button>
+                      </span>
+                    ) : (
+                      <button onClick={() => setDeletingDividendId(d.id)} className="text-slate-600 hover:text-red-400 text-xs">✕</button>
+                    )}
                   </div>
                 </div>
               ))}
@@ -143,7 +193,18 @@ export default function InvestmentsPage() {
               ) : investmentTypes.map(t => (
                 <div key={t.id} className="flex items-center justify-between px-4 py-3">
                   <span className="text-sm">{t.name}</span>
-                  <span className="text-xs text-slate-400">{t.currency}</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-slate-400">{t.currency}</span>
+                    {deletingTypeId === t.id ? (
+                      <span className="flex items-center gap-1 text-xs">
+                        <button onClick={() => handleDeleteType(t.id)} className="text-red-400 hover:text-red-300">מחק</button>
+                        <span className="text-slate-600">|</span>
+                        <button onClick={() => setDeletingTypeId(null)} className="text-slate-400">ביטול</button>
+                      </span>
+                    ) : (
+                      <button onClick={() => setDeletingTypeId(t.id)} className="text-slate-600 hover:text-red-400 text-xs">✕</button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

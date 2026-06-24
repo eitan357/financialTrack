@@ -16,15 +16,15 @@ export async function getSalaryEntry(month: string): Promise<SalaryEntry | null>
   return result
 }
 
-export async function deleteAllSalaryEntries(): Promise<number> {
-  const db = getDb()
-  const snap = await getDocs(collection(db, 'salary_entries'))
-  if (snap.empty) return 0
-  const batch = writeBatch(db)
-  snap.docs.forEach(d => batch.delete(d.ref))
-  await batch.commit()
-  appCache.delPrefix('salary:')
-  return snap.size
+export async function getSalaryEntries(month: string): Promise<SalaryEntry[]> {
+  const key = `salary_arr:${month}`
+  const cached = appCache.get<SalaryEntry[]>(key)
+  if (cached !== undefined) return cached
+  const q = query(collection(getDb(), 'salary_entries'), where('month', '==', month))
+  const snap = await getDocs(q)
+  const result = snap.docs.map(d => ({ id: d.id, ...d.data() } as SalaryEntry))
+  appCache.set(key, result)
+  return result
 }
 
 export async function getAllSalaryEntries(): Promise<SalaryEntry[]> {
@@ -37,20 +37,27 @@ export async function upsertSalaryEntry(entry: Omit<SalaryEntry, 'id'> & { id?: 
   const docRef = id
     ? doc(getDb(), 'salary_entries', id)
     : doc(collection(getDb(), 'salary_entries'))
-  // Firestore rejects undefined field values — strip them before writing
   const cleanData = JSON.parse(JSON.stringify(data))
   await setDoc(docRef, cleanData, { merge: true })
   appCache.del(`salary:${data.month}`)
+  appCache.del(`salary_arr:${data.month}`)
   return { id: docRef.id, ...data } as SalaryEntry
-}
-
-export async function getSalaryEntries(month: string): Promise<SalaryEntry[]> {
-  const q = query(collection(getDb(), 'salary_entries'), where('month', '==', month))
-  const snap = await getDocs(q)
-  return snap.docs.map(d => ({ id: d.id, ...d.data() } as SalaryEntry))
 }
 
 export async function deleteSalaryEntry(id: string): Promise<void> {
   await deleteDoc(doc(getDb(), 'salary_entries', id))
   appCache.delPrefix('salary:')
+  appCache.delPrefix('salary_arr:')
+}
+
+export async function deleteAllSalaryEntries(): Promise<number> {
+  const db = getDb()
+  const snap = await getDocs(collection(db, 'salary_entries'))
+  if (snap.empty) return 0
+  const batch = writeBatch(db)
+  snap.docs.forEach(d => batch.delete(d.ref))
+  await batch.commit()
+  appCache.delPrefix('salary:')
+  appCache.delPrefix('salary_arr:')
+  return snap.size
 }

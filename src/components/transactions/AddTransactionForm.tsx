@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { addTransactions } from '@/lib/firestore/transactions'
 import type { Account, Category } from '@/lib/types'
 import { FormField } from '@/components/ui/FormField'
+import { DirectionToggle } from '@/components/ui/DirectionToggle'
 
 interface Props {
   month: string
@@ -59,16 +60,7 @@ export function AddTransactionForm({ month, accounts, categories, defaultAccount
     <div className="bg-surface rounded-2xl p-4 mb-4 space-y-3">
       <h3 className="font-semibold text-sm">הוספת עסקה</h3>
 
-      <div className="flex rounded-lg overflow-hidden border border-slate-700">
-        <button
-          onClick={() => setDirection('expense')}
-          className={`flex-1 py-2 text-sm font-medium transition-colors ${direction === 'expense' ? 'bg-red-500/20 text-red-400' : 'text-slate-400'}`}
-        >הוצאה</button>
-        <button
-          onClick={() => setDirection('income')}
-          className={`flex-1 py-2 text-sm font-medium transition-colors ${direction === 'income' ? 'bg-green-500/20 text-green-400' : 'text-slate-400'}`}
-        >הכנסה</button>
-      </div>
+      <DirectionToggle value={direction} onChange={setDirection} />
 
       <FormField label="תאריך">
         <input type="date" value={date} onChange={e => setDate(e.target.value)}

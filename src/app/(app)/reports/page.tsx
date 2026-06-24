@@ -19,9 +19,11 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(true)
   const [summaries, setSummaries] = useState<MonthlyExpenseSummary[]>([])
   const [categories, setCategories] = useState<Category[]>([])
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     setLoading(true)
+    setError(null)
     const months = monthsOfYear(year)
     async function load() {
       try {
@@ -34,6 +36,9 @@ export default function ReportsPage() {
         const creditIds = new Set(accs.filter(a => a.type === 'credit').map(a => a.id))
         const txsForCompute = txs.filter(t => !(t.isImmediate && creditIds.has(t.accountId)))
         setSummaries(computeMonthlyReports(txsForCompute, months, cats))
+      } catch (e) {
+        setError('שגיאה בטעינת הדוחות. בדוק את חיבור הרשת.')
+        console.error(e)
       } finally {
         setLoading(false)
       }
@@ -66,6 +71,8 @@ export default function ReportsPage() {
         <div className="flex justify-center items-center min-h-40">
           <p className="text-slate-400">טוען...</p>
         </div>
+      ) : error ? (
+        <div className="bg-red-900/20 border border-red-800 rounded-2xl p-4 text-red-400 text-sm">{error}</div>
       ) : (
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">

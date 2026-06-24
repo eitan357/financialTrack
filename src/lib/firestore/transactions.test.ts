@@ -31,7 +31,7 @@ jest.mock('firebase/firestore', () => ({
 }))
 jest.mock('@/lib/firebase/config', () => ({ app: {} }))
 
-import { getTransactions, getTransactionsByMerchant, addTransactions, updateTransaction, deleteTransaction, getTransactionsForMonths } from './transactions'
+import { getTransactions, addTransactions, updateTransaction, deleteTransaction, getTransactionsForMonths } from './transactions'
 
 beforeEach(() => jest.clearAllMocks())
 
@@ -44,14 +44,6 @@ describe('getTransactions', () => {
     expect(mockWhere).toHaveBeenCalledWith('month', '==', '2026-06')
     expect(mockOrderBy).toHaveBeenCalledWith('date', 'desc')
     expect(txs[0]).toEqual({ id: 't1', ...mockTxData })
-  })
-})
-
-describe('getTransactionsByMerchant', () => {
-  it('queries by merchantName', async () => {
-    mockGetDocs.mockResolvedValue({ docs: [] })
-    await getTransactionsByMerchant('שופרסל')
-    expect(mockWhere).toHaveBeenCalledWith('merchantName', '==', 'שופרסל')
   })
 })
 

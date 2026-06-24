@@ -1,5 +1,5 @@
 jest.mock('@/lib/firestore/transactions', () => ({ getTransactions: jest.fn().mockResolvedValue([]) }))
-jest.mock('@/lib/firestore/salary', () => ({ getSalaryEntry: jest.fn().mockResolvedValue(null) }))
+jest.mock('@/lib/firestore/salary', () => ({ getSalaryEntries: jest.fn().mockResolvedValue([]) }))
 jest.mock('@/lib/firestore/income', () => ({ getIncomeEntries: jest.fn().mockResolvedValue([]) }))
 jest.mock('@/lib/firestore/dividends', () => ({ getDividends: jest.fn().mockResolvedValue([]) }))
 jest.mock('@/lib/firestore/investments', () => ({
@@ -27,7 +27,7 @@ describe('DashboardPage', () => {
     await waitFor(() => expect(screen.getByText('הכנסות')).toBeInTheDocument())
     expect(screen.getByText('הוצאות')).toBeInTheDocument()
     expect(screen.getByText('חיסכון')).toBeInTheDocument()
-    expect(screen.getByText('להשקעות')).toBeInTheDocument()
+    expect(screen.getByText('השקעות')).toBeInTheDocument()
   })
 
   it('shows month navigation buttons', () => {

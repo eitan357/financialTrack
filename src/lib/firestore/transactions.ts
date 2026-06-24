@@ -22,15 +22,6 @@ export async function getTransactions(month: string): Promise<Transaction[]> {
   return txs
 }
 
-export async function getTransactionsByMerchant(merchantName: string): Promise<Transaction[]> {
-  const q = query(
-    collection(getDb(), 'transactions'),
-    where('merchantName', '==', merchantName)
-  )
-  const snap = await getDocs(q)
-  return snap.docs.map(d => ({ id: d.id, ...d.data() } as Transaction))
-}
-
 export async function addTransactionGetId(tx: Omit<Transaction, 'id'>): Promise<string> {
   const ref = await addDoc(collection(getDb(), 'transactions'), tx)
   appCache.del(cacheKey(tx.month))

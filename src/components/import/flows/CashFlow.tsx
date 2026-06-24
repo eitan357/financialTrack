@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { Plus, Trash2, ChevronRight } from 'lucide-react'
 import { addTransactions, updateTransaction, deleteTransaction } from '@/lib/firestore/transactions'
 import type { Category, Transaction } from '@/lib/types'
+import { DirectionToggle } from '@/components/ui/DirectionToggle'
 
 interface CashRow {
   id: string
@@ -26,20 +27,6 @@ function emptyRow(month: string): CashRow {
   return { id: crypto.randomUUID(), description: '', amount: 0, date: `${month}-01`, categoryId: null, direction: 'income' }
 }
 
-function DirectionToggle({ value, onChange }: { value: 'income' | 'expense'; onChange: (v: 'income' | 'expense') => void }) {
-  return (
-    <div className="flex rounded-lg overflow-hidden border border-slate-700">
-      <button type="button" onClick={() => onChange('expense')}
-        className={`flex-1 py-2 text-sm font-medium transition-colors ${value === 'expense' ? 'bg-red-500/20 text-red-400' : 'text-slate-400'}`}>
-        הוצאה
-      </button>
-      <button type="button" onClick={() => onChange('income')}
-        className={`flex-1 py-2 text-sm font-medium transition-colors ${value === 'income' ? 'bg-green-500/20 text-green-400' : 'text-slate-400'}`}>
-        הכנסה
-      </button>
-    </div>
-  )
-}
 
 interface Props {
   month: string

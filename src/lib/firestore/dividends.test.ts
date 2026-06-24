@@ -30,8 +30,16 @@ jest.mock('firebase/firestore', () => ({
   writeBatch: (...a: unknown[]) => mockWriteBatch(...a),
 }))
 jest.mock('@/lib/firebase/config', () => ({ app: {} }))
+jest.mock('@/lib/cache', () => ({
+  appCache: {
+    get: jest.fn(() => undefined),
+    set: jest.fn(),
+    del: jest.fn(),
+    delPrefix: jest.fn(),
+  },
+}))
 
-import { getDividends, addDividend } from './dividends'
+import { getDividends, addDividend, deleteDividend } from './dividends'
 
 beforeEach(() => jest.clearAllMocks())
 
@@ -49,6 +57,19 @@ describe('getDividends', () => {
     mockGetDocs.mockResolvedValue({ docs: [] })
     expect(await getDividends('2026-06')).toEqual([])
   })
+
+  it('caches results on second call', async () => {
+    const { appCache } = jest.requireMock('@/lib/cache')
+    appCache.get
+      .mockReturnValueOnce(undefined)
+      .mockReturnValueOnce([{ id: 'd1', ...divData }])
+
+    mockGetDocs.mockResolvedValueOnce({ docs: [{ id: 'd1', data: () => divData }] })
+
+    await getDividends('2026-06')
+    await getDividends('2026-06')
+    expect(mockGetDocs).toHaveBeenCalledTimes(1)
+  })
 })
 
 describe('addDividend', () => {
@@ -56,5 +77,14 @@ describe('addDividend', () => {
     mockAddDoc.mockResolvedValue({ id: 'd2' })
     const result = await addDividend(divData)
     expect(result).toEqual({ id: 'd2', ...divData })
+  })
+})
+
+describe('deleteDividend', () => {
+  it('calls deleteDoc with correct reference', async () => {
+    mockDeleteDoc.mockResolvedValueOnce(undefined)
+    await deleteDividend('d1')
+    expect(mockDeleteDoc).toHaveBeenCalledWith('doc-ref')
+    expect(mockDoc).toHaveBeenCalledWith(expect.anything(), 'dividends', 'd1')
   })
 })

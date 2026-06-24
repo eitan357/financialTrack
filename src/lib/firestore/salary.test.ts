@@ -74,6 +74,18 @@ describe('getSalaryEntries', () => {
     const result = await getSalaryEntries('2026-06')
     expect(result).toEqual([])
   })
+
+  it('uses cache on second call — getDocs called only once', async () => {
+    const { appCache } = jest.requireMock('@/lib/cache')
+    appCache.get.mockReturnValueOnce(undefined) // first call: cache miss
+    appCache.get.mockReturnValueOnce([{ id: 'e1', month: '2026-06', netAmount: 500, employerName: 'X', grossAmount: 700, deductions: { incomeTax: 100, nationalInsurance: 50, healthInsurance: 25, pension: 25, trainingFund: 0 } }]) // second call: cache hit
+
+    mockGetDocs.mockResolvedValueOnce({ docs: [{ id: 'e1', data: () => ({ month: '2026-06', netAmount: 500, employerName: 'X', grossAmount: 700, deductions: { incomeTax: 100, nationalInsurance: 50, healthInsurance: 25, pension: 25, trainingFund: 0 } }) }] })
+
+    await getSalaryEntries('2026-06')
+    await getSalaryEntries('2026-06')
+    expect(mockGetDocs).toHaveBeenCalledTimes(1)
+  })
 })
 
 describe('deleteSalaryEntry', () => {

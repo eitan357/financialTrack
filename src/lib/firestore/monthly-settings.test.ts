@@ -30,6 +30,14 @@ jest.mock('firebase/firestore', () => ({
   writeBatch: (...a: unknown[]) => mockWriteBatch(...a),
 }))
 jest.mock('@/lib/firebase/config', () => ({ app: {} }))
+jest.mock('@/lib/cache', () => ({
+  appCache: {
+    get: jest.fn(() => undefined),
+    set: jest.fn(),
+    del: jest.fn(),
+    delPrefix: jest.fn(),
+  },
+}))
 
 import { getMonthlySettings, upsertMonthlySettings } from './monthly-settings'
 

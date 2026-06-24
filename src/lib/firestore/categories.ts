@@ -1,6 +1,6 @@
 import {
   getFirestore, collection, getDocs, addDoc, doc, deleteDoc,
-  query, limit, where, writeBatch, runTransaction,
+  query, limit, where, writeBatch, runTransaction, updateDoc,
 } from 'firebase/firestore'
 import { app } from '../firebase/config'
 import { appCache } from '../cache'
@@ -30,8 +30,7 @@ export async function addCategory(category: Omit<Category, 'id'>): Promise<Categ
 
 export async function updateCategory(id: string, updates: Partial<Omit<Category, 'id'>>): Promise<void> {
   appCache.del(CACHE_KEY)
-  const { doc: firestoreDoc, updateDoc } = await import('firebase/firestore')
-  await updateDoc(firestoreDoc(getDb(), 'categories', id), updates)
+  await updateDoc(doc(getDb(), 'categories', id), updates)
 }
 
 export async function deleteCategory(id: string): Promise<void> {

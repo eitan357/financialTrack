@@ -29,8 +29,16 @@ jest.mock('firebase/firestore', () => ({
   writeBatch: (...a: unknown[]) => mockWriteBatch(...a),
 }))
 jest.mock('@/lib/firebase/config', () => ({ app: {} }))
+jest.mock('@/lib/cache', () => ({
+  appCache: {
+    get: jest.fn(() => undefined),
+    set: jest.fn(),
+    del: jest.fn(),
+    delPrefix: jest.fn(),
+  },
+}))
 
-import { getInvestmentTypes, addInvestmentType, getInvestmentEntries, addInvestmentEntry } from './investments'
+import { getInvestmentTypes, addInvestmentType, getInvestmentEntries, addInvestmentEntry, deleteInvestmentEntry, deleteInvestmentType } from './investments'
 
 beforeEach(() => jest.clearAllMocks())
 
@@ -41,6 +49,19 @@ describe('getInvestmentTypes', () => {
     })
     const types = await getInvestmentTypes()
     expect(types[0]).toEqual({ id: 't1', name: 'MSTY', currency: 'USD' })
+  })
+
+  it('uses cache on second call', async () => {
+    const { appCache } = jest.requireMock('@/lib/cache')
+    const cached = [{ id: 't1', name: 'MSTY', currency: 'USD' }]
+    appCache.get
+      .mockReturnValueOnce(undefined)
+      .mockReturnValueOnce(cached)
+    mockGetDocs.mockResolvedValueOnce({ docs: [{ id: 't1', data: () => ({ name: 'MSTY', currency: 'USD' }) }] })
+
+    await getInvestmentTypes()
+    await getInvestmentTypes()
+    expect(mockGetDocs).toHaveBeenCalledTimes(1)
   })
 })
 
@@ -60,6 +81,19 @@ describe('getInvestmentEntries', () => {
     expect(entries[0]).toEqual({ id: 'e1', ...entryData })
     expect(mockWhere).toHaveBeenCalledWith('month', '==', '2026-06')
   })
+
+  it('uses cache on second call', async () => {
+    const { appCache } = jest.requireMock('@/lib/cache')
+    const entryData = { date: '2026-06-01', month: '2026-06', investmentTypeId: 't1', amount: 5000, currency: 'ILS' }
+    appCache.get
+      .mockReturnValueOnce(undefined)
+      .mockReturnValueOnce([{ id: 'e1', ...entryData }])
+    mockGetDocs.mockResolvedValueOnce({ docs: [{ id: 'e1', data: () => entryData }] })
+
+    await getInvestmentEntries('2026-06')
+    await getInvestmentEntries('2026-06')
+    expect(mockGetDocs).toHaveBeenCalledTimes(1)
+  })
 })
 
 describe('addInvestmentEntry', () => {
@@ -68,5 +102,23 @@ describe('addInvestmentEntry', () => {
     const entry = { date: '2026-06-10', month: '2026-06', investmentTypeId: 't1', amount: 1000, currency: 'ILS' }
     const result = await addInvestmentEntry(entry)
     expect(result).toEqual({ id: 'e2', ...entry })
+  })
+})
+
+describe('deleteInvestmentEntry', () => {
+  it('calls deleteDoc with correct reference', async () => {
+    mockDeleteDoc.mockResolvedValueOnce(undefined)
+    await deleteInvestmentEntry('e1')
+    expect(mockDeleteDoc).toHaveBeenCalledWith('doc-ref')
+    expect(mockDoc).toHaveBeenCalledWith(expect.anything(), 'investment_entries', 'e1')
+  })
+})
+
+describe('deleteInvestmentType', () => {
+  it('calls deleteDoc with correct reference', async () => {
+    mockDeleteDoc.mockResolvedValueOnce(undefined)
+    await deleteInvestmentType('t1')
+    expect(mockDeleteDoc).toHaveBeenCalledWith('doc-ref')
+    expect(mockDoc).toHaveBeenCalledWith(expect.anything(), 'investment_types', 't1')
   })
 })

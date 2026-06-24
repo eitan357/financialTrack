@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import type { Transaction, Category } from '@/lib/types'
 import { FormField } from '@/components/ui/FormField'
+import { DirectionToggle } from '@/components/ui/DirectionToggle'
 
 interface Props {
   transaction: Transaction
@@ -70,16 +71,7 @@ function EditForm({ transaction, categories, onUpdate, onDelete, onClose }: {
 
   return (
     <div className="py-3 border-b border-slate-800 last:border-0 space-y-3">
-      <div className="flex rounded-lg overflow-hidden border border-slate-700">
-        <button
-          onClick={() => setDirection('expense')}
-          className={`flex-1 py-1.5 text-xs font-medium transition-colors ${direction === 'expense' ? 'bg-red-500/20 text-red-400' : 'text-slate-400'}`}
-        >הוצאה</button>
-        <button
-          onClick={() => setDirection('income')}
-          className={`flex-1 py-1.5 text-xs font-medium transition-colors ${direction === 'income' ? 'bg-green-500/20 text-green-400' : 'text-slate-400'}`}
-        >הכנסה</button>
-      </div>
+      <DirectionToggle value={direction} onChange={setDirection} size="sm" />
       <FormField label="תאריך" error={errors.date}>
         <input
           type="date"

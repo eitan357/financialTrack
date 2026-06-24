@@ -24,10 +24,11 @@ export function computeMonthlyReports(
     .sort((a, b) => b.localeCompare(a))
     .map(month => {
       const monthTxs = transactions.filter(t => t.month === month)
-      const totalExpenses = monthTxs.reduce((s, t) => s + t.amount, 0)
+      const expenseTxs = monthTxs.filter(t => t.direction !== 'income')
+      const totalExpenses = expenseTxs.reduce((s, t) => s + t.amount, 0)
 
       const totals: Record<string, number> = {}
-      for (const tx of monthTxs) {
+      for (const tx of expenseTxs) {
         if (tx.categoryId) {
           totals[tx.categoryId] = (totals[tx.categoryId] ?? 0) + tx.amount
         }

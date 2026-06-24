@@ -247,17 +247,24 @@ function AccountsSection() {
   const [showAddType, setShowAddType] = useState<'bank' | 'credit' | null>(null)
   const [deleteConfirm, setDeleteConfirm] = useState<Account | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   useEffect(() => {
     async function load() {
-      const accs = await getAccounts()
-      if (!accs.some(a => a.type === 'cash')) {
-        const cash = await addAccount({ name: 'מזומן', type: 'cash', color: '#22c55e', isActive: true })
-        setAccounts([...accs, cash])
-      } else {
-        setAccounts(accs)
+      try {
+        const accs = await getAccounts()
+        if (!accs.some(a => a.type === 'cash')) {
+          const cash = await addAccount({ name: 'מזומן', type: 'cash', color: '#22c55e', isActive: true })
+          setAccounts([...accs, cash])
+        } else {
+          setAccounts(accs)
+        }
+      } catch (e) {
+        setLoadError('שגיאה בטעינת חשבונות')
+        console.error(e)
+      } finally {
+        setLoading(false)
       }
-      setLoading(false)
     }
     load()
   }, [])
@@ -337,6 +344,7 @@ function AccountsSection() {
   const inactive = accounts.filter(a => !a.isActive)
 
   if (loading) return <p className="text-slate-400 text-sm text-center py-6">טוען...</p>
+  if (loadError) return <p className="text-red-400 text-sm text-center py-6">{loadError}</p>
 
   function renderRow(acc: Account, idx: number, total: number, showMove: boolean) {
     const isExpanded = expandedId === acc.id
@@ -591,9 +599,12 @@ function CategoriesSection() {
   const [editId, setEditId] = useState<string | null>(null)
   const [showAdd, setShowAdd] = useState(false)
   const [showInactive, setShowInactive] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   useEffect(() => {
-    getCategories().then(cats => { setCategories(cats); setLoading(false) })
+    getCategories()
+      .then(cats => { setCategories(cats); setLoading(false) })
+      .catch(e => { setLoadError('שגיאה בטעינת קטגוריות'); console.error(e); setLoading(false) })
   }, [])
 
   async function handleAdd(data: Omit<Category, 'id'>) {
@@ -628,6 +639,7 @@ function CategoriesSection() {
   }
 
   if (loading) return <p className="text-slate-400 text-sm text-center py-6">טוען...</p>
+  if (loadError) return <p className="text-red-400 text-sm text-center py-6">{loadError}</p>
 
   const active = categories.filter(c => c.isActive)
   const inactive = categories.filter(c => !c.isActive)
@@ -712,15 +724,18 @@ function RulesSection() {
   const [matchType, setMatchType] = useState<MatchType>('contains')
   const [categoryId, setCategoryId] = useState('')
   const [keywordError, setKeywordError] = useState<string | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   useEffect(() => {
-    Promise.all([getRules(), getCategories()]).then(([rls, cats]) => {
-      setRules(rls)
-      const active = cats.filter(c => c.isActive)
-      setCategories(active)
-      if (active.length > 0) setCategoryId(active[0].id)
-      setLoading(false)
-    })
+    Promise.all([getRules(), getCategories()])
+      .then(([rls, cats]) => {
+        setRules(rls)
+        const active = cats.filter(c => c.isActive)
+        setCategories(active)
+        if (active.length > 0) setCategoryId(active[0].id)
+        setLoading(false)
+      })
+      .catch(e => { setLoadError('שגיאה בטעינת חוקים'); console.error(e); setLoading(false) })
   }, [])
 
   async function handleAdd(e: React.FormEvent) {
@@ -745,6 +760,7 @@ function RulesSection() {
   const catMap = Object.fromEntries(categories.map(c => [c.id, c]))
 
   if (loading) return <p className="text-slate-400 text-sm text-center py-6">טוען...</p>
+  if (loadError) return <p className="text-red-400 text-sm text-center py-6">{loadError}</p>
 
   return (
     <div className="space-y-3">

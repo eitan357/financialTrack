@@ -43,4 +43,27 @@ describe('computeMonthlyReports', () => {
     expect(result[0].totalExpenses).toBe(0)
     expect(result[0].byCategory).toHaveLength(0)
   })
+
+  it('excludes income transactions from totalExpenses and byCategory', () => {
+    const txsWithIncome: Transaction[] = [
+      ...txs,
+      {
+        id: 'inc',
+        date: '2026-06-10',
+        merchantName: 'משכורת',
+        amount: 5000,
+        currency: 'ILS',
+        accountId: 'y',
+        source: 'manual' as const,
+        isImmediate: true,
+        month: '2026-06',
+        direction: 'income' as const,
+      },
+    ]
+    const result = computeMonthlyReports(txsWithIncome, ['2026-06'], cats)
+    // income transaction (5000) must NOT be added to expenses (400)
+    expect(result[0].totalExpenses).toBe(400)
+    // byCategory must still be same length as without income
+    expect(result[0].byCategory).toHaveLength(2)
+  })
 })
