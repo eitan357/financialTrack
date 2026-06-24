@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { InvestmentType } from '@/lib/types'
 
 interface Props {
-  onSubmit: (type: Omit<InvestmentType, 'id'>) => void
+  onSubmit: (type: { name: string; currency: string }) => void
   onCancel: () => void
 }
 

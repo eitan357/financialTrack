@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { usePersistedMonth } from '@/hooks/usePersistedMonth'
 import { MonthHeader } from '@/components/layout/MonthHeader'
-import { getInvestmentTypes, addInvestmentType, getInvestmentEntries, addInvestmentEntry, deleteInvestmentEntry, deleteInvestmentType } from '@/lib/firestore/investments'
+import { getInvestmentTypes, addInvestmentType, getInvestmentEntries, addInvestmentEntry, deleteInvestmentEntry, deleteInvestmentType, getInvestmentPortfolios } from '@/lib/firestore/investments'
 import { getDividends, addDividend, deleteDividend } from '@/lib/firestore/dividends'
 import { AddInvestmentEntryForm } from '@/components/investments/AddInvestmentEntryForm'
 import { AddDividendForm } from '@/components/investments/AddDividendForm'
@@ -58,8 +58,11 @@ export default function InvestmentsPage() {
     setShowAddDividend(false)
   }
 
-  async function handleAddType(type: Omit<InvestmentType, 'id'>) {
-    const newType = await addInvestmentType(type)
+  async function handleAddType(type: { name: string; currency: string }) {
+    const portfolios = await getInvestmentPortfolios()
+    if (portfolios.length === 0) { setError('אין תיקי השקעות זמינים'); return }
+    const portfolioAccountId = portfolios[0].id
+    const newType = await addInvestmentType({ ...type, portfolioAccountId })
     setInvestmentTypes(prev => [...prev, newType])
     setShowAddType(false)
   }
