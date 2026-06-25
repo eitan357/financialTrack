@@ -72,7 +72,7 @@ export const CURRENCIES: Currency[] = [
   { code: 'LAK', symbol: '₭', name: 'Lao Kip' },
   { code: 'MNT', symbol: '₮', name: 'Mongolian Tögrög' },
   { code: 'KZT', symbol: '₸', name: 'Kazakhstani Tenge' },
-  { code: 'UZS', symbol: 'лв', name: 'Uzbekistani Sum' },
+  { code: 'UZS', symbol: 'soʼm', name: 'Uzbekistani Sum' },
   { code: 'GEL', symbol: '₾', name: 'Georgian Lari' },
   { code: 'AMD', symbol: '֏', name: 'Armenian Dram' },
   { code: 'AZN', symbol: '₼', name: 'Azerbaijani Manat' },
