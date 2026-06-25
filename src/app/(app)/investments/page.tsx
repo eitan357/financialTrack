@@ -28,9 +28,7 @@ export default function InvestmentsPage() {
   const [conversions, setConversions] = useState<InvestmentConversion[]>([])
   const [portfolioFilter, setPortfolioFilter] = useState<string>('all')
   const [showAddType, setShowAddType] = useState<'deposit' | 'dividend' | 'conversion' | null>(null)
-  const [deletingEntryId, setDeletingEntryId] = useState<string | null>(null)
-  const [deletingDividendId, setDeletingDividendId] = useState<string | null>(null)
-  const [deletingConversionId, setDeletingConversionId] = useState<string | null>(null)
+  const [deletingItem, setDeletingItem] = useState<{ kind: 'deposit'; id: string } | { kind: 'dividend'; id: string } | { kind: 'conversion'; id: string } | null>(null)
 
   useEffect(() => {
     setLoading(true)
@@ -81,19 +79,19 @@ export default function InvestmentsPage() {
   async function handleDeleteEntry(id: string) {
     await deleteInvestmentEntry(id)
     setEntries(prev => prev.filter(e => e.id !== id))
-    setDeletingEntryId(null)
+    setDeletingItem(null)
   }
 
   async function handleDeleteDividend(id: string) {
     await deleteDividend(id)
     setDividends(prev => prev.filter(d => d.id !== id))
-    setDeletingDividendId(null)
+    setDeletingItem(null)
   }
 
   async function handleDeleteConversion(id: string) {
     await deleteInvestmentConversion(id)
     setConversions(prev => prev.filter(c => c.id !== id))
-    setDeletingConversionId(null)
+    setDeletingItem(null)
   }
 
   const typeMap = Object.fromEntries(investmentTypes.map(t => [t.id, t]))
@@ -159,8 +157,8 @@ export default function InvestmentsPage() {
             <button
               key={p.id}
               onClick={() => setPortfolioFilter(p.id)}
-              className={`text-xs px-3 py-1.5 rounded-full flex-shrink-0 transition-colors ${portfolioFilter === p.id ? 'text-white' : 'bg-surface text-slate-400'}`}
-              style={portfolioFilter === p.id ? { backgroundColor: p.color } : undefined}
+              className={`text-xs px-3 py-1.5 rounded-full flex-shrink-0 transition-colors ${portfolioFilter === p.id ? (p.color ? 'text-white' : 'bg-slate-600 text-white') : 'bg-surface text-slate-400'}`}
+              style={portfolioFilter === p.id && p.color ? { backgroundColor: p.color } : undefined}
             >{p.name}</button>
           ))}
         </div>
@@ -238,14 +236,14 @@ export default function InvestmentsPage() {
                   {ilsAmount !== null && (
                     <span className="text-sm tabular-nums text-purple-400 flex-shrink-0" dir="ltr">₪-{ilsAmount.toLocaleString('he-IL')}</span>
                   )}
-                  {deletingEntryId === item.entry.id ? (
+                  {deletingItem?.kind === 'deposit' && deletingItem.id === item.entry.id ? (
                     <span className="flex items-center gap-1 text-xs flex-shrink-0">
                       <button onClick={() => handleDeleteEntry(item.entry.id)} className="text-red-400 hover:text-red-300">מחק</button>
                       <span className="text-slate-600">|</span>
-                      <button onClick={() => setDeletingEntryId(null)} className="text-slate-400">ביטול</button>
+                      <button onClick={() => setDeletingItem(null)} className="text-slate-400">ביטול</button>
                     </span>
                   ) : (
-                    <button onClick={() => setDeletingEntryId(item.entry.id)} className="text-slate-600 hover:text-red-400 text-xs flex-shrink-0">✕</button>
+                    <button onClick={() => setDeletingItem({ kind: 'deposit', id: item.entry.id })} className="text-slate-600 hover:text-red-400 text-xs flex-shrink-0">✕</button>
                   )}
                 </div>
               )
@@ -262,14 +260,14 @@ export default function InvestmentsPage() {
                   {ilsAmount !== null && (
                     <span className="text-sm tabular-nums text-green-400 flex-shrink-0" dir="ltr">₪+{ilsAmount.toLocaleString('he-IL')}</span>
                   )}
-                  {deletingDividendId === item.dividend.id ? (
+                  {deletingItem?.kind === 'dividend' && deletingItem.id === item.dividend.id ? (
                     <span className="flex items-center gap-1 text-xs flex-shrink-0">
                       <button onClick={() => handleDeleteDividend(item.dividend.id)} className="text-red-400 hover:text-red-300">מחק</button>
                       <span className="text-slate-600">|</span>
-                      <button onClick={() => setDeletingDividendId(null)} className="text-slate-400">ביטול</button>
+                      <button onClick={() => setDeletingItem(null)} className="text-slate-400">ביטול</button>
                     </span>
                   ) : (
-                    <button onClick={() => setDeletingDividendId(item.dividend.id)} className="text-slate-600 hover:text-red-400 text-xs flex-shrink-0">✕</button>
+                    <button onClick={() => setDeletingItem({ kind: 'dividend', id: item.dividend.id })} className="text-slate-600 hover:text-red-400 text-xs flex-shrink-0">✕</button>
                   )}
                 </div>
               )
@@ -283,14 +281,14 @@ export default function InvestmentsPage() {
                   <span className="text-sm text-purple-400">מכירה: {item.typeName}</span>
                 </div>
                 <span className="text-sm tabular-nums text-green-400 flex-shrink-0" dir="ltr">₪+{item.conversion.ilsReceived.toLocaleString('he-IL')}</span>
-                {deletingConversionId === item.conversion.id ? (
+                {deletingItem?.kind === 'conversion' && deletingItem.id === item.conversion.id ? (
                   <span className="flex items-center gap-1 text-xs flex-shrink-0">
                     <button onClick={() => handleDeleteConversion(item.conversion.id)} className="text-red-400 hover:text-red-300">מחק</button>
                     <span className="text-slate-600">|</span>
-                    <button onClick={() => setDeletingConversionId(null)} className="text-slate-400">ביטול</button>
+                    <button onClick={() => setDeletingItem(null)} className="text-slate-400">ביטול</button>
                   </span>
                 ) : (
-                  <button onClick={() => setDeletingConversionId(item.conversion.id)} className="text-slate-600 hover:text-red-400 text-xs flex-shrink-0">✕</button>
+                  <button onClick={() => setDeletingItem({ kind: 'conversion', id: item.conversion.id })} className="text-slate-600 hover:text-red-400 text-xs flex-shrink-0">✕</button>
                 )}
               </div>
             )
