@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { InvestmentType, Dividend, Account } from '@/lib/types'
+import { getCurrency } from '@/lib/currencies'
 
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10)
@@ -78,7 +79,14 @@ export function AddDividendForm({ types, bankAccounts = [], onSubmit, onCancel }
 
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label htmlFor="div-amount" className="text-xs text-slate-400 block mb-1">סכום</label>
+          <label htmlFor="div-amount" className="text-xs text-slate-400 flex items-center gap-1 mb-1">
+            סכום
+            {selectedType && (
+              <span className="bg-slate-600 text-slate-200 text-xs px-1.5 py-0.5 rounded font-mono">
+                {getCurrency(selectedType.currency).symbol} {selectedType.currency}
+              </span>
+            )}
+          </label>
           <input
             id="div-amount"
             type="number"
