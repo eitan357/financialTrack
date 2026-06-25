@@ -34,6 +34,7 @@ const PROVIDER_LABELS: Record<AccountProvider, string> = {
   'one-zero': 'One Zero',
   max: 'Max',
   isracard: 'ישראכרט',
+  psagot: 'פסגות',
 }
 
 const BANK_PROVIDERS: { value: AccountProvider; label: string }[] = [
@@ -44,6 +45,11 @@ const BANK_PROVIDERS: { value: AccountProvider; label: string }[] = [
 const CREDIT_PROVIDERS: { value: AccountProvider; label: string }[] = [
   { value: 'max', label: 'Max' },
   { value: 'isracard', label: 'ישראכרט' },
+]
+
+const INVESTMENT_PROVIDERS: { value: AccountProvider; label: string }[] = [
+  { value: 'psagot', label: 'פסגות' },
+  { value: 'one-zero', label: 'One Zero' },
 ]
 
 const PROVIDER_LOGO: Partial<Record<AccountProvider, string>> = {
@@ -922,6 +928,7 @@ function InvestmentsSection() {
   const [addPortfolioName, setAddPortfolioName] = useState('')
   const [addPortfolioColor, setAddPortfolioColor] = useState('#6366f1')
   const [addPortfolioError, setAddPortfolioError] = useState<string | null>(null)
+  const [addPortfolioProvider, setAddPortfolioProvider] = useState<AccountProvider | ''>('')
   const [showAddTypeForPortfolio, setShowAddTypeForPortfolio] = useState<string | null>(null)
   const [deletingTypeId, setDeletingTypeId] = useState<string | null>(null)
 
@@ -950,9 +957,11 @@ function InvestmentsSection() {
       type: 'investment',
       color: addPortfolioColor,
       isActive: true,
+      ...(addPortfolioProvider && { provider: addPortfolioProvider as AccountProvider }),
     })
     setPortfolios(prev => [...prev, acc])
     setAddPortfolioName('')
+    setAddPortfolioProvider('')
     setShowAddPortfolio(false)
   }
 
@@ -980,26 +989,44 @@ function InvestmentsSection() {
       </div>
 
       {showAddPortfolio && (
-        <form onSubmit={handleAddPortfolio} className="bg-slate-800 rounded-xl p-3 flex items-end gap-2">
-          <div className="flex-1">
-            <label className="text-xs text-slate-400 block mb-1">שם תיק</label>
-            <input
-              value={addPortfolioName}
-              onChange={e => { setAddPortfolioName(e.target.value); if (addPortfolioError && e.target.value.trim()) setAddPortfolioError(null) }}
-              autoFocus
-              className={`w-full bg-background rounded-lg px-3 py-2 text-sm outline-none ${addPortfolioError ? 'ring-1 ring-red-500' : 'focus:ring-1 ring-accent'}`}
-            />
-            {addPortfolioError && <p className="text-xs text-red-400 mt-1">{addPortfolioError}</p>}
-          </div>
+        <form onSubmit={handleAddPortfolio} className="bg-slate-800 rounded-xl p-3 space-y-3">
           <div>
-            <label className="text-xs text-slate-400 block mb-1">צבע</label>
-            <input type="color" value={addPortfolioColor} onChange={e => setAddPortfolioColor(e.target.value)}
-              className="h-9 w-12 rounded cursor-pointer border border-slate-700" />
+            <label className="text-xs text-slate-400 block mb-2">חברת השקעות (אופציונלי)</label>
+            <div className="flex gap-2">
+              {INVESTMENT_PROVIDERS.map(p => (
+                <button key={p.value} type="button"
+                  onClick={() => setAddPortfolioProvider(prev => prev === p.value ? '' : p.value)}
+                  className={`px-3 py-2 rounded-xl border text-sm transition-colors ${
+                    addPortfolioProvider === p.value
+                      ? 'border-accent text-accent bg-accent/10'
+                      : 'border-slate-700 text-slate-300 hover:border-slate-500'
+                  }`}>
+                  {p.label}
+                </button>
+              ))}
+            </div>
           </div>
-          <button type="button" onClick={() => setShowAddPortfolio(false)}
-            className="py-2 px-3 border border-slate-600 rounded-lg text-sm h-9 flex items-center">ביטול</button>
-          <button type="submit"
-            className="py-2 px-3 bg-accent rounded-lg text-sm font-semibold h-9 flex items-center">הוסף</button>
+          <div className="flex items-end gap-2">
+            <div className="flex-1">
+              <label className="text-xs text-slate-400 block mb-1">שם תיק</label>
+              <input
+                value={addPortfolioName}
+                onChange={e => { setAddPortfolioName(e.target.value); if (addPortfolioError && e.target.value.trim()) setAddPortfolioError(null) }}
+                autoFocus
+                className={`w-full bg-background rounded-lg px-3 py-2 text-sm outline-none ${addPortfolioError ? 'ring-1 ring-red-500' : 'focus:ring-1 ring-accent'}`}
+              />
+              {addPortfolioError && <p className="text-xs text-red-400 mt-1">{addPortfolioError}</p>}
+            </div>
+            <div>
+              <label className="text-xs text-slate-400 block mb-1">צבע</label>
+              <input type="color" value={addPortfolioColor} onChange={e => setAddPortfolioColor(e.target.value)}
+                className="h-9 w-12 rounded cursor-pointer border border-slate-700" />
+            </div>
+            <button type="button" onClick={() => { setShowAddPortfolio(false); setAddPortfolioProvider('') }}
+              className="py-2 px-3 border border-slate-600 rounded-lg text-sm h-9 flex items-center">ביטול</button>
+            <button type="submit"
+              className="py-2 px-3 bg-accent rounded-lg text-sm font-semibold h-9 flex items-center">הוסף</button>
+          </div>
         </form>
       )}
 
@@ -1015,7 +1042,12 @@ function InvestmentsSection() {
           <div key={portfolio.id} className="bg-surface rounded-2xl overflow-hidden">
             <div className="flex items-center px-4 py-3 gap-3">
               <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: portfolio.color }} />
-              <span className="flex-1 text-sm font-medium">{portfolio.name}</span>
+              <div className="flex-1 min-w-0">
+                <span className="text-sm font-medium">{portfolio.name}</span>
+                {portfolio.provider && (
+                  <span className="text-xs text-slate-500 mr-2">{PROVIDER_LABELS[portfolio.provider]}</span>
+                )}
+              </div>
               <button
                 onClick={() => setShowAddTypeForPortfolio(v => v === portfolio.id ? null : portfolio.id)}
                 className="text-xs text-accent"
