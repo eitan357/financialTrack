@@ -611,6 +611,7 @@ function CategoriesSection() {
   const [showAdd, setShowAdd] = useState(false)
   const [showInactive, setShowInactive] = useState(false)
   const [showRules, setShowRules] = useState(false)
+  const [showCategories, setShowCategories] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -659,44 +660,52 @@ function CategoriesSection() {
   return (
     <div className="space-y-3">
       <div className="flex justify-between items-center">
-        <p className="text-xs text-slate-500">{active.length} קטגוריות פעילות</p>
+        <button
+          onClick={() => setShowCategories(v => !v)}
+          className="text-xs text-slate-500 flex items-center gap-1"
+        >
+          <span>{showCategories ? '▲' : '▼'}</span>
+          <span>{active.length} קטגוריות פעילות</span>
+        </button>
         <button onClick={() => { setShowAdd(v => !v); setEditId(null) }}
           className="text-xs text-accent">{showAdd ? 'ביטול' : '+ הוסף קטגוריה'}</button>
       </div>
 
       {showAdd && <CategoryForm onSubmit={handleAdd} onCancel={() => setShowAdd(false)} />}
 
-      <div className="bg-surface rounded-2xl divide-y divide-slate-800">
-        {active.map((cat, idx) => (
-          editId === cat.id ? (
-            <div key={cat.id} className="p-2">
-              <CategoryForm initial={cat}
-                onSubmit={data => handleUpdate(cat.id, data)}
-                onCancel={() => setEditId(null)} />
-            </div>
-          ) : (
-            <div key={cat.id} className="flex items-center px-4 py-3 gap-3">
-              <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: cat.color }} />
-              <span className="flex-1 text-sm">{cat.name}</span>
-              <div className="flex items-center gap-2">
-                <div className="flex flex-col gap-0" dir="ltr">
-                  <button onClick={() => moveCategory(cat.id, -1)} disabled={idx === 0}
-                    className="text-slate-500 hover:text-foreground disabled:opacity-20 text-xs leading-tight">▲</button>
-                  <button onClick={() => moveCategory(cat.id, 1)} disabled={idx === active.length - 1}
-                    className="text-slate-500 hover:text-foreground disabled:opacity-20 text-xs leading-tight">▼</button>
-                </div>
-                <button onClick={() => { setEditId(cat.id); setShowAdd(false) }}
-                  className="text-xs text-slate-400 hover:text-accent">ערוך</button>
-                <button onClick={() => handleToggle(cat)}
-                  className="text-xs text-slate-400 hover:text-amber-400">הסתר</button>
+      {showCategories && (
+        <div className="bg-surface rounded-2xl divide-y divide-slate-800">
+          {active.map((cat, idx) => (
+            editId === cat.id ? (
+              <div key={cat.id} className="p-2">
+                <CategoryForm initial={cat}
+                  onSubmit={data => handleUpdate(cat.id, data)}
+                  onCancel={() => setEditId(null)} />
               </div>
-            </div>
-          )
-        ))}
-        {active.length === 0 && (
-          <p className="text-slate-500 text-sm text-center py-6">אין קטגוריות פעילות</p>
-        )}
-      </div>
+            ) : (
+              <div key={cat.id} className="flex items-center px-4 py-3 gap-3">
+                <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: cat.color }} />
+                <span className="flex-1 text-sm">{cat.name}</span>
+                <div className="flex items-center gap-2">
+                  <div className="flex flex-col gap-0" dir="ltr">
+                    <button onClick={() => moveCategory(cat.id, -1)} disabled={idx === 0}
+                      className="text-slate-500 hover:text-foreground disabled:opacity-20 text-xs leading-tight">▲</button>
+                    <button onClick={() => moveCategory(cat.id, 1)} disabled={idx === active.length - 1}
+                      className="text-slate-500 hover:text-foreground disabled:opacity-20 text-xs leading-tight">▼</button>
+                  </div>
+                  <button onClick={() => { setEditId(cat.id); setShowAdd(false) }}
+                    className="text-xs text-slate-400 hover:text-accent">ערוך</button>
+                  <button onClick={() => handleToggle(cat)}
+                    className="text-xs text-slate-400 hover:text-amber-400">הסתר</button>
+                </div>
+              </div>
+            )
+          ))}
+          {active.length === 0 && (
+            <p className="text-slate-500 text-sm text-center py-6">אין קטגוריות פעילות</p>
+          )}
+        </div>
+      )}
 
       {inactive.length > 0 && (
         <div>
