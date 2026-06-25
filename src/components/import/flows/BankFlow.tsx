@@ -12,6 +12,8 @@ import { addTransactions } from '@/lib/firestore/transactions'
 import { ImportError } from '@/lib/parsers/import-errors'
 import type { Account, Category, CategorizationRule, ImportedTransaction, RawTransaction, SalaryEntry, Transaction, TransactionSource, InvestmentEntry, Dividend, InvestmentConversion } from '@/lib/types'
 
+const COMMON_CURRENCIES = ['ILS', 'USD', 'EUR', 'GBP', 'JPY', 'CHF', 'AUD', 'CAD', 'CNY', 'SGD']
+
 export type BankType = 'one-zero' | 'leumi' | 'generic'
 
 interface BankImportRow extends ImportedTransaction {
@@ -250,6 +252,9 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
       {duplicateCount > 0 && (
         <p className="text-amber-400 text-xs mb-2">⚠️ {duplicateCount} עסקאות מסומנות כבר קיימות בחשבון — בדוק השורות המסומנות</p>
       )}
+      {activeRows.some(r => r.currency !== 'ILS') && (
+        <p className="text-amber-400 text-xs mb-2">⚠️ זוהו עסקאות במטבע זר — ניתן לשנות את המטבע בעמודת הסכום</p>
+      )}
 
       {rows.length > 0 && (
         <>
@@ -311,7 +316,25 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
                         aria-label={`הערה עבור ${row.merchantName}`}
                       />
                     </td>
-                    <td className="py-1.5 px-2 text-left tabular-nums text-xs">{row.amount.toFixed(2)} {row.currency}</td>
+                    <td className="py-1.5 px-2 text-left tabular-nums text-xs">
+                      <div className="flex items-center gap-1">
+                        <span>{row.amount.toFixed(2)}</span>
+                        <select
+                          value={row.currency}
+                          onChange={e => updateRow(i, { currency: e.target.value })}
+                          disabled={row.skip}
+                          className="bg-background text-xs rounded px-1 py-0.5 disabled:opacity-40 max-w-16"
+                          aria-label={`מטבע עבור ${row.merchantName}`}
+                        >
+                          {COMMON_CURRENCIES.map(c => (
+                            <option key={c} value={c}>{c}</option>
+                          ))}
+                          {!COMMON_CURRENCIES.includes(row.currency) && (
+                            <option value={row.currency}>{row.currency}</option>
+                          )}
+                        </select>
+                      </div>
+                    </td>
                     <td className="py-1.5 px-2">
                       <select
                         value={row.direction}
