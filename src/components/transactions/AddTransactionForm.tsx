@@ -4,6 +4,7 @@ import { addTransactions } from '@/lib/firestore/transactions'
 import type { Account, Category } from '@/lib/types'
 import { FormField } from '@/components/ui/FormField'
 import { DirectionToggle } from '@/components/ui/DirectionToggle'
+import { CurrencyPicker } from '@/components/ui/CurrencyPicker'
 
 interface Props {
   month: string
@@ -19,6 +20,7 @@ export function AddTransactionForm({ month, accounts, categories, defaultAccount
   const [date, setDate] = useState(today)
   const [name, setName] = useState('')
   const [amount, setAmount] = useState('')
+  const [currency, setCurrency] = useState('ILS')
   const [direction, setDirection] = useState<'expense' | 'income'>('expense')
   const [accountId, setAccountId] = useState(defaultAccountId ?? accounts.find(a => a.isActive)?.id ?? '')
   const [categoryId, setCategoryId] = useState('')
@@ -39,7 +41,7 @@ export function AddTransactionForm({ month, accounts, categories, defaultAccount
         date,
         merchantName: name.trim(),
         amount: parseFloat(amount) || 0,
-        currency: 'ILS',
+        currency,
         accountId,
         source: 'manual',
         isImmediate: true,
@@ -74,11 +76,14 @@ export function AddTransactionForm({ month, accounts, categories, defaultAccount
           className={`w-full bg-background rounded-lg px-3 py-2 text-sm outline-none ${errors.name ? 'ring-1 ring-red-500' : 'focus:ring-1 ring-accent'}`} />
       </FormField>
 
-      <FormField label="סכום (₪)" error={errors.amount}>
-        <input type="number" value={amount}
-          onChange={e => { setAmount(e.target.value); if (errors.amount && parseFloat(e.target.value) > 0) setErrors(p => ({ ...p, amount: undefined })) }}
-          step="0.01" min="0"
-          className={`w-full bg-background rounded-lg px-3 py-2 text-sm outline-none tabular-nums ${errors.amount ? 'ring-1 ring-red-500' : 'focus:ring-1 ring-accent'}`} />
+      <FormField label="סכום" error={errors.amount}>
+        <div className="flex gap-2">
+          <CurrencyPicker value={currency} onChange={setCurrency} />
+          <input type="number" value={amount}
+            onChange={e => { setAmount(e.target.value); if (errors.amount && parseFloat(e.target.value) > 0) setErrors(p => ({ ...p, amount: undefined })) }}
+            step="0.01" min="0"
+            className={`flex-1 bg-background rounded-lg px-3 py-2 text-sm outline-none tabular-nums ${errors.amount ? 'ring-1 ring-red-500' : 'focus:ring-1 ring-accent'}`} />
+        </div>
       </FormField>
 
       <FormField label="חשבון">
