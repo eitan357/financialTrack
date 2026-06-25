@@ -1,6 +1,6 @@
 export type AccountType = 'credit' | 'bank' | 'cash' | 'investment'
 
-export type AccountProvider = 'leumi' | 'one-zero' | 'max' | 'isracard'
+export type AccountProvider = 'leumi' | 'one-zero' | 'max' | 'isracard' | 'psagot'
 
 // One entry per "era" of credit card → bank linkage.
 // fromMonth is inclusive; the latest entry with fromMonth <= currentMonth wins.
