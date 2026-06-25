@@ -3,6 +3,8 @@ import { useState } from 'react'
 import type { Transaction, Category } from '@/lib/types'
 import { FormField } from '@/components/ui/FormField'
 import { DirectionToggle } from '@/components/ui/DirectionToggle'
+import { CurrencyPicker } from '@/components/ui/CurrencyPicker'
+import { getCurrency } from '@/lib/currencies'
 
 interface Props {
   transaction: Transaction
@@ -15,13 +17,14 @@ interface Props {
   accountLabel?: string
 }
 
-function amountDisplay(amount: number, direction: Transaction['direction']): { text: string; colorClass: string } {
+function amountDisplay(amount: number, direction: Transaction['direction'], currency = 'ILS'): { text: string; colorClass: string } {
   const fmt = (n: number) => n.toLocaleString('he-IL')
+  const sym = getCurrency(currency).symbol
   if (direction === 'income')
-    return { text: `₪${fmt(amount)}`, colorClass: 'text-green-400' }
+    return { text: `${sym}${fmt(amount)}`, colorClass: 'text-green-400' }
   if (amount < 0)
-    return { text: `₪${fmt(Math.abs(amount))}`, colorClass: 'text-green-400' }
-  return { text: `₪-${fmt(amount)}`, colorClass: 'text-red-400' }
+    return { text: `${sym}${fmt(Math.abs(amount))}`, colorClass: 'text-green-400' }
+  return { text: `${sym}-${fmt(amount)}`, colorClass: 'text-red-400' }
 }
 
 function EditForm({ transaction, categories, onUpdate, onDelete, onClose }: {
@@ -39,6 +42,7 @@ function EditForm({ transaction, categories, onUpdate, onDelete, onClose }: {
   const [categoryId, setCategoryId] = useState(transaction.categoryId ?? '')
   const [saving, setSaving] = useState(false)
   const [isImmediate, setIsImmediate] = useState(transaction.isImmediate)
+  const [currency, setCurrency] = useState(transaction.currency ?? 'ILS')
   const [errors, setErrors] = useState<{ date?: string; name?: string; amount?: string }>({})
 
   async function save() {
@@ -57,6 +61,7 @@ function EditForm({ transaction, categories, onUpdate, onDelete, onClose }: {
         merchantName: name.trim(),
         amount: finalAmount,
         direction,
+        currency,
       }
       if (description.trim()) updates.description = description.trim()
       if (direction === 'expense' && categoryId) updates.categoryId = categoryId
@@ -96,15 +101,18 @@ function EditForm({ transaction, categories, onUpdate, onDelete, onClose }: {
           className="w-full bg-background rounded-lg px-3 py-2 text-sm outline-none focus:ring-1 ring-accent"
         />
       </FormField>
-      <FormField label="סכום (₪)" error={errors.amount}>
-        <input
-          type="number"
-          value={amount}
-          onChange={e => { setAmount(e.target.value); if (errors.amount && parseFloat(e.target.value) > 0) setErrors(p => ({ ...p, amount: undefined })) }}
-          step="0.01"
-          min="0"
-          className={`w-full bg-background rounded-lg px-3 py-2 text-sm outline-none tabular-nums ${errors.amount ? 'ring-1 ring-red-500' : 'focus:ring-1 ring-accent'}`}
-        />
+      <FormField label="סכום" error={errors.amount}>
+        <div className="flex gap-2">
+          <CurrencyPicker value={currency} onChange={setCurrency} />
+          <input
+            type="number"
+            value={amount}
+            onChange={e => { setAmount(e.target.value); if (errors.amount && parseFloat(e.target.value) > 0) setErrors(p => ({ ...p, amount: undefined })) }}
+            step="0.01"
+            min="0"
+            className={`flex-1 bg-background rounded-lg px-3 py-2 text-sm outline-none tabular-nums ${errors.amount ? 'ring-1 ring-red-500' : 'focus:ring-1 ring-accent'}`}
+          />
+        </div>
       </FormField>
       {direction === 'expense' && (
         <FormField label="קטגוריה">
@@ -162,7 +170,7 @@ function DetailView({ transaction, categories, onEdit, onClose, onEditSalary, di
 }) {
   const [yyyy, mm, dd] = transaction.date.split('-')
   const categoryName = categories.find(c => c.id === transaction.categoryId)?.name
-  const { text, colorClass } = amountDisplay(displayAmount ?? transaction.amount, transaction.direction)
+  const { text, colorClass } = amountDisplay(displayAmount ?? transaction.amount, transaction.direction, transaction.currency)
   const isIncome = transaction.direction === 'income'
   const isRefund = !isIncome && transaction.amount < 0
 
@@ -237,7 +245,7 @@ export function TransactionRow({ transaction, categories, onCategoryChange: _onC
   const [, mm, dd] = transaction.date.split('-')
   const hasCategory = !!transaction.categoryId
   const isIncome = transaction.direction === 'income'
-  const { text, colorClass } = amountDisplay(displayAmount ?? transaction.amount, transaction.direction)
+  const { text, colorClass } = amountDisplay(displayAmount ?? transaction.amount, transaction.direction, transaction.currency)
 
   if (mode === 'edit') {
     return (
