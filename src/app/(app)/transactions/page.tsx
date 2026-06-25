@@ -13,6 +13,8 @@ import { getInvestmentEntries, getInvestmentTypes } from '@/lib/firestore/invest
 import { getDividends } from '@/lib/firestore/dividends'
 import { getInvestmentConversions } from '@/lib/firestore/conversions'
 import { InvestmentDepositRow, DividendPayoutRow, ConversionRow } from '@/components/transactions/InvestmentTransferRow'
+import { getExchangeRates, ilsValue } from '@/lib/exchange-rates'
+import { getCurrency } from '@/lib/currencies'
 import type { Transaction, Category, Account } from '@/lib/types'
 import type { CreditPaymentInfo } from '@/lib/creditPayment'
 import type { InvestmentEntry, Dividend, InvestmentType, InvestmentConversion } from '@/lib/types'
@@ -58,6 +60,11 @@ export default function TransactionsPage() {
   const [dividends, setDividends] = useState<Dividend[]>([])
   const [investmentTypes, setInvestmentTypes] = useState<InvestmentType[]>([])
   const [conversions, setConversions] = useState<InvestmentConversion[]>([])
+  const [rates, setRates] = useState<Record<string, number>>({})
+
+  useEffect(() => {
+    getExchangeRates().then(setRates).catch(() => {})
+  }, [])
 
   useEffect(() => {
     setLoading(true)
@@ -201,14 +208,25 @@ export default function TransactionsPage() {
 
   const uncategorizedCount = baseTransactions.filter(t => !t.categoryId && t.direction !== 'income' && t.amount > 0).length
 
-  const incomeTotal = filteredTx.filter(t => t.direction === 'income').reduce((s, t) => {
-    if (accountFilter === 'all' && t.salaryDetails) return s + t.salaryDetails.netAmount
-    return s + t.amount
-  }, 0)
-  const expenseTotal = filteredTx.filter(t => t.direction !== 'income').reduce((s, t) => s + t.amount, 0)
-    + visibleCreditPayments.reduce((s, cp) => s + cp.amount, 0)
-  const net = incomeTotal - expenseTotal
-  const hasIncome = incomeTotal > 0
+  // Per-currency totals
+  const currencyTotals = new Map<string, { income: number; expense: number }>()
+  for (const t of filteredTx) {
+    const cur = t.currency ?? 'ILS'
+    if (!currencyTotals.has(cur)) currencyTotals.set(cur, { income: 0, expense: 0 })
+    const entry = currencyTotals.get(cur)!
+    if (t.direction === 'income') {
+      entry.income += (accountFilter === 'all' && t.salaryDetails) ? t.salaryDetails.netAmount : t.amount
+    } else {
+      entry.expense += t.amount
+    }
+  }
+  // Add credit payments to ILS expenses
+  const ilsEntry = currencyTotals.get('ILS') ?? { income: 0, expense: 0 }
+  ilsEntry.expense += visibleCreditPayments.reduce((s, cp) => s + cp.amount, 0)
+  if (!currencyTotals.has('ILS') && ilsEntry.expense > 0) currencyTotals.set('ILS', ilsEntry)
+  else if (currencyTotals.has('ILS')) currencyTotals.set('ILS', ilsEntry)
+
+  const currencyEntries = [...currencyTotals.entries()]
 
   return (
     <main className="p-4 max-w-lg mx-auto pb-24">
@@ -306,27 +324,62 @@ export default function TransactionsPage() {
               <DividendPayoutRow key={`div-${item.dividend.id}`} dividend={item.dividend} typeName={item.typeName} />
             )
           )}
-          <div className="py-3 border-t border-slate-700 space-y-1.5">
-            {hasIncome && (
-              <>
-                <div className="flex justify-between text-xs text-slate-400">
-                  <span>הכנסות</span>
-                  <span className="tabular-nums text-green-400" dir="ltr">₪{incomeTotal.toLocaleString('he-IL')}</span>
+          <div className="py-3 border-t border-slate-700 space-y-2">
+            {currencyEntries.map(([cur, { income, expense }]) => {
+              const sym = getCurrency(cur).symbol
+              const net = income - expense
+              const hasInc = income > 0
+              const fmt = (n: number) => n.toLocaleString('he-IL')
+              const ilsHint = (n: number, c: string) => {
+                if (c === 'ILS') return null
+                const v = ilsValue(n, c, rates)
+                return v != null ? `≈ ₪${Math.round(v).toLocaleString('he-IL')}` : null
+              }
+              return (
+                <div key={cur} className={currencyEntries.length > 1 ? 'pb-2 border-b border-slate-800 last:border-0 last:pb-0' : ''}>
+                  {currencyEntries.length > 1 && (
+                    <div className="text-xs text-slate-500 mb-1">{cur}</div>
+                  )}
+                  {hasInc && (
+                    <>
+                      <div className="flex justify-between text-xs text-slate-400">
+                        <span>הכנסות</span>
+                        <div className="text-right">
+                          <span className="tabular-nums text-green-400" dir="ltr">{sym}{fmt(income)}</span>
+                          {ilsHint(income, cur) && <span className="text-slate-500 text-xs mr-1">{ilsHint(income, cur)}</span>}
+                        </div>
+                      </div>
+                      <div className="flex justify-between text-xs text-slate-400">
+                        <span>הוצאות</span>
+                        <div className="text-right">
+                          <span className="tabular-nums text-red-400" dir="ltr">{sym}-{fmt(expense)}</span>
+                          {ilsHint(expense, cur) && <span className="text-slate-500 text-xs mr-1">{ilsHint(expense, cur)}</span>}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                  <div className="flex justify-between text-sm font-semibold">
+                    <span>{hasInc ? 'נטו' : 'סה"כ'}</span>
+                    <div className="text-right">
+                      <span className={`tabular-nums ${hasInc ? (net >= 0 ? 'text-green-400' : 'text-red-400') : ''}`} dir="ltr">
+                        {hasInc
+                          ? (net >= 0 ? sym : `${sym}-`) + fmt(Math.abs(net))
+                          : `${sym}${fmt(expense)}`}
+                      </span>
+                      {ilsHint(hasInc ? Math.abs(net) : expense, cur) && (
+                        <span className="text-slate-500 text-xs mr-1">{ilsHint(hasInc ? Math.abs(net) : expense, cur)}</span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <div className="flex justify-between text-xs text-slate-400">
-                  <span>הוצאות</span>
-                  <span className="tabular-nums text-red-400" dir="ltr">₪-{expenseTotal.toLocaleString('he-IL')}</span>
-                </div>
-              </>
+              )
+            })}
+            {currencyEntries.length === 0 && (
+              <div className="flex justify-between text-sm font-semibold">
+                <span>סה"כ</span>
+                <span dir="ltr">₪0</span>
+              </div>
             )}
-            <div className="flex justify-between text-sm font-semibold">
-              <span>{hasIncome ? 'נטו' : 'סה"כ'}</span>
-              <span className={`tabular-nums ${hasIncome ? (net >= 0 ? 'text-green-400' : 'text-red-400') : ''}`} dir="ltr">
-                {hasIncome
-                  ? (net >= 0 ? '₪' : '₪-') + Math.abs(net).toLocaleString('he-IL')
-                  : '₪' + expenseTotal.toLocaleString('he-IL')}
-              </span>
-            </div>
           </div>
         </div>
       )}
