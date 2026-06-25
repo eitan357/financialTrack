@@ -170,7 +170,7 @@ function DetailView({ transaction, categories, onEdit, onClose, onEditSalary, di
 }) {
   const [yyyy, mm, dd] = transaction.date.split('-')
   const categoryName = categories.find(c => c.id === transaction.categoryId)?.name
-  const { text, colorClass } = amountDisplay(displayAmount ?? transaction.amount, transaction.direction, transaction.currency)
+  const { text, colorClass } = amountDisplay(displayAmount ?? transaction.amount, transaction.direction, transaction.currency ?? 'ILS')
   const isIncome = transaction.direction === 'income'
   const isRefund = !isIncome && transaction.amount < 0
 
@@ -245,7 +245,7 @@ export function TransactionRow({ transaction, categories, onCategoryChange: _onC
   const [, mm, dd] = transaction.date.split('-')
   const hasCategory = !!transaction.categoryId
   const isIncome = transaction.direction === 'income'
-  const { text, colorClass } = amountDisplay(displayAmount ?? transaction.amount, transaction.direction, transaction.currency)
+  const { text, colorClass } = amountDisplay(displayAmount ?? transaction.amount, transaction.direction, transaction.currency ?? 'ILS')
 
   if (mode === 'edit') {
     return (
