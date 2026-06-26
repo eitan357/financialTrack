@@ -113,7 +113,7 @@ export default function TransactionsPage() {
     setTransactions(prev => prev.filter(t => t.id !== transactionId))
   }
 
-  const activeAccounts = accounts.filter(a => a.isActive)
+  const activeAccounts = accounts.filter(a => a.isActive && a.type !== 'investment')
   const activeCategories = categories.filter(c => c.isActive)
 
   // Build a fast lookup for account type

@@ -22,7 +22,7 @@ export function AddTransactionForm({ month, accounts, categories, defaultAccount
   const [amount, setAmount] = useState('')
   const [currency, setCurrency] = useState('ILS')
   const [direction, setDirection] = useState<'expense' | 'income'>('expense')
-  const [accountId, setAccountId] = useState(defaultAccountId ?? accounts.find(a => a.isActive)?.id ?? '')
+  const [accountId, setAccountId] = useState(defaultAccountId ?? accounts.find(a => a.isActive && a.type !== 'investment')?.id ?? '')
   const [categoryId, setCategoryId] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -89,7 +89,7 @@ export function AddTransactionForm({ month, accounts, categories, defaultAccount
       <FormField label="חשבון">
         <select value={accountId} onChange={e => setAccountId(e.target.value)}
           className="w-full bg-background text-foreground text-sm rounded-lg px-3 py-2 outline-none focus:ring-1 ring-accent">
-          {accounts.filter(a => a.isActive).map(a => (
+          {accounts.filter(a => a.isActive && a.type !== 'investment').map(a => (
             <option key={a.id} value={a.id}>{a.name}</option>
           ))}
         </select>
