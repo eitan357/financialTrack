@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { render, screen, fireEvent } from '@testing-library/react'
 import { CurrencyPicker } from './CurrencyPicker'
 
@@ -22,7 +23,7 @@ describe('CurrencyPicker', () => {
   })
 
   it('calls onChange when a currency is selected', () => {
-    const onChange = jest.fn()
+    const onChange = vi.fn()
     render(<CurrencyPicker value="ILS" onChange={onChange} />)
     fireEvent.click(screen.getByRole('button'))
     fireEvent.change(screen.getByPlaceholderText('חפש מטבע...'), { target: { value: 'EUR' } })
