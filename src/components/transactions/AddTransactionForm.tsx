@@ -78,11 +78,11 @@ export function AddTransactionForm({ month, accounts, categories, defaultAccount
 
       <FormField label="סכום" error={errors.amount}>
         <div className="flex gap-2">
-          <CurrencyPicker value={currency} onChange={setCurrency} />
           <input type="number" value={amount}
             onChange={e => { setAmount(e.target.value); if (errors.amount && parseFloat(e.target.value) > 0) setErrors(p => ({ ...p, amount: undefined })) }}
             step="0.01" min="0"
             className={`flex-1 bg-background rounded-lg px-3 py-2 text-sm outline-none tabular-nums ${errors.amount ? 'ring-1 ring-red-500' : 'focus:ring-1 ring-accent'}`} />
+          <CurrencyPicker value={currency} onChange={setCurrency} />
         </div>
       </FormField>
 

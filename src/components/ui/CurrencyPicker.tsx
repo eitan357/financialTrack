@@ -52,7 +52,7 @@ export function CurrencyPicker({ value, onChange, className = '' }: Props) {
       </button>
 
       {open && (
-        <div className="absolute z-50 top-full mt-1 left-0 bg-slate-800 border border-slate-700 rounded-xl shadow-xl w-64">
+        <div dir="ltr" className="absolute z-50 top-full mt-1 right-0 bg-slate-800 border border-slate-700 rounded-xl shadow-xl w-64">
           <div className="p-2 border-b border-slate-700">
             <input
               ref={inputRef}
