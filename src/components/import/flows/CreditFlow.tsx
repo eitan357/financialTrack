@@ -2,6 +2,7 @@
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Upload, CheckCircle, Tag, ChevronRight } from 'lucide-react'
+import { SelectField } from '@/components/ui/SelectField'
 import { parseCSV } from '@/lib/parsers/csv-parser'
 import { getSheetNames, parseSheet } from '@/lib/parsers/xlsx-parser'
 import { mapRows } from '@/lib/parsers/transaction-mapper'
@@ -309,15 +310,16 @@ export function CreditFlow({ month, accountId, accountName, provider, categories
                       {tx.skip ? (
                         <span className="text-xs text-slate-600">מסונן</span>
                       ) : tx.direction === 'expense' ? (
-                        <select
+                        <SelectField
                           value={tx.categoryId ?? ''}
-                          onChange={e => updateRow(i, { categoryId: e.target.value || null, categorizationSource: 'manual' })}
-                          className="bg-background text-foreground text-xs rounded px-1 py-0.5 w-full"
-                          aria-label={`קטגוריה עבור ${tx.merchantName}`}
-                        >
-                          <option value="">— ללא —</option>
-                          {categories.filter(c => c.isActive).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                        </select>
+                          onChange={v => updateRow(i, { categoryId: v || null, categorizationSource: 'manual' })}
+                          options={categories.filter(c => c.isActive).map(c => ({ value: c.id, label: c.name, color: c.color }))}
+                          nullable
+                          nullLabel="— ללא —"
+                          placeholder="— ללא —"
+                          size="sm"
+                          disabled={tx.skip}
+                        />
                       ) : (
                         <span className="text-xs text-green-400">הכנסה</span>
                       )}
