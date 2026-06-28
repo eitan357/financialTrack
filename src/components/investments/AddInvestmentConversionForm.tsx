@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { InvestmentType, InvestmentConversion, Account } from '@/lib/types'
+import { SelectField } from '@/components/ui/SelectField'
 
 function todayISO(): string {
   return new Date().toISOString().slice(0, 10)
@@ -45,15 +46,13 @@ export function AddInvestmentConversionForm({ types, bankAccounts = [], onSubmit
     <form onSubmit={handleSubmit} className="bg-slate-800 rounded-2xl p-4 space-y-3">
       <div>
         <label htmlFor="conv-type" className="text-xs text-slate-400 block mb-1">סוג השקעה</label>
-        <select
-          id="conv-type"
+        <SelectField
           value={typeId}
-          onChange={e => { setTypeId(e.target.value); if (errors.typeId && e.target.value) setErrors(p => ({ ...p, typeId: undefined })) }}
-          className={`w-full bg-slate-700 border rounded-lg px-3 py-2 text-sm text-foreground ${errors.typeId ? 'border-red-500 ring-1 ring-red-500' : 'border-slate-600'}`}
-        >
-          <option value="">בחר סוג...</option>
-          {types.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-        </select>
+          onChange={v => { setTypeId(v); if (errors.typeId && v) setErrors(p => ({ ...p, typeId: undefined })) }}
+          options={types.map(t => ({ value: t.id, label: t.name }))}
+          placeholder="בחר סוג..."
+          error={!!errors.typeId}
+        />
         {errors.typeId && <p className="text-xs text-red-400 mt-1">{errors.typeId}</p>}
       </div>
 
