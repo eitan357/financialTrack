@@ -24,6 +24,7 @@
 
 import { updateAccount, appendLinkedBankSnapshot } from './firestore/accounts'
 import { updateCategory } from './firestore/categories'
+import { updateInvestmentType } from './firestore/investments'
 import type { LinkedBankSnapshot, AccountProvider } from './types'
 
 function currentMonth(): string {
@@ -106,4 +107,29 @@ export async function setCategoryActive(id: string, isActive: boolean): Promise<
 /** Display order only — no impact on data. */
 export async function reorderCategories(updates: Array<{ id: string; sortOrder: number }>): Promise<void> {
   await Promise.all(updates.map(u => updateCategory(u.id, { sortOrder: u.sortOrder })))
+}
+
+// ---------------------------------------------------------------------------
+// Investment type mutations
+// ---------------------------------------------------------------------------
+
+/**
+ * Cosmetic — safe to apply globally.
+ * Does NOT allow changing portfolioAccountId: that would retroactively
+ * re-assign historical entries to a different portfolio.
+ */
+export async function updateInvestmentTypeMeta(
+  id: string,
+  fields: { name?: string; currency?: string; notes?: string }
+): Promise<void> {
+  await updateInvestmentType(id, fields)
+}
+
+/**
+ * Controls picker inclusion only.
+ * Historical InvestmentEntry records still reference this type by ID
+ * and are fully visible in the investments page regardless of isActive.
+ */
+export async function setInvestmentTypeActive(id: string, isActive: boolean): Promise<void> {
+  await updateInvestmentType(id, { isActive })
 }

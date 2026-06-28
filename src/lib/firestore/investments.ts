@@ -1,4 +1,4 @@
-import { getFirestore, collection, getDocs, addDoc, deleteDoc, doc, query, where } from 'firebase/firestore'
+import { getFirestore, collection, getDocs, addDoc, deleteDoc, doc, query, where, updateDoc } from 'firebase/firestore'
 import { app } from '../firebase/config'
 import { appCache } from '../cache'
 import type { InvestmentType, InvestmentEntry, Account } from '../types'
@@ -51,6 +51,14 @@ export async function deleteInvestmentEntry(id: string): Promise<void> {
 
 export async function deleteInvestmentType(id: string): Promise<void> {
   await deleteDoc(doc(getDb(), 'investment_types', id))
+  appCache.del(TYPES_KEY)
+}
+
+export async function updateInvestmentType(
+  id: string,
+  fields: Partial<Pick<InvestmentType, 'name' | 'currency' | 'notes' | 'isActive'>>
+): Promise<void> {
+  await updateDoc(doc(getDb(), 'investment_types', id), fields)
   appCache.del(TYPES_KEY)
 }
 

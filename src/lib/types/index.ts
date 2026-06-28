@@ -110,6 +110,7 @@ export interface InvestmentType {
   currency: string
   portfolioAccountId: string
   notes?: string
+  isActive?: boolean  // undefined = active (non-retroactive: existing DB records have no field, treated as true)
 }
 
 export interface InvestmentEntry {
