@@ -9,6 +9,7 @@ import {
   updateCategoryMeta, setCategoryActive, reorderCategories,
 } from '@/lib/settings-mutations'
 import type { Account, AccountProvider, AccountType, Category, CategorizationRule, MatchType } from '@/lib/types'
+import { SelectField } from '@/components/ui/SelectField'
 import { getInvestmentTypes, addInvestmentType, deleteInvestmentType } from '@/lib/firestore/investments'
 import { AddInvestmentTypeForm } from '@/components/investments/AddInvestmentTypeForm'
 import type { InvestmentType } from '@/lib/types'
@@ -829,10 +830,12 @@ function RulesSection() {
             </div>
             <div className="flex-1">
               <label className="text-xs text-slate-400 block mb-1">קטגוריה</label>
-              <select value={categoryId} onChange={e => setCategoryId(e.target.value)}
-                className="w-full bg-background rounded-lg px-3 py-2 text-sm outline-none">
-                {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
+              <SelectField
+                value={categoryId}
+                onChange={setCategoryId}
+                options={categories.map(c => ({ value: c.id, label: c.name, color: c.color }))}
+                placeholder="בחר קטגוריה..."
+              />
             </div>
           </div>
           <div className="flex gap-2">

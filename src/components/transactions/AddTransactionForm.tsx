@@ -5,6 +5,7 @@ import type { Account, Category } from '@/lib/types'
 import { FormField } from '@/components/ui/FormField'
 import { DirectionToggle } from '@/components/ui/DirectionToggle'
 import { CurrencyPicker } from '@/components/ui/CurrencyPicker'
+import { SelectField } from '@/components/ui/SelectField'
 
 interface Props {
   month: string
@@ -97,13 +98,14 @@ export function AddTransactionForm({ month, accounts, categories, defaultAccount
 
       {direction === 'expense' && (
         <FormField label="קטגוריה">
-          <select value={categoryId} onChange={e => setCategoryId(e.target.value)}
-            className="w-full bg-background text-foreground text-sm rounded-lg px-3 py-2 outline-none focus:ring-1 ring-accent">
-            <option value="">— ללא —</option>
-            {categories.filter(c => c.isActive).map(c => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
+          <SelectField
+            value={categoryId}
+            onChange={setCategoryId}
+            options={categories.filter(c => c.isActive).map(c => ({ value: c.id, label: c.name, color: c.color }))}
+            nullable
+            nullLabel="— ללא —"
+            placeholder="— ללא —"
+          />
         </FormField>
       )}
 

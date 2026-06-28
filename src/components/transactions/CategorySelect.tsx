@@ -1,3 +1,4 @@
+import { SelectField } from '@/components/ui/SelectField'
 import type { Category } from '@/lib/types'
 
 interface Props {
@@ -9,15 +10,14 @@ interface Props {
 
 export function CategorySelect({ value, categories, onChange, className = '' }: Props) {
   return (
-    <select
+    <SelectField
       value={value ?? ''}
-      onChange={e => onChange(e.target.value || undefined)}
-      className={`bg-slate-800 border border-slate-700 rounded-lg text-xs px-2 py-1 text-foreground ${className}`}
-    >
-      <option value="">ללא קטגוריה</option>
-      {categories.map(c => (
-        <option key={c.id} value={c.id}>{c.name}</option>
-      ))}
-    </select>
+      onChange={v => onChange(v || undefined)}
+      options={categories.map(c => ({ value: c.id, label: c.name, color: c.color }))}
+      nullable
+      nullLabel="ללא קטגוריה"
+      placeholder="ללא קטגוריה"
+      className={className}
+    />
   )
 }
