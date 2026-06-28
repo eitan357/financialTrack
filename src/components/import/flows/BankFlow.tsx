@@ -3,6 +3,7 @@ import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Upload, CheckCircle, Tag, ChevronRight } from 'lucide-react'
 import { SelectField } from '@/components/ui/SelectField'
+import { DirectionToggle } from '@/components/ui/DirectionToggle'
 import { parseOneZeroXlsx } from '@/lib/parsers/one-zero-xlsx-parser'
 import { parseLeumiPdf } from '@/lib/parsers/leumi-pdf-parser'
 import { parseCSV } from '@/lib/parsers/csv-parser'
@@ -336,17 +337,12 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
                         </select>
                       </div>
                     </td>
-                    <td className="py-1.5 px-2">
-                      <select
+                    <td className={`py-1.5 px-2 ${row.skip ? 'opacity-40 pointer-events-none' : ''}`}>
+                      <DirectionToggle
                         value={row.direction}
-                        onChange={e => updateRow(i, { direction: e.target.value as 'income' | 'expense', categoryId: e.target.value === 'income' ? null : row.categoryId })}
-                        disabled={row.skip}
-                        className="bg-background text-xs rounded px-1 py-0.5 disabled:opacity-40"
-                        aria-label={`כיוון עבור ${row.merchantName}`}
-                      >
-                        <option value="expense">הוצאה</option>
-                        <option value="income">הכנסה</option>
-                      </select>
+                        onChange={v => updateRow(i, { direction: v, categoryId: v === 'income' ? null : row.categoryId })}
+                        size="sm"
+                      />
                     </td>
                     <td className="py-1.5 px-2 text-center">
                       <input

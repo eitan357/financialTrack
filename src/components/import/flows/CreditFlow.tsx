@@ -3,6 +3,7 @@ import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Upload, CheckCircle, Tag, ChevronRight } from 'lucide-react'
 import { SelectField } from '@/components/ui/SelectField'
+import { DirectionToggle } from '@/components/ui/DirectionToggle'
 import { parseCSV } from '@/lib/parsers/csv-parser'
 import { getSheetNames, parseSheet } from '@/lib/parsers/xlsx-parser'
 import { mapRows } from '@/lib/parsers/transaction-mapper'
@@ -283,17 +284,12 @@ export function CreditFlow({ month, accountId, accountName, provider, categories
                       />
                     </td>
                     <td className="py-1.5 px-2 text-left tabular-nums text-xs">{tx.amount.toFixed(2)} {tx.currency}</td>
-                    <td className="py-1.5 px-2">
-                      <select
+                    <td className={`py-1.5 px-2 ${tx.skip ? 'opacity-40 pointer-events-none' : ''}`}>
+                      <DirectionToggle
                         value={tx.direction}
-                        onChange={e => updateRow(i, { direction: e.target.value as 'income' | 'expense', categoryId: e.target.value === 'income' ? null : tx.categoryId })}
-                        disabled={tx.skip}
-                        className="bg-background text-xs rounded px-1 py-0.5 disabled:opacity-40"
-                        aria-label={`כיוון עבור ${tx.merchantName}`}
-                      >
-                        <option value="expense">הוצאה</option>
-                        <option value="income">הכנסה</option>
-                      </select>
+                        onChange={v => updateRow(i, { direction: v, categoryId: v === 'income' ? null : tx.categoryId })}
+                        size="sm"
+                      />
                     </td>
                     <td className="py-1.5 px-2 text-center">
                       <input
