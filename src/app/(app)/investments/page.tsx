@@ -6,9 +6,7 @@ import { getInvestmentTypes, getInvestmentEntries, addInvestmentEntry, deleteInv
 import { getDividends, addDividend, deleteDividend } from '@/lib/firestore/dividends'
 import { getInvestmentConversions, addInvestmentConversion, deleteInvestmentConversion } from '@/lib/firestore/conversions'
 import { getAccounts } from '@/lib/firestore/accounts'
-import { AddInvestmentEntryForm } from '@/components/investments/AddInvestmentEntryForm'
-import { AddDividendForm } from '@/components/investments/AddDividendForm'
-import { AddInvestmentConversionForm } from '@/components/investments/AddInvestmentConversionForm'
+import { AddInvestmentActivityForm } from '@/components/investments/AddInvestmentActivityForm'
 import type { InvestmentType, InvestmentEntry, Dividend, Account, InvestmentConversion } from '@/lib/types'
 
 type InvItem =
@@ -27,7 +25,7 @@ export default function InvestmentsPage() {
   const [dividends, setDividends] = useState<Dividend[]>([])
   const [conversions, setConversions] = useState<InvestmentConversion[]>([])
   const [portfolioFilter, setPortfolioFilter] = useState<string>('all')
-  const [showAddType, setShowAddType] = useState<'deposit' | 'dividend' | 'conversion' | null>(null)
+  const [showAddForm, setShowAddForm] = useState(false)
   const [deletingItem, setDeletingItem] = useState<{ kind: 'deposit'; id: string } | { kind: 'dividend'; id: string } | { kind: 'conversion'; id: string } | null>(null)
 
   useEffect(() => {
@@ -61,19 +59,19 @@ export default function InvestmentsPage() {
   async function handleAddEntry(entry: Omit<InvestmentEntry, 'id'>) {
     const newEntry = await addInvestmentEntry(entry)
     setEntries(prev => [...prev, newEntry])
-    setShowAddType(null)
+    setShowAddForm(false)
   }
 
   async function handleAddDividend(dividend: Omit<Dividend, 'id'>) {
     const newDividend = await addDividend(dividend)
     setDividends(prev => [...prev, newDividend])
-    setShowAddType(null)
+    setShowAddForm(false)
   }
 
   async function handleAddConversion(conv: Omit<InvestmentConversion, 'id'>) {
     const newConv = await addInvestmentConversion(conv)
     setConversions(prev => [...prev, newConv])
-    setShowAddType(null)
+    setShowAddForm(false)
   }
 
   async function handleDeleteEntry(id: string) {
@@ -164,52 +162,28 @@ export default function InvestmentsPage() {
         </div>
       )}
 
-      {/* Add buttons */}
-      <div className="flex gap-3 justify-end mb-4">
-        <button
-          onClick={() => setShowAddType(v => v === 'deposit' ? null : 'deposit')}
-          className={`text-xs ${showAddType === 'deposit' ? 'text-slate-400' : 'text-accent'}`}
-        >{showAddType === 'deposit' ? 'ביטול' : '+ הפקדה'}</button>
-        <button
-          onClick={() => setShowAddType(v => v === 'dividend' ? null : 'dividend')}
-          className={`text-xs ${showAddType === 'dividend' ? 'text-slate-400' : 'text-accent'}`}
-        >{showAddType === 'dividend' ? 'ביטול' : '+ הכנסה'}</button>
-        <button
-          onClick={() => setShowAddType(v => v === 'conversion' ? null : 'conversion')}
-          className={`text-xs ${showAddType === 'conversion' ? 'text-slate-400' : 'text-accent'}`}
-        >{showAddType === 'conversion' ? 'ביטול' : '+ המרה'}</button>
-      </div>
+      {/* Add button — hidden while form is open, like transactions page */}
+      {!showAddForm && (
+        <div className="flex justify-end mb-4">
+          <button
+            onClick={() => setShowAddForm(true)}
+            className="text-sm text-accent font-medium"
+          >
+            + הוסף פעילות
+          </button>
+        </div>
+      )}
 
-      {showAddType === 'deposit' && (
-        <div className="mb-4">
-          <AddInvestmentEntryForm
-            types={investmentTypes}
-            portfolios={portfolios}
-            bankAccounts={bankAccounts}
-            onSubmit={handleAddEntry}
-            onCancel={() => setShowAddType(null)}
-          />
-        </div>
-      )}
-      {showAddType === 'dividend' && (
-        <div className="mb-4">
-          <AddDividendForm
-            types={investmentTypes}
-            bankAccounts={bankAccounts}
-            onSubmit={handleAddDividend}
-            onCancel={() => setShowAddType(null)}
-          />
-        </div>
-      )}
-      {showAddType === 'conversion' && (
-        <div className="mb-4">
-          <AddInvestmentConversionForm
-            types={investmentTypes}
-            bankAccounts={bankAccounts}
-            onSubmit={handleAddConversion}
-            onCancel={() => setShowAddType(null)}
-          />
-        </div>
+      {showAddForm && (
+        <AddInvestmentActivityForm
+          types={investmentTypes}
+          portfolios={portfolios}
+          bankAccounts={bankAccounts}
+          onSubmitEntry={handleAddEntry}
+          onSubmitDividend={handleAddDividend}
+          onSubmitConversion={handleAddConversion}
+          onCancel={() => setShowAddForm(false)}
+        />
       )}
 
       {loading ? (
@@ -230,7 +204,7 @@ export default function InvestmentsPage() {
                 <div key={item.entry.id} className="flex items-center gap-2 py-2.5 border-b border-slate-800 last:border-0">
                   <span className="text-xs text-slate-500 tabular-nums flex-shrink-0" style={{ width: '2.5rem' }}>{dd}/{mm}</span>
                   <div className="flex-1 min-w-0">
-                    <span className="text-sm text-purple-400">הפקדה: {item.typeName}</span>
+                    <span className="text-sm text-purple-400">קנייה: {item.typeName}</span>
                     {item.bankName && <span className="text-xs text-slate-500 block">{item.bankName}</span>}
                   </div>
                   {ilsAmount !== null && (
@@ -297,7 +271,7 @@ export default function InvestmentsPage() {
           <div className="py-3 border-t border-slate-700 space-y-1.5">
             {depositTotal > 0 && (
               <div className="flex justify-between text-xs text-slate-400">
-                <span>הפקדות</span>
+                <span>קניות</span>
                 <span className="tabular-nums text-purple-400" dir="ltr">₪-{depositTotal.toLocaleString('he-IL')}</span>
               </div>
             )}
