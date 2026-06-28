@@ -58,7 +58,8 @@ export async function updateInvestmentType(
   id: string,
   fields: Partial<Pick<InvestmentType, 'name' | 'currency' | 'notes' | 'isActive'>>
 ): Promise<void> {
-  await updateDoc(doc(getDb(), 'investment_types', id), fields)
+  const clean = Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== undefined))
+  await updateDoc(doc(getDb(), 'investment_types', id), clean)
   appCache.del(TYPES_KEY)
 }
 
