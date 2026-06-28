@@ -77,17 +77,15 @@ export function AddInvestmentEntryForm({ types, portfolios = [], bankAccounts = 
       {bankAccounts.length > 0 && (
         <div>
           <label htmlFor="inv-source" className="text-xs text-slate-400 block mb-1">חשבון מקור</label>
-          <select
-            id="inv-source"
+          <SelectField
             value={sourceAccountId}
-            onChange={e => { setSourceAccountId(e.target.value); if (errors.sourceAccountId) setErrors(p => ({ ...p, sourceAccountId: undefined })) }}
-            className={`w-full bg-slate-700 border rounded-lg px-3 py-2 text-sm text-foreground ${errors.sourceAccountId ? 'border-red-500 ring-1 ring-red-500' : 'border-slate-600'}`}
-          >
-            <option value="">בחר חשבון...</option>
-            {bankAccounts.map(a => (
-              <option key={a.id} value={a.id}>{a.name}</option>
-            ))}
-          </select>
+            onChange={v => { setSourceAccountId(v); if (errors.sourceAccountId) setErrors(p => ({ ...p, sourceAccountId: undefined })) }}
+            options={bankAccounts.map(a => ({ value: a.id, label: a.name, color: a.color }))}
+            nullable
+            nullLabel="בחר חשבון..."
+            placeholder="בחר חשבון..."
+            error={!!errors.sourceAccountId}
+          />
           {errors.sourceAccountId && <p className="text-xs text-red-400 mt-1">{errors.sourceAccountId}</p>}
         </div>
       )}

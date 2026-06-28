@@ -102,17 +102,14 @@ export function AddInvestmentConversionForm({ types, bankAccounts = [], onSubmit
       {bankAccounts.length > 0 && (
         <div>
           <label htmlFor="conv-dest" className="text-xs text-slate-400 block mb-1">חשבון שקיבל</label>
-          <select
-            id="conv-dest"
+          <SelectField
             value={destinationAccountId}
-            onChange={e => setDestinationAccountId(e.target.value)}
-            className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-foreground"
-          >
-            <option value="">בחר חשבון (אופציונלי)...</option>
-            {bankAccounts.map(a => (
-              <option key={a.id} value={a.id}>{a.name}</option>
-            ))}
-          </select>
+            onChange={setDestinationAccountId}
+            options={bankAccounts.map(a => ({ value: a.id, label: a.name, color: a.color }))}
+            nullable
+            nullLabel="בחר חשבון (אופציונלי)..."
+            placeholder="בחר חשבון (אופציונלי)..."
+          />
         </div>
       )}
 

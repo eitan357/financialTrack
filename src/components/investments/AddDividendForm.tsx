@@ -114,17 +114,15 @@ export function AddDividendForm({ types, bankAccounts = [], onSubmit, onCancel }
       {!staysInPortfolio && bankAccounts.length > 0 && (
         <div>
           <label htmlFor="div-dest" className="text-xs text-slate-400 block mb-1">חשבון יעד</label>
-          <select
-            id="div-dest"
+          <SelectField
             value={destinationAccountId}
-            onChange={e => { setDestinationAccountId(e.target.value); if (errors.destination) setErrors(p => ({ ...p, destination: undefined })) }}
-            className={`w-full bg-slate-700 border rounded-lg px-3 py-2 text-sm text-foreground ${errors.destination ? 'border-red-500 ring-1 ring-red-500' : 'border-slate-600'}`}
-          >
-            <option value="">בחר חשבון...</option>
-            {bankAccounts.map(a => (
-              <option key={a.id} value={a.id}>{a.name}</option>
-            ))}
-          </select>
+            onChange={v => { setDestinationAccountId(v); if (errors.destination) setErrors(p => ({ ...p, destination: undefined })) }}
+            options={bankAccounts.map(a => ({ value: a.id, label: a.name, color: a.color }))}
+            nullable
+            nullLabel="בחר חשבון..."
+            placeholder="בחר חשבון..."
+            error={!!errors.destination}
+          />
           {errors.destination && <p className="text-xs text-red-400 mt-1">{errors.destination}</p>}
         </div>
       )}

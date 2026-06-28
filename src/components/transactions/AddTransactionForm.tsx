@@ -88,12 +88,12 @@ export function AddTransactionForm({ month, accounts, categories, defaultAccount
       </FormField>
 
       <FormField label="חשבון">
-        <select value={accountId} onChange={e => setAccountId(e.target.value)}
-          className="w-full bg-background text-foreground text-sm rounded-lg px-3 py-2 outline-none focus:ring-1 ring-accent">
-          {accounts.filter(a => a.isActive && a.type !== 'investment').map(a => (
-            <option key={a.id} value={a.id}>{a.name}</option>
-          ))}
-        </select>
+        <SelectField
+          value={accountId}
+          onChange={setAccountId}
+          options={accounts.filter(a => a.isActive && a.type !== 'investment').map(a => ({ value: a.id, label: a.name, color: a.color }))}
+          placeholder="בחר חשבון..."
+        />
       </FormField>
 
       {direction === 'expense' && (
