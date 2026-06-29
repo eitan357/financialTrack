@@ -95,6 +95,20 @@ export default function InvestmentsPage() {
   const typeMap = Object.fromEntries(investmentTypes.map(t => [t.id, t]))
   const bankMap = Object.fromEntries(bankAccounts.map(a => [a.id, a]))
   const activeTypes = investmentTypes.filter(t => t.isActive !== false)
+  const typeIdsInMonth = new Set([
+    ...entries.map(e => e.investmentTypeId),
+    ...dividends.map(d => d.investmentTypeId),
+    ...conversions.map(c => c.investmentTypeId),
+  ])
+  const portfolioIdsWithData = new Set(
+    investmentTypes
+      .filter(t => typeIdsInMonth.has(t.id))
+      .map(t => t.portfolioAccountId)
+  )
+  const visiblePortfolios = portfolios.filter(
+    p => p.isActive !== false || portfolioIdsWithData.has(p.id)
+  )
+  const activePortfolios = portfolios.filter(p => p.isActive !== false)
 
   const filteredEntries = portfolioFilter === 'all'
     ? entries
@@ -146,13 +160,13 @@ export default function InvestmentsPage() {
       <MonthHeader month={month} onMonthChange={setMonth} />
 
       {/* Portfolio tabs */}
-      {portfolios.length > 0 && (
+      {visiblePortfolios.length > 0 && (
         <div className="flex gap-2 overflow-x-auto pb-1 mb-3 no-scrollbar">
           <button
             onClick={() => setPortfolioFilter('all')}
             className={`text-xs px-3 py-1.5 rounded-full flex-shrink-0 ${portfolioFilter === 'all' ? 'bg-slate-600 text-white' : 'bg-surface text-slate-400'}`}
           >הכל</button>
-          {portfolios.map(p => (
+          {visiblePortfolios.map(p => (
             <button
               key={p.id}
               onClick={() => setPortfolioFilter(p.id)}
@@ -176,7 +190,7 @@ export default function InvestmentsPage() {
       {showAddForm && (
         <AddInvestmentActivityForm
           types={activeTypes}
-          portfolios={portfolios}
+          portfolios={activePortfolios}
           bankAccounts={bankAccounts}
           onSubmitEntry={handleAddEntry}
           onSubmitDividend={handleAddDividend}
