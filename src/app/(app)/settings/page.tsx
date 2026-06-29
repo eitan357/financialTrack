@@ -15,6 +15,7 @@ import { DeleteConfirmModal } from '@/components/ui/DeleteConfirmModal'
 import { getInvestmentTypes, addInvestmentType, deleteInvestmentType } from '@/lib/firestore/investments'
 import { AddInvestmentTypeForm } from '@/components/investments/AddInvestmentTypeForm'
 import type { InvestmentType } from '@/lib/types'
+import { getCurrency } from '@/lib/currencies'
 
 type Tab = 'accounts' | 'categories' | 'investments' | 'maintenance'
 
@@ -1113,7 +1114,7 @@ function InvestmentsSection() {
   return (
     <div className="space-y-4">
       {/* Add portfolio button */}
-      <div className="flex justify-end">
+      <div className="flex justify-center">
         <button
           onClick={() => {
             setShowAddPortfolio(v => !v)
@@ -1213,11 +1214,13 @@ function InvestmentsSection() {
                           />
                         </div>
                       )
+                      const curr = getCurrency(t.currency)
+                      const currLabel = curr ? `${curr.symbol} ${curr.code} · ${curr.name}` : t.currency
                       return (
                         <div key={t.id} className="flex items-center px-4 py-2.5 gap-3">
                           <div className="flex-1 min-w-0">
                             <span className="text-sm">{t.name}</span>
-                            <span className="text-xs text-slate-400 mr-2">{t.currency}</span>
+                            <span className="text-xs text-slate-400 mr-2">{currLabel}</span>
                             {t.notes && <span className="text-xs text-slate-500">{t.notes}</span>}
                           </div>
                           <div className="flex items-center gap-2 flex-shrink-0">
@@ -1240,17 +1243,21 @@ function InvestmentsSection() {
                     )}
 
                     {/* Hidden types inside this portfolio */}
-                    {inactiveTypes.map(t => (
+                    {inactiveTypes.map(t => {
+                      const curr = getCurrency(t.currency)
+                      const currLabel = curr ? `${curr.symbol} ${curr.code} · ${curr.name}` : t.currency
+                      return (
                       <div key={t.id} className="flex items-center px-4 py-2.5 gap-3 opacity-50">
                         <div className="flex-1 min-w-0">
                           <span className="text-sm line-through text-slate-500">{t.name}</span>
-                          <span className="text-xs text-slate-500 mr-2">{t.currency}</span>
+                          <span className="text-xs text-slate-500 mr-2">{currLabel}</span>
                         </div>
                         <button
                           onClick={() => handleHideType(t)}
                           className="text-xs text-green-400 flex-shrink-0">הצג</button>
                       </div>
-                    ))}
+                      )
+                    })}
 
                     {/* Add investment type */}
                     {isAddingType ? (
@@ -1297,16 +1304,11 @@ function InvestmentsSection() {
                     <span className="text-slate-500 text-xs flex-shrink-0">{isExpanded ? '⌃' : '⌄'}</span>
                   </button>
                   {isExpanded && (
-                    <div className="border-t border-slate-700/50 px-4 py-3 flex gap-2">
+                    <div className="border-t border-slate-700/50 px-4 py-3">
                       <button
                         onClick={() => handleHidePortfolio(portfolio)}
-                        className="flex-1 py-1.5 border border-slate-600 rounded-lg text-xs text-green-400 hover:border-green-400/50 transition-colors">
+                        className="w-full py-1.5 border border-slate-600 rounded-lg text-xs text-green-400 hover:border-green-400/50 transition-colors">
                         הצג תיק
-                      </button>
-                      <button
-                        onClick={() => setDeleteConfirm({ kind: 'portfolio', item: portfolio })}
-                        className="py-1.5 px-3 border border-red-900/40 rounded-lg text-xs text-red-500 hover:text-red-400 transition-colors">
-                        מחק
                       </button>
                     </div>
                   )}
