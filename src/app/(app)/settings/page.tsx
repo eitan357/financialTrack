@@ -524,7 +524,7 @@ function AccountsSection() {
         <DeleteConfirmModal
           title="מחיקת חשבון"
           itemName={deleteConfirm.name}
-          warningBody="מחיקת החשבון היא פעולה בלתי הפיכה. החשבון יימחק לצמיתות."
+          warningBody={<>מחיקת החשבון היא פעולה <strong>בלתי הפיכה</strong>. החשבון יימחק לצמיתות.</>}
           hideWarning="הסתרת חשבון מסתירה אותו מהממשק אך שומרת את כל ההיסטוריה. ניתן לשחזר את החשבון בכל עת מרשימת החשבונות הנסתרים."
           hideLabel="הסתר חשבון (מומלץ)"
           onHide={async () => { await handleToggle(deleteConfirm); setDeleteConfirm(null) }}

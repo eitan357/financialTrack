@@ -1,10 +1,11 @@
 'use client'
+import React from 'react'
 import { Trash2 } from 'lucide-react'
 
 interface Props {
   title: string
   itemName: string
-  warningBody: string
+  warningBody: React.ReactNode
   hideWarning?: string
   hideLabel?: string
   onHide?: () => void
