@@ -1,13 +1,16 @@
+'use client'
 import { useState } from 'react'
 import type { InvestmentType } from '@/lib/types'
+import { CurrencyPicker } from '@/components/ui/CurrencyPicker'
 
 interface Props {
   initial?: InvestmentType
   onSubmit: (type: { name: string; currency: string; notes?: string }) => void
   onCancel: () => void
+  onDelete?: () => void
 }
 
-export function AddInvestmentTypeForm({ initial, onSubmit, onCancel }: Props) {
+export function AddInvestmentTypeForm({ initial, onSubmit, onCancel, onDelete }: Props) {
   const [name, setName] = useState(initial?.name ?? '')
   const [currency, setCurrency] = useState(initial?.currency ?? 'USD')
   const [notes, setNotes] = useState(initial?.notes ?? '')
@@ -16,11 +19,10 @@ export function AddInvestmentTypeForm({ initial, onSubmit, onCancel }: Props) {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!name.trim()) { setNameError('שדה חובה'); return }
-    if (!currency.trim()) return
     setNameError(null)
     onSubmit({
       name: name.trim(),
-      currency: currency.trim(),
+      currency,
       ...(notes.trim() && { notes: notes.trim() }),
     })
   }
@@ -41,15 +43,8 @@ export function AddInvestmentTypeForm({ initial, onSubmit, onCancel }: Props) {
           {nameError && <p className="text-xs text-red-400 mt-1">{nameError}</p>}
         </div>
         <div>
-          <label htmlFor="type-currency" className="text-xs text-slate-400 block mb-1">מטבע</label>
-          <input
-            id="type-currency"
-            type="text"
-            value={currency}
-            onChange={e => setCurrency(e.target.value)}
-            placeholder="USD"
-            className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-foreground placeholder-slate-500"
-          />
+          <label className="text-xs text-slate-400 block mb-1">מטבע</label>
+          <CurrencyPicker value={currency} onChange={setCurrency} />
         </div>
       </div>
       <div>
@@ -70,6 +65,12 @@ export function AddInvestmentTypeForm({ initial, onSubmit, onCancel }: Props) {
           {initial ? 'שמור' : 'הוסף'}
         </button>
       </div>
+      {onDelete && (
+        <button type="button" onClick={onDelete}
+          className="w-full py-2 text-xs text-red-500 hover:text-red-400 border border-red-900/40 rounded-lg">
+          מחק השקעה
+        </button>
+      )}
     </form>
   )
 }

@@ -1025,6 +1025,7 @@ function InvestmentsSection() {
 
   const [showAddTypeForPortfolio, setShowAddTypeForPortfolio] = useState<string | null>(null)
   const [editTypeId, setEditTypeId] = useState<string | null>(null)
+  const [expandedTypeId, setExpandedTypeId] = useState<string | null>(null)
 
   const [deleteConfirm, setDeleteConfirm] = useState<
     | { kind: 'portfolio'; item: Account }
@@ -1211,29 +1212,40 @@ function InvestmentsSection() {
                             initial={t}
                             onSubmit={data => handleUpdateType(t.id, data)}
                             onCancel={() => setEditTypeId(null)}
+                            onDelete={() => setDeleteConfirm({ kind: 'type', item: t })}
                           />
                         </div>
                       )
                       const curr = getCurrency(t.currency)
                       const currLabel = curr ? `${curr.symbol} ${curr.code} · ${curr.name}` : t.currency
+                      const isTypeExpanded = expandedTypeId === t.id
                       return (
-                        <div key={t.id} className="flex items-center px-4 py-2.5 gap-3">
-                          <div className="flex-1 min-w-0">
-                            <span className="text-sm">{t.name}</span>
-                            <span className="text-xs text-slate-400 mr-2">{currLabel}</span>
-                            {t.notes && <span className="text-xs text-slate-500">{t.notes}</span>}
-                          </div>
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                            <button
-                              onClick={() => { setEditTypeId(t.id); setShowAddTypeForPortfolio(null) }}
-                              className="text-xs text-slate-400 hover:text-accent">ערוך</button>
-                            <button
-                              onClick={() => handleHideType(t)}
-                              className="text-xs text-slate-400 hover:text-amber-400">הסתר</button>
-                            <button
-                              onClick={() => setDeleteConfirm({ kind: 'type', item: t })}
-                              className="text-slate-600 hover:text-red-400 text-xs">✕</button>
-                          </div>
+                        <div key={t.id}>
+                          <button
+                            type="button"
+                            className="w-full flex items-center px-4 py-2.5 gap-3 text-right"
+                            onClick={() => setExpandedTypeId(v => v === t.id ? null : t.id)}>
+                            <div className="flex-1 min-w-0">
+                              <span className="text-sm">{t.name}</span>
+                              <span className="text-xs text-slate-400 mr-2">{currLabel}</span>
+                              {t.notes && <span className="text-xs text-slate-500">{t.notes}</span>}
+                            </div>
+                            <span className="text-slate-500 text-xs flex-shrink-0">{isTypeExpanded ? '⌃' : '⌄'}</span>
+                          </button>
+                          {isTypeExpanded && (
+                            <div className="px-4 pb-2.5 flex gap-2">
+                              <button
+                                onClick={() => { setEditTypeId(t.id); setExpandedTypeId(null); setShowAddTypeForPortfolio(null) }}
+                                className="flex-1 py-1.5 border border-slate-600 rounded-lg text-xs text-slate-300 hover:text-accent hover:border-accent/50 transition-colors">
+                                ערוך
+                              </button>
+                              <button
+                                onClick={() => handleHideType(t)}
+                                className="flex-1 py-1.5 border border-slate-600 rounded-lg text-xs text-slate-300 hover:text-amber-400 hover:border-amber-400/50 transition-colors">
+                                הסתר
+                              </button>
+                            </div>
+                          )}
                         </div>
                       )
                     })}
