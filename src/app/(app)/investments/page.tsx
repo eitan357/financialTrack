@@ -94,6 +94,7 @@ export default function InvestmentsPage() {
 
   const typeMap = Object.fromEntries(investmentTypes.map(t => [t.id, t]))
   const bankMap = Object.fromEntries(bankAccounts.map(a => [a.id, a]))
+  const activeTypes = investmentTypes.filter(t => t.isActive !== false)
 
   const filteredEntries = portfolioFilter === 'all'
     ? entries
@@ -176,7 +177,7 @@ export default function InvestmentsPage() {
 
       {showAddForm && (
         <AddInvestmentActivityForm
-          types={investmentTypes}
+          types={activeTypes}
           portfolios={portfolios}
           bankAccounts={bankAccounts}
           onSubmitEntry={handleAddEntry}
