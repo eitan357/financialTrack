@@ -1062,8 +1062,8 @@ function InvestmentsSection() {
   }
 
   async function handleHidePortfolio(portfolio: Account) {
-    await setAccountActive(portfolio.id, !(portfolio.isActive))
-    setPortfolios(prev => prev.map(p => p.id === portfolio.id ? { ...p, isActive: !p.isActive } : p))
+    await setAccountActive(portfolio.id, !(portfolio.isActive ?? true))
+    setPortfolios(prev => prev.map(p => p.id === portfolio.id ? { ...p, isActive: !(p.isActive ?? true) } : p))
     setExpandedPortfolioId(null)
     setDeleteConfirm(null)
   }
