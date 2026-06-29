@@ -133,3 +133,8 @@ export async function updateInvestmentTypeMeta(
 export async function setInvestmentTypeActive(id: string, isActive: boolean): Promise<void> {
   await updateInvestmentType(id, { isActive })
 }
+
+/** Display order only — no impact on data. */
+export async function reorderInvestmentTypes(updates: Array<{ id: string; sortOrder: number }>): Promise<void> {
+  await Promise.all(updates.map(u => updateInvestmentType(u.id, { sortOrder: u.sortOrder })))
+}

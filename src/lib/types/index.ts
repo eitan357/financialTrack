@@ -111,6 +111,7 @@ export interface InvestmentType {
   portfolioAccountId: string
   notes?: string
   isActive?: boolean  // undefined = active (non-retroactive: existing DB records have no field, treated as true)
+  sortOrder?: number
 }
 
 export interface InvestmentEntry {

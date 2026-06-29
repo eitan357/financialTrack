@@ -7,7 +7,7 @@ import { getRules, addRule, deleteRule } from '@/lib/firestore/categorization-ru
 import {
   updateAccountMeta, setAccountActive, reorderAccounts, updateCreditLinkage,
   updateCategoryMeta, setCategoryActive, reorderCategories,
-  updateInvestmentTypeMeta, setInvestmentTypeActive,
+  updateInvestmentTypeMeta, setInvestmentTypeActive, reorderInvestmentTypes,
 } from '@/lib/settings-mutations'
 import type { Account, AccountProvider, AccountType, Category, CategorizationRule, MatchType } from '@/lib/types'
 import { SelectField } from '@/components/ui/SelectField'
@@ -1143,10 +1143,44 @@ function InvestmentsSection() {
     }
   }
 
+  async function movePortfolio(id: string, dir: -1 | 1) {
+    const sorted = portfolios
+      .filter(p => p.isActive !== false)
+      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+    const idx = sorted.findIndex(p => p.id === id)
+    const newIdx = idx + dir
+    if (newIdx < 0 || newIdx >= sorted.length) return
+    const updated = [...sorted]
+    ;[updated[idx], updated[newIdx]] = [updated[newIdx], updated[idx]]
+    await reorderAccounts(updated.map((p, i) => ({ id: p.id, sortOrder: i })))
+    setPortfolios(prev => prev.map(p => {
+      const pos = updated.findIndex(u => u.id === p.id)
+      return pos >= 0 ? { ...p, sortOrder: pos } : p
+    }))
+  }
+
+  async function moveType(id: string, portfolioId: string, dir: -1 | 1) {
+    const sorted = types
+      .filter(t => t.portfolioAccountId === portfolioId && t.isActive !== false)
+      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+    const idx = sorted.findIndex(t => t.id === id)
+    const newIdx = idx + dir
+    if (newIdx < 0 || newIdx >= sorted.length) return
+    const updated = [...sorted]
+    ;[updated[idx], updated[newIdx]] = [updated[newIdx], updated[idx]]
+    await reorderInvestmentTypes(updated.map((t, i) => ({ id: t.id, sortOrder: i })))
+    setTypes(prev => prev.map(t => {
+      const pos = updated.findIndex(u => u.id === t.id)
+      return pos >= 0 ? { ...t, sortOrder: pos } : t
+    }))
+  }
+
   if (loading) return <p className="text-slate-400 text-sm text-center py-6">טוען...</p>
   if (loadError) return <p className="text-red-400 text-sm text-center py-6">{loadError}</p>
 
-  const activePortfolios = portfolios.filter(p => p.isActive !== false)
+  const activePortfolios = portfolios
+    .filter(p => p.isActive !== false)
+    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
   const inactivePortfolios = portfolios.filter(p => p.isActive === false)
 
   return (
@@ -1185,7 +1219,9 @@ function InvestmentsSection() {
               const isExpanded = expandedPortfolioId === portfolio.id
               const isEditing = editPortfolioId === portfolio.id
               const portfolioTypes = types.filter(t => t.portfolioAccountId === portfolio.id)
-              const activeTypes = portfolioTypes.filter(t => t.isActive !== false)
+              const activeTypes = portfolioTypes
+                .filter(t => t.isActive !== false)
+                .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
               const inactiveTypes = portfolioTypes.filter(t => t.isActive === false)
               const isAddingType = showAddTypeForPortfolio === portfolio.id
 
@@ -1223,8 +1259,18 @@ function InvestmentsSection() {
 
                   {isExpanded && (
                     <div className="border-t border-slate-700/50 px-4 pt-3 pb-3 space-y-3">
-                      {/* Edit / Hide buttons */}
+                      {/* Move / Edit / Hide buttons */}
                       <div className="flex gap-2">
+                        <div className="flex gap-1" dir="ltr">
+                          <button
+                            onClick={() => movePortfolio(portfolio.id, -1)}
+                            disabled={activePortfolios.findIndex(p => p.id === portfolio.id) === 0}
+                            className="px-2 py-1.5 border border-slate-700 rounded-lg text-slate-500 hover:text-foreground disabled:opacity-20 text-xs">▲</button>
+                          <button
+                            onClick={() => movePortfolio(portfolio.id, 1)}
+                            disabled={activePortfolios.findIndex(p => p.id === portfolio.id) === activePortfolios.length - 1}
+                            className="px-2 py-1.5 border border-slate-700 rounded-lg text-slate-500 hover:text-foreground disabled:opacity-20 text-xs">▼</button>
+                        </div>
                         <button
                           onClick={() => { setEditPortfolioId(portfolio.id); setShowAddTypeForPortfolio(null) }}
                           className="flex-1 py-1.5 border border-slate-600 rounded-lg text-xs text-slate-300 hover:text-accent hover:border-accent/50 transition-colors">
@@ -1241,7 +1287,7 @@ function InvestmentsSection() {
 
                   {/* Investment types list */}
                   <div className="divide-y divide-slate-800 border-t border-slate-800">
-                    {activeTypes.map(t => {
+                    {activeTypes.map((t, typeIdx) => {
                       const isEditingType = editTypeId === t.id
                       if (isEditingType) return (
                         <div key={t.id} className="px-3 py-3">
@@ -1271,6 +1317,16 @@ function InvestmentsSection() {
                           </button>
                           {isTypeExpanded && (
                             <div className="px-4 pb-2.5 flex gap-2">
+                              <div className="flex gap-1" dir="ltr">
+                                <button
+                                  onClick={() => moveType(t.id, portfolio.id, -1)}
+                                  disabled={typeIdx === 0}
+                                  className="px-2 py-1.5 border border-slate-700 rounded-lg text-slate-500 hover:text-foreground disabled:opacity-20 text-xs">▲</button>
+                                <button
+                                  onClick={() => moveType(t.id, portfolio.id, 1)}
+                                  disabled={typeIdx === activeTypes.length - 1}
+                                  className="px-2 py-1.5 border border-slate-700 rounded-lg text-slate-500 hover:text-foreground disabled:opacity-20 text-xs">▼</button>
+                              </div>
                               <button
                                 onClick={() => { setEditTypeId(t.id); setExpandedTypeId(null); setShowAddTypeForPortfolio(null) }}
                                 className="flex-1 py-1.5 border border-slate-600 rounded-lg text-xs text-slate-300 hover:text-accent hover:border-accent/50 transition-colors">

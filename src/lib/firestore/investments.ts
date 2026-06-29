@@ -56,7 +56,7 @@ export async function deleteInvestmentType(id: string): Promise<void> {
 
 export async function updateInvestmentType(
   id: string,
-  fields: Partial<Pick<InvestmentType, 'name' | 'currency' | 'notes' | 'isActive'>>
+  fields: Partial<Pick<InvestmentType, 'name' | 'currency' | 'notes' | 'isActive' | 'sortOrder'>>
 ): Promise<void> {
   const clean = Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== undefined))
   await updateDoc(doc(getDb(), 'investment_types', id), clean)
