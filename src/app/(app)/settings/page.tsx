@@ -63,6 +63,21 @@ const PROVIDER_LOGO: Partial<Record<AccountProvider, string>> = {
   isracard: '/logos/isracard.webp',
 }
 
+const COLOR_PALETTE = [
+  '#818cf8', // indigo-400
+  '#a78bfa', // violet-400
+  '#c084fc', // purple-400
+  '#f472b6', // pink-400
+  '#f87171', // red-400
+  '#fb923c', // orange-400
+  '#fbbf24', // amber-400
+  '#4ade80', // green-400
+  '#34d399', // emerald-400
+  '#22d3ee', // cyan-400
+  '#60a5fa', // blue-400
+  '#94a3b8', // slate-400
+]
+
 function ProviderLogo({ provider, color, type, className = 'w-8 h-8' }: { provider?: AccountProvider; color: string; type?: string; className?: string }) {
   const [imgFailed, setImgFailed] = useState(false)
   const src = provider && !imgFailed ? PROVIDER_LOGO[provider] : null
@@ -93,7 +108,7 @@ function AccountForm({ type, initial, bankAccounts, onSubmit, onCancel, onDelete
 }) {
   const [name, setName] = useState(initial?.name ?? '')
   const [nameManuallyEdited, setNameManuallyEdited] = useState(!!initial)
-  const [color, setColor] = useState(initial?.color ?? '#6366f1')
+  const [color, setColor] = useState(initial?.color ?? '#818cf8')
   const [last4, setLast4] = useState(initial?.last4digits ?? '')
   const [csvId, setCsvId] = useState(initial?.csvIdentifier ?? '')
   const [provider, setProvider] = useState<AccountProvider | ''>(initial?.provider ?? '')
@@ -184,8 +199,19 @@ function AccountForm({ type, initial, bankAccounts, onSubmit, onCancel, onDelete
       </div>
       <div>
         <label className="text-xs text-slate-400 block mb-1">צבע</label>
-        <input type="color" value={color} onChange={e => setColor(e.target.value)}
-          className="h-9 w-16 rounded cursor-pointer border border-slate-700" />
+        <div className="flex flex-wrap gap-2">
+          {COLOR_PALETTE.map(c => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => setColor(c)}
+              className={`w-7 h-7 rounded-full flex-shrink-0 transition-transform ${
+                color === c ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-900 scale-110' : 'hover:scale-110'
+              }`}
+              style={{ backgroundColor: c }}
+            />
+          ))}
+        </div>
       </div>
       {type === 'bank' && (
         <div>
@@ -261,7 +287,7 @@ function PortfolioForm({ initial, onSubmit, onCancel, onDelete }: {
 }) {
   const [name, setName] = useState(initial?.name ?? '')
   const [nameManuallyEdited, setNameManuallyEdited] = useState(!!initial)
-  const [color, setColor] = useState(initial?.color ?? '#6366f1')
+  const [color, setColor] = useState(initial?.color ?? '#818cf8')
   const [provider, setProvider] = useState<AccountProvider | ''>(initial?.provider ?? '')
   const [saving, setSaving] = useState(false)
   const [nameError, setNameError] = useState<string | null>(null)
@@ -333,8 +359,19 @@ function PortfolioForm({ initial, onSubmit, onCancel, onDelete }: {
       </div>
       <div>
         <label className="text-xs text-slate-400 block mb-1">צבע</label>
-        <input type="color" value={color} onChange={e => setColor(e.target.value)}
-          className="h-9 w-16 rounded cursor-pointer border border-slate-700" />
+        <div className="flex flex-wrap gap-2">
+          {COLOR_PALETTE.map(c => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => setColor(c)}
+              className={`w-7 h-7 rounded-full flex-shrink-0 transition-transform ${
+                color === c ? 'ring-2 ring-white ring-offset-2 ring-offset-slate-900 scale-110' : 'hover:scale-110'
+              }`}
+              style={{ backgroundColor: c }}
+            />
+          ))}
+        </div>
       </div>
       <div className="flex gap-2 pt-1">
         <button type="button" onClick={onCancel}
