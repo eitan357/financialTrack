@@ -7,6 +7,7 @@ import { getRules, addRule, deleteRule } from '@/lib/firestore/categorization-ru
 import {
   updateAccountMeta, setAccountActive, reorderAccounts, updateCreditLinkage,
   updateCategoryMeta, setCategoryActive, reorderCategories,
+  updateInvestmentTypeMeta, setInvestmentTypeActive,
 } from '@/lib/settings-mutations'
 import type { Account, AccountProvider, AccountType, Category, CategorizationRule, MatchType } from '@/lib/types'
 import { SelectField } from '@/components/ui/SelectField'
@@ -244,6 +245,108 @@ function AccountForm({ type, initial, bankAccounts, onSubmit, onCancel, onDelete
         <button type="button" onClick={onDelete}
           className="w-full py-2 text-xs text-red-500 hover:text-red-400 border border-red-900/40 rounded-lg mt-1">
           מחק חשבון
+        </button>
+      )}
+    </form>
+  )
+}
+
+// ---- Portfolio form ----
+function PortfolioForm({ initial, onSubmit, onCancel, onDelete }: {
+  initial?: Account
+  onSubmit: (data: Omit<Account, 'id'>) => Promise<void>
+  onCancel: () => void
+  onDelete?: () => void
+}) {
+  const [name, setName] = useState(initial?.name ?? '')
+  const [nameManuallyEdited, setNameManuallyEdited] = useState(!!initial)
+  const [color, setColor] = useState(initial?.color ?? '#6366f1')
+  const [provider, setProvider] = useState<AccountProvider | ''>(initial?.provider ?? '')
+  const [saving, setSaving] = useState(false)
+  const [nameError, setNameError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (nameManuallyEdited) return
+    setName(provider ? PROVIDER_LABELS[provider as AccountProvider] : '')
+  }, [provider, nameManuallyEdited])
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!name.trim()) { setNameError('שדה חובה'); return }
+    setNameError(null)
+    setSaving(true)
+    await onSubmit({
+      name: name.trim(),
+      type: 'investment',
+      color,
+      isActive: initial?.isActive ?? true,
+      ...(provider && { provider: provider as AccountProvider }),
+    })
+    setSaving(false)
+  }
+
+  return (
+    <form onSubmit={submit} className="bg-slate-800 rounded-xl p-4 space-y-3">
+      {initial && (
+        <div className="flex items-center gap-3 pb-3 border-b border-slate-700/50">
+          <ProviderLogo provider={provider || undefined} color={color} className="w-10 h-10" />
+          <div>
+            <p className="text-sm font-medium" dir="auto">{name || '—'}</p>
+            <p className="text-xs text-slate-500">תיק השקעות</p>
+          </div>
+        </div>
+      )}
+      <div>
+        <label className="text-xs text-slate-400 block mb-2">חברת השקעות (אופציונלי)</label>
+        <div className="flex flex-wrap gap-2">
+          {INVESTMENT_PROVIDERS.map(p => (
+            <button key={p.value} type="button"
+              onClick={() => setProvider(prev => prev === p.value ? '' : p.value)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-sm transition-colors ${
+                provider === p.value
+                  ? 'border-accent text-accent bg-accent/10'
+                  : 'border-slate-700 text-slate-300 hover:border-slate-500'
+              }`}>
+              <ProviderLogo provider={p.value} color="#94a3b8" className="w-5 h-5" />
+              {p.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div>
+        <label className="text-xs text-slate-400 block mb-1">שם תיק</label>
+        <input value={name}
+          onChange={e => {
+            setName(e.target.value)
+            setNameManuallyEdited(true)
+            if (nameError && e.target.value.trim()) setNameError(null)
+          }}
+          onBlur={() => {
+            if (!name.trim()) {
+              setName(provider ? PROVIDER_LABELS[provider as AccountProvider] : '')
+              setNameManuallyEdited(false)
+            }
+          }}
+          className={`w-full bg-background rounded-lg px-3 py-2 text-sm outline-none ${nameError ? 'ring-1 ring-red-500' : 'focus:ring-1 ring-accent'}`} />
+        {nameError && <p className="text-xs text-red-400 mt-1">{nameError}</p>}
+      </div>
+      <div>
+        <label className="text-xs text-slate-400 block mb-1">צבע</label>
+        <input type="color" value={color} onChange={e => setColor(e.target.value)}
+          className="h-9 w-16 rounded cursor-pointer border border-slate-700" />
+      </div>
+      <div className="flex gap-2 pt-1">
+        <button type="button" onClick={onCancel}
+          className="flex-1 py-2 border border-slate-600 rounded-lg text-sm">ביטול</button>
+        <button type="submit" disabled={saving}
+          className="flex-1 py-2 bg-accent rounded-lg text-sm font-semibold disabled:opacity-50">
+          {saving ? 'שומר...' : (initial ? 'עדכן' : 'הוסף')}
+        </button>
+      </div>
+      {onDelete && (
+        <button type="button" onClick={onDelete}
+          className="w-full py-2 text-xs text-red-500 hover:text-red-400 border border-red-900/40 rounded-lg mt-1">
+          מחק תיק
         </button>
       )}
     </form>
@@ -914,13 +1017,20 @@ function InvestmentsSection() {
   const [types, setTypes] = useState<InvestmentType[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
+
   const [showAddPortfolio, setShowAddPortfolio] = useState(false)
-  const [addPortfolioName, setAddPortfolioName] = useState('')
-  const [addPortfolioColor, setAddPortfolioColor] = useState('#6366f1')
-  const [addPortfolioError, setAddPortfolioError] = useState<string | null>(null)
-  const [addPortfolioProvider, setAddPortfolioProvider] = useState<AccountProvider | ''>('')
+  const [expandedPortfolioId, setExpandedPortfolioId] = useState<string | null>(null)
+  const [editPortfolioId, setEditPortfolioId] = useState<string | null>(null)
+
   const [showAddTypeForPortfolio, setShowAddTypeForPortfolio] = useState<string | null>(null)
-  const [deletingTypeId, setDeletingTypeId] = useState<string | null>(null)
+  const [editTypeId, setEditTypeId] = useState<string | null>(null)
+
+  const [deleteConfirm, setDeleteConfirm] = useState<
+    | { kind: 'portfolio'; item: Account }
+    | { kind: 'type'; item: InvestmentType }
+    | null
+  >(null)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     async function load() {
@@ -938,147 +1048,301 @@ function InvestmentsSection() {
     load()
   }, [])
 
-  async function handleAddPortfolio(e: React.FormEvent) {
-    e.preventDefault()
-    if (!addPortfolioName.trim()) { setAddPortfolioError('שדה חובה'); return }
-    setAddPortfolioError(null)
-    const acc = await addAccount({
-      name: addPortfolioName.trim(),
-      type: 'investment',
-      color: addPortfolioColor,
-      isActive: true,
-      ...(addPortfolioProvider && { provider: addPortfolioProvider as AccountProvider }),
-    })
+  async function handleAddPortfolio(data: Omit<Account, 'id'>) {
+    const acc = await addAccount(data)
     setPortfolios(prev => [...prev, acc])
-    setAddPortfolioName('')
-    setAddPortfolioProvider('')
     setShowAddPortfolio(false)
   }
 
-  async function handleAddType(portfolioId: string, typeData: { name: string; currency: string }) {
+  async function handleUpdatePortfolio(id: string, data: Omit<Account, 'id'>) {
+    await updateAccountMeta(id, { name: data.name, color: data.color, provider: data.provider })
+    setPortfolios(prev => prev.map(p => p.id === id ? { ...p, ...data } : p))
+    setEditPortfolioId(null)
+    setExpandedPortfolioId(null)
+  }
+
+  async function handleHidePortfolio(portfolio: Account) {
+    await setAccountActive(portfolio.id, !(portfolio.isActive))
+    setPortfolios(prev => prev.map(p => p.id === portfolio.id ? { ...p, isActive: !p.isActive } : p))
+    setExpandedPortfolioId(null)
+    setDeleteConfirm(null)
+  }
+
+  async function handleAddType(portfolioId: string, typeData: { name: string; currency: string; notes?: string }) {
     const newType = await addInvestmentType({ ...typeData, portfolioAccountId: portfolioId })
     setTypes(prev => [...prev, newType])
     setShowAddTypeForPortfolio(null)
   }
 
-  async function handleDeleteType(id: string) {
-    await deleteInvestmentType(id)
-    setTypes(prev => prev.filter(t => t.id !== id))
-    setDeletingTypeId(null)
+  async function handleUpdateType(id: string, data: { name: string; currency: string; notes?: string }) {
+    await updateInvestmentTypeMeta(id, data)
+    setTypes(prev => prev.map(t => t.id === id ? { ...t, ...data } : t))
+    setEditTypeId(null)
+  }
+
+  async function handleHideType(type: InvestmentType) {
+    const newActive = !(type.isActive ?? true)
+    await setInvestmentTypeActive(type.id, newActive)
+    setTypes(prev => prev.map(t => t.id === type.id ? { ...t, isActive: newActive } : t))
+    setDeleteConfirm(null)
+  }
+
+  async function confirmDelete() {
+    if (!deleteConfirm) return
+    setDeleting(true)
+    try {
+      if (deleteConfirm.kind === 'portfolio') {
+        await deleteAccount(deleteConfirm.item.id)
+        setPortfolios(prev => prev.filter(p => p.id !== deleteConfirm.item.id))
+      } else {
+        await deleteInvestmentType(deleteConfirm.item.id)
+        setTypes(prev => prev.filter(t => t.id !== deleteConfirm.item.id))
+      }
+    } finally {
+      setDeleteConfirm(null)
+      setDeleting(false)
+    }
   }
 
   if (loading) return <p className="text-slate-400 text-sm text-center py-6">טוען...</p>
   if (loadError) return <p className="text-red-400 text-sm text-center py-6">{loadError}</p>
 
+  const activePortfolios = portfolios.filter(p => p.isActive !== false)
+  const inactivePortfolios = portfolios.filter(p => p.isActive === false)
+
   return (
     <div className="space-y-4">
+      {/* Add portfolio button */}
       <div className="flex justify-end">
-        <button onClick={() => setShowAddPortfolio(v => !v)} className="text-xs text-accent">
+        <button
+          onClick={() => {
+            setShowAddPortfolio(v => !v)
+            setExpandedPortfolioId(null)
+            setEditPortfolioId(null)
+          }}
+          className={`py-2 px-4 text-xs rounded-xl border transition-colors ${
+            showAddPortfolio
+              ? 'border-accent text-accent'
+              : 'border-slate-600 text-slate-400 hover:border-slate-500'
+          }`}>
           {showAddPortfolio ? 'ביטול' : '+ הוסף תיק השקעות'}
         </button>
       </div>
 
       {showAddPortfolio && (
-        <form onSubmit={handleAddPortfolio} className="bg-slate-800 rounded-xl p-3 space-y-3">
-          <div>
-            <label className="text-xs text-slate-400 block mb-2">חברת השקעות (אופציונלי)</label>
-            <div className="flex gap-2">
-              {INVESTMENT_PROVIDERS.map(p => (
-                <button key={p.value} type="button"
-                  onClick={() => setAddPortfolioProvider(prev => prev === p.value ? '' : p.value)}
-                  className={`px-3 py-2 rounded-xl border text-sm transition-colors ${
-                    addPortfolioProvider === p.value
-                      ? 'border-accent text-accent bg-accent/10'
-                      : 'border-slate-700 text-slate-300 hover:border-slate-500'
-                  }`}>
-                  {p.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="flex items-end gap-2">
-            <div className="flex-1">
-              <label className="text-xs text-slate-400 block mb-1">שם תיק</label>
-              <input
-                value={addPortfolioName}
-                onChange={e => { setAddPortfolioName(e.target.value); if (addPortfolioError && e.target.value.trim()) setAddPortfolioError(null) }}
-                autoFocus
-                className={`w-full bg-background rounded-lg px-3 py-2 text-sm outline-none ${addPortfolioError ? 'ring-1 ring-red-500' : 'focus:ring-1 ring-accent'}`}
-              />
-              {addPortfolioError && <p className="text-xs text-red-400 mt-1">{addPortfolioError}</p>}
-            </div>
-            <div>
-              <label className="text-xs text-slate-400 block mb-1">צבע</label>
-              <input type="color" value={addPortfolioColor} onChange={e => setAddPortfolioColor(e.target.value)}
-                className="h-9 w-12 rounded cursor-pointer border border-slate-700" />
-            </div>
-            <button type="button" onClick={() => { setShowAddPortfolio(false); setAddPortfolioProvider('') }}
-              className="py-2 px-3 border border-slate-600 rounded-lg text-sm h-9 flex items-center">ביטול</button>
-            <button type="submit"
-              className="py-2 px-3 bg-accent rounded-lg text-sm font-semibold h-9 flex items-center">הוסף</button>
-          </div>
-        </form>
+        <PortfolioForm onSubmit={handleAddPortfolio} onCancel={() => setShowAddPortfolio(false)} />
       )}
 
-      {portfolios.length === 0 && !showAddPortfolio && (
+      {activePortfolios.length === 0 && !showAddPortfolio && (
         <p className="text-slate-500 text-sm text-center py-6">אין תיקי השקעות. לחץ על ״+ הוסף תיק השקעות״ להתחלה.</p>
       )}
 
-      {portfolios.map(portfolio => {
-        const portfolioTypes = types.filter(t => t.portfolioAccountId === portfolio.id)
-        const isAddingType = showAddTypeForPortfolio === portfolio.id
+      {/* Active portfolios */}
+      {activePortfolios.length > 0 && (
+        <div>
+          <p className="text-xs text-slate-500 mb-2 px-1">תיקי השקעות</p>
+          <div className="space-y-2">
+            {activePortfolios.map(portfolio => {
+              const isExpanded = expandedPortfolioId === portfolio.id
+              const isEditing = editPortfolioId === portfolio.id
+              const portfolioTypes = types.filter(t => t.portfolioAccountId === portfolio.id)
+              const activeTypes = portfolioTypes.filter(t => t.isActive !== false)
+              const inactiveTypes = portfolioTypes.filter(t => t.isActive === false)
+              const isAddingType = showAddTypeForPortfolio === portfolio.id
 
-        return (
-          <div key={portfolio.id} className="bg-surface rounded-2xl overflow-hidden">
-            <div className="flex items-center px-4 py-3 gap-3">
-              <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: portfolio.color }} />
-              <div className="flex-1 min-w-0">
-                <span className="text-sm font-medium">{portfolio.name}</span>
-                {portfolio.provider && (
-                  <span className="text-xs text-slate-500 mr-2">{PROVIDER_LABELS[portfolio.provider]}</span>
-                )}
-              </div>
-              <button
-                onClick={() => setShowAddTypeForPortfolio(v => v === portfolio.id ? null : portfolio.id)}
-                className="text-xs text-accent"
-              >
-                {isAddingType ? 'ביטול' : '+ הוסף השקעה'}
-              </button>
-            </div>
-
-            {isAddingType && (
-              <div className="px-3 pb-3 border-t border-slate-800">
-                <div className="pt-3">
-                  <AddInvestmentTypeForm
-                    onSubmit={data => handleAddType(portfolio.id, data)}
-                    onCancel={() => setShowAddTypeForPortfolio(null)}
+              if (isEditing) return (
+                <div key={portfolio.id} className="bg-surface rounded-xl p-2">
+                  <PortfolioForm
+                    initial={portfolio}
+                    onSubmit={data => handleUpdatePortfolio(portfolio.id, data)}
+                    onCancel={() => { setEditPortfolioId(null); setExpandedPortfolioId(portfolio.id) }}
+                    onDelete={() => setDeleteConfirm({ kind: 'portfolio', item: portfolio })}
                   />
                 </div>
-              </div>
-            )}
+              )
 
-            <div className="divide-y divide-slate-800 border-t border-slate-800">
-              {portfolioTypes.length === 0 && !isAddingType ? (
-                <p className="text-slate-500 text-xs text-center py-3 px-4">אין השקעות בתיק זה</p>
-              ) : portfolioTypes.map(t => (
-                <div key={t.id} className="flex items-center px-4 py-2.5 gap-3">
-                  <span className="flex-1 text-sm">{t.name}</span>
-                  <span className="text-xs text-slate-400">{t.currency}</span>
-                  {deletingTypeId === t.id ? (
-                    <span className="flex items-center gap-1 text-xs">
-                      <button onClick={() => handleDeleteType(t.id)} className="text-red-400 hover:text-red-300">מחק</button>
-                      <span className="text-slate-600">|</span>
-                      <button onClick={() => setDeletingTypeId(null)} className="text-slate-400">ביטול</button>
-                    </span>
-                  ) : (
-                    <button onClick={() => setDeletingTypeId(t.id)} className="text-slate-600 hover:text-red-400 text-xs">✕</button>
+              return (
+                <div key={portfolio.id} className="bg-surface rounded-2xl overflow-hidden">
+                  {/* Portfolio header row — click to expand */}
+                  <button
+                    type="button"
+                    className="w-full flex items-center px-4 py-3 gap-3 text-right"
+                    onClick={() => {
+                      setExpandedPortfolioId(v => v === portfolio.id ? null : portfolio.id)
+                      setEditPortfolioId(null)
+                      setShowAddPortfolio(false)
+                    }}>
+                    <ProviderLogo provider={portfolio.provider} color={portfolio.color} />
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm font-medium" dir="auto">{portfolio.name}</span>
+                      {portfolio.provider && (
+                        <span className="text-xs text-slate-500 mr-2">{PROVIDER_LABELS[portfolio.provider]}</span>
+                      )}
+                    </div>
+                    <span className="text-slate-500 text-xs flex-shrink-0">{isExpanded ? '⌃' : '⌄'}</span>
+                  </button>
+
+                  {isExpanded && (
+                    <div className="border-t border-slate-700/50 px-4 pt-3 pb-3 space-y-3">
+                      {/* Edit / Hide buttons */}
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => { setEditPortfolioId(portfolio.id); setShowAddTypeForPortfolio(null) }}
+                          className="flex-1 py-1.5 border border-slate-600 rounded-lg text-xs text-slate-300 hover:text-accent hover:border-accent/50 transition-colors">
+                          ערוך
+                        </button>
+                        <button
+                          onClick={() => handleHidePortfolio(portfolio)}
+                          className="flex-1 py-1.5 border border-slate-600 rounded-lg text-xs text-slate-300 hover:text-amber-400 hover:border-amber-400/50 transition-colors">
+                          הסתר
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Investment types list */}
+                  <div className="divide-y divide-slate-800 border-t border-slate-800">
+                    {activeTypes.map(t => {
+                      const isEditingType = editTypeId === t.id
+                      if (isEditingType) return (
+                        <div key={t.id} className="px-3 py-3">
+                          <AddInvestmentTypeForm
+                            initial={t}
+                            onSubmit={data => handleUpdateType(t.id, data)}
+                            onCancel={() => setEditTypeId(null)}
+                          />
+                        </div>
+                      )
+                      return (
+                        <div key={t.id} className="flex items-center px-4 py-2.5 gap-3">
+                          <div className="flex-1 min-w-0">
+                            <span className="text-sm">{t.name}</span>
+                            <span className="text-xs text-slate-400 mr-2">{t.currency}</span>
+                            {t.notes && <span className="text-xs text-slate-500">{t.notes}</span>}
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <button
+                              onClick={() => { setEditTypeId(t.id); setShowAddTypeForPortfolio(null) }}
+                              className="text-xs text-slate-400 hover:text-accent">ערוך</button>
+                            <button
+                              onClick={() => handleHideType(t)}
+                              className="text-xs text-slate-400 hover:text-amber-400">הסתר</button>
+                            <button
+                              onClick={() => setDeleteConfirm({ kind: 'type', item: t })}
+                              className="text-slate-600 hover:text-red-400 text-xs">✕</button>
+                          </div>
+                        </div>
+                      )
+                    })}
+
+                    {activeTypes.length === 0 && !isAddingType && (
+                      <p className="text-slate-500 text-xs text-center py-3 px-4">אין השקעות בתיק זה</p>
+                    )}
+
+                    {/* Hidden types inside this portfolio */}
+                    {inactiveTypes.map(t => (
+                      <div key={t.id} className="flex items-center px-4 py-2.5 gap-3 opacity-50">
+                        <div className="flex-1 min-w-0">
+                          <span className="text-sm line-through text-slate-500">{t.name}</span>
+                          <span className="text-xs text-slate-500 mr-2">{t.currency}</span>
+                        </div>
+                        <button
+                          onClick={() => handleHideType(t)}
+                          className="text-xs text-green-400 flex-shrink-0">הצג</button>
+                      </div>
+                    ))}
+
+                    {/* Add investment type */}
+                    {isAddingType ? (
+                      <div className="px-3 py-3">
+                        <AddInvestmentTypeForm
+                          onSubmit={data => handleAddType(portfolio.id, data)}
+                          onCancel={() => setShowAddTypeForPortfolio(null)}
+                        />
+                      </div>
+                    ) : (
+                      <div className="px-4 py-2">
+                        <button
+                          onClick={() => { setShowAddTypeForPortfolio(portfolio.id); setEditTypeId(null) }}
+                          className="text-xs text-accent">
+                          + הוסף השקעה
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Hidden portfolios */}
+      {inactivePortfolios.length > 0 && (
+        <div>
+          <p className="text-xs text-slate-500 mb-2 px-1">תיקים מוסתרים</p>
+          <div className="space-y-2">
+            {inactivePortfolios.map(portfolio => {
+              const isExpanded = expandedPortfolioId === portfolio.id
+              return (
+                <div key={portfolio.id} className="bg-surface rounded-xl overflow-hidden opacity-60">
+                  <button
+                    type="button"
+                    className="w-full flex items-center px-4 py-3 gap-3 text-right"
+                    onClick={() => setExpandedPortfolioId(v => v === portfolio.id ? null : portfolio.id)}>
+                    <ProviderLogo provider={portfolio.provider} color={portfolio.color} />
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm line-through text-slate-500" dir="auto">{portfolio.name}</span>
+                    </div>
+                    <span className="text-slate-500 text-xs flex-shrink-0">{isExpanded ? '⌃' : '⌄'}</span>
+                  </button>
+                  {isExpanded && (
+                    <div className="border-t border-slate-700/50 px-4 py-3 flex gap-2">
+                      <button
+                        onClick={() => handleHidePortfolio(portfolio)}
+                        className="flex-1 py-1.5 border border-slate-600 rounded-lg text-xs text-green-400 hover:border-green-400/50 transition-colors">
+                        הצג תיק
+                      </button>
+                      <button
+                        onClick={() => setDeleteConfirm({ kind: 'portfolio', item: portfolio })}
+                        className="py-1.5 px-3 border border-red-900/40 rounded-lg text-xs text-red-500 hover:text-red-400 transition-colors">
+                        מחק
+                      </button>
+                    </div>
                   )}
                 </div>
-              ))}
-            </div>
+              )
+            })}
           </div>
-        )
-      })}
+        </div>
+      )}
+
+      {/* Delete confirmation modal */}
+      {deleteConfirm && (
+        <DeleteConfirmModal
+          title={deleteConfirm.kind === 'portfolio' ? 'מחיקת תיק השקעות' : 'מחיקת השקעה'}
+          itemName={deleteConfirm.item.name}
+          warningBody={
+            deleteConfirm.kind === 'portfolio'
+              ? 'מחיקת התיק היא פעולה בלתי הפיכה. כל ההשקעות בתיק זה לא יימחקו אך יאבדו את הקישור לתיק.'
+              : 'מחיקת ההשקעה היא פעולה בלתי הפיכה. רשומות היסטוריות שמקושרות להשקעה זו לא יימחקו אך שם ההשקעה לא יוצג בהן.'
+          }
+          hideWarning={
+            deleteConfirm.kind === 'portfolio'
+              ? 'הסתרת התיק מסתירה אותו מהממשק אך שומרת את כל הנתונים. ניתן לשחזר בכל עת.'
+              : 'הסתרת ההשקעה מסתירה אותה מטפסי הוספה אך שומרת את כל הרשומות ההיסטוריות.'
+          }
+          hideLabel={deleteConfirm.kind === 'portfolio' ? 'הסתר תיק (מומלץ)' : 'הסתר השקעה (מומלץ)'}
+          onHide={
+            deleteConfirm.kind === 'portfolio'
+              ? () => handleHidePortfolio(deleteConfirm.item as Account)
+              : () => handleHideType(deleteConfirm.item as InvestmentType)
+          }
+          onDelete={confirmDelete}
+          onCancel={() => setDeleteConfirm(null)}
+          deleting={deleting}
+        />
+      )}
     </div>
   )
 }

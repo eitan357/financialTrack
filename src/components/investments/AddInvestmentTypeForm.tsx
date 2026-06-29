@@ -2,13 +2,15 @@ import { useState } from 'react'
 import type { InvestmentType } from '@/lib/types'
 
 interface Props {
-  onSubmit: (type: { name: string; currency: string }) => void
+  initial?: InvestmentType
+  onSubmit: (type: { name: string; currency: string; notes?: string }) => void
   onCancel: () => void
 }
 
-export function AddInvestmentTypeForm({ onSubmit, onCancel }: Props) {
-  const [name, setName] = useState('')
-  const [currency, setCurrency] = useState('USD')
+export function AddInvestmentTypeForm({ initial, onSubmit, onCancel }: Props) {
+  const [name, setName] = useState(initial?.name ?? '')
+  const [currency, setCurrency] = useState(initial?.currency ?? 'USD')
+  const [notes, setNotes] = useState(initial?.notes ?? '')
   const [nameError, setNameError] = useState<string | null>(null)
 
   function handleSubmit(e: React.FormEvent) {
@@ -16,7 +18,11 @@ export function AddInvestmentTypeForm({ onSubmit, onCancel }: Props) {
     if (!name.trim()) { setNameError('שדה חובה'); return }
     if (!currency.trim()) return
     setNameError(null)
-    onSubmit({ name: name.trim(), currency: currency.trim() })
+    onSubmit({
+      name: name.trim(),
+      currency: currency.trim(),
+      ...(notes.trim() && { notes: notes.trim() }),
+    })
   }
 
   return (
@@ -46,9 +52,23 @@ export function AddInvestmentTypeForm({ onSubmit, onCancel }: Props) {
           />
         </div>
       </div>
+      <div>
+        <label htmlFor="type-notes" className="text-xs text-slate-400 block mb-1">הערות (אופציונלי)</label>
+        <input
+          id="type-notes"
+          type="text"
+          value={notes}
+          onChange={e => setNotes(e.target.value)}
+          placeholder=""
+          className="w-full bg-slate-700 border border-slate-600 rounded-lg px-3 py-2 text-sm text-foreground placeholder-slate-500"
+        />
+      </div>
       <div className="flex gap-2 justify-end">
-        <button type="button" onClick={onCancel} aria-label="ביטול" className="text-sm text-slate-400 px-4 py-2">ביטול</button>
-        <button type="submit" aria-label="הוסף" disabled={!name.trim()} className="bg-accent text-white text-sm px-4 py-2 rounded-lg disabled:opacity-40">הוסף</button>
+        <button type="button" onClick={onCancel} className="text-sm text-slate-400 px-4 py-2">ביטול</button>
+        <button type="submit" disabled={!name.trim()}
+          className="bg-accent text-white text-sm px-4 py-2 rounded-lg disabled:opacity-40">
+          {initial ? 'שמור' : 'הוסף'}
+        </button>
       </div>
     </form>
   )
