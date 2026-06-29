@@ -113,7 +113,11 @@ export default function TransactionsPage() {
     setTransactions(prev => prev.filter(t => t.id !== transactionId))
   }
 
-  const activeAccounts = accounts.filter(a => a.isActive && a.type !== 'investment')
+  const accountsWithTxIds = new Set(transactions.map(t => t.accountId))
+  const visibleAccountTabs = accounts.filter(a =>
+    a.type !== 'investment' &&
+    (a.isActive !== false || accountsWithTxIds.has(a.id))
+  )
   const activeCategories = categories.filter(c => c.isActive)
 
   // Build a fast lookup for account type
@@ -233,13 +237,13 @@ export default function TransactionsPage() {
       <MonthHeader month={month} onMonthChange={setMonth} />
 
       {/* Account tabs */}
-      {activeAccounts.length > 0 && (
+      {visibleAccountTabs.length > 0 && (
         <div className="flex gap-2 overflow-x-auto pb-1 mb-3 no-scrollbar">
           <button
             onClick={() => setAccountFilter('all')}
             className={`text-xs px-3 py-1.5 rounded-full flex-shrink-0 ${accountFilter === 'all' ? 'bg-slate-600 text-white' : 'bg-surface text-slate-400'}`}
           >הכל</button>
-          {activeAccounts.map(acc => (
+          {visibleAccountTabs.map(acc => (
             <button
               key={acc.id}
               onClick={() => setAccountFilter(acc.id)}
