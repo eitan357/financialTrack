@@ -165,14 +165,12 @@ export default function InvestmentsPage() {
 
       {/* Add button — hidden while form is open, like transactions page */}
       {!showAddForm && (
-        <div className="flex justify-end mb-4">
-          <button
-            onClick={() => setShowAddForm(true)}
-            className="text-sm text-accent font-medium"
-          >
-            + הוסף פעילות
-          </button>
-        </div>
+        <button
+          onClick={() => setShowAddForm(true)}
+          className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-accent text-white text-sm font-semibold px-5 py-2.5 rounded-full shadow-lg z-10"
+        >
+          + הוסף פעילות
+        </button>
       )}
 
       {showAddForm && (
