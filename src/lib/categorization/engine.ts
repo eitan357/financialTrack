@@ -24,7 +24,7 @@ export function categorize(
   rules: CategorizationRule[],
   history: Transaction[]
 ): CategorizationResult {
-  const sorted = [...rules].sort((a, b) => b.priority - a.priority)
+  const sorted = [...rules].filter(r => r.isActive !== false).sort((a, b) => b.priority - a.priority)
   for (const rule of sorted) {
     if (matches(merchantName, rule)) {
       return { categoryId: rule.categoryId, source: 'rule', ruleId: rule.id }

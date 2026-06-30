@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { Wallet, GripVertical, Eye, EyeOff } from 'lucide-react'
 import { getAccounts, addAccount, deleteAccount, cleanupDuplicateAccounts } from '@/lib/firestore/accounts'
 import { getCategories, addCategory, cleanupDuplicateCategories } from '@/lib/firestore/categories'
-import { getRules, addRule, deleteRule } from '@/lib/firestore/categorization-rules'
+import { getRules, addRule, updateRule, deleteRule } from '@/lib/firestore/categorization-rules'
 import {
   updateAccountMeta, setAccountActive, reorderAccounts, updateCreditLinkage,
   updateCategoryMeta, setCategoryActive, reorderCategories,
@@ -604,7 +604,7 @@ function AccountsSection() {
                 ערוך
               </button>
               <button onClick={() => handleToggle(acc)} title="הסתר"
-                className="flex-1 py-1.5 border border-slate-600 rounded-lg text-xs text-slate-300 hover:text-amber-400 hover:border-amber-400/50 transition-colors flex items-center justify-center">
+                className="px-3 py-1.5 text-xs text-slate-400 hover:text-amber-400 transition-colors flex items-center">
                 <EyeOff size={14} />
               </button>
             </div>
@@ -697,7 +697,7 @@ function AccountsSection() {
                   {isExpanded && (
                     <div className="border-t border-slate-700/50 px-4 py-3">
                       <button onClick={() => handleToggle(acc)} title="הצג חשבון"
-                        className="w-full py-1.5 border border-slate-600 rounded-lg text-xs text-green-400 hover:border-green-400/50 transition-colors flex items-center justify-center">
+                        className="w-full py-1.5 text-xs text-slate-300 hover:text-white transition-colors flex items-center justify-center">
                         <Eye size={14} />
                       </button>
                     </div>
@@ -896,7 +896,7 @@ function CategoriesSection() {
                 <div key={cat.id} className="flex items-center px-4 py-3 gap-3 opacity-60">
                   <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: cat.color }} />
                   <span className="flex-1 text-sm line-through text-slate-500">{cat.name}</span>
-                  <button onClick={() => handleToggle(cat)} title="הצג" className="text-green-400"><Eye size={14} /></button>
+                  <button onClick={() => handleToggle(cat)} title="הצג" className="text-slate-300 hover:text-white"><Eye size={14} /></button>
                 </div>
               ))}
             </div>
@@ -971,6 +971,12 @@ function RulesSection() {
     setRules(prev => prev.filter(r => r.id !== id))
   }
 
+  async function handleToggleRule(rule: CategorizationRule) {
+    const next = rule.isActive === false
+    await updateRule(rule.id, { isActive: next ? undefined : false })
+    setRules(prev => prev.map(r => r.id === rule.id ? { ...r, isActive: next ? undefined : false } : r))
+  }
+
   const catMap = Object.fromEntries(categories.map(c => [c.id, c]))
 
   if (loading) return <p className="text-slate-400 text-sm text-center py-6">טוען...</p>
@@ -1027,17 +1033,24 @@ function RulesSection() {
       <div className="bg-surface rounded-2xl divide-y divide-slate-800">
         {rules.length === 0 ? (
           <p className="text-slate-500 text-sm text-center py-6">אין חוקים עדיין</p>
-        ) : rules.map(rule => (
-          <div key={rule.id} className="flex items-center px-4 py-3 gap-3">
-            <div className="flex-1 min-w-0">
-              <span className="text-sm font-medium">{rule.keyword}</span>
-              <span className="text-xs text-slate-500 mx-2">{MATCH_LABELS[rule.matchType]}</span>
-              <span className="text-xs text-slate-400">→ {catMap[rule.categoryId]?.name ?? '—'}</span>
+        ) : rules.map(rule => {
+          const hidden = rule.isActive === false
+          return (
+            <div key={rule.id} className={`flex items-center px-4 py-3 gap-3 ${hidden ? 'opacity-40' : ''}`}>
+              <div className="flex-1 min-w-0">
+                <span className={`text-sm font-medium ${hidden ? 'line-through text-slate-500' : ''}`}>{rule.keyword}</span>
+                <span className="text-xs text-slate-500 mx-2">{MATCH_LABELS[rule.matchType]}</span>
+                <span className="text-xs text-slate-400">→ {catMap[rule.categoryId]?.name ?? '—'}</span>
+              </div>
+              <button onClick={() => handleToggleRule(rule)} title={hidden ? 'הצג' : 'הסתר'}
+                className={`flex-shrink-0 ${hidden ? 'text-slate-300 hover:text-white' : 'text-slate-400 hover:text-amber-400'}`}>
+                {hidden ? <Eye size={14} /> : <EyeOff size={14} />}
+              </button>
+              <button onClick={() => handleDelete(rule.id)}
+                className="text-xs text-red-400 hover:text-red-300 flex-shrink-0">מחק</button>
             </div>
-            <button onClick={() => handleDelete(rule.id)}
-              className="text-xs text-red-400 hover:text-red-300 flex-shrink-0">מחק</button>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </div>
   )
@@ -1342,7 +1355,7 @@ function InvestmentsSection() {
                                 </button>
                                 <button
                                   onClick={() => handleHidePortfolio(portfolio)} title="הסתר"
-                                  className="flex-1 py-1.5 border border-slate-600 rounded-lg text-xs text-slate-300 hover:text-amber-400 hover:border-amber-400/50 transition-colors flex items-center justify-center">
+                                  className="px-3 py-1.5 text-xs text-slate-400 hover:text-amber-400 transition-colors flex items-center">
                                   <EyeOff size={14} />
                                 </button>
                                 <button
@@ -1352,7 +1365,7 @@ function InvestmentsSection() {
                                       ? 'border-accent text-accent'
                                       : 'border-slate-600 text-accent hover:border-accent/50'
                                   }`}>
-                                  {isAddingType ? 'ביטול' : '+ הוסף'}
+                                  {isAddingType ? 'ביטול' : 'הוסף השקעה+'}
                                 </button>
                               </div>
                             </div>
@@ -1417,7 +1430,7 @@ function InvestmentsSection() {
                                               </button>
                                               <button
                                                 onClick={() => handleHideType(t)} title="הסתר"
-                                                className="flex-1 py-1.5 border border-slate-600 rounded-lg text-xs text-slate-300 hover:text-amber-400 hover:border-amber-400/50 transition-colors flex items-center justify-center">
+                                                className="px-3 py-1.5 text-xs text-slate-400 hover:text-amber-400 transition-colors flex items-center">
                                                 <EyeOff size={14} />
                                               </button>
                                             </div>
@@ -1445,7 +1458,7 @@ function InvestmentsSection() {
                                   <span className="text-xs text-slate-500">{currLabel}</span>
                                   <button
                                     onClick={() => handleHideType(t)} title="הצג"
-                                    className="text-green-400"><Eye size={14} /></button>
+                                    className="text-slate-300 hover:text-white"><Eye size={14} /></button>
                                 </div>
                               </div>
                               )
@@ -1497,7 +1510,7 @@ function InvestmentsSection() {
                     <div className="border-t border-slate-700/50 px-4 py-3">
                       <button
                         onClick={() => handleHidePortfolio(portfolio)} title="הצג תיק"
-                        className="w-full py-1.5 border border-slate-600 rounded-lg text-xs text-green-400 hover:border-green-400/50 transition-colors flex items-center justify-center">
+                        className="w-full py-1.5 text-xs text-slate-300 hover:text-white transition-colors flex items-center justify-center">
                         <Eye size={14} />
                       </button>
                     </div>

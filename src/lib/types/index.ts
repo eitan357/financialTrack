@@ -43,6 +43,7 @@ export interface CategorizationRule {
   categoryId: string
   priority: number
   createdAt: string // ISO date string
+  isActive?: boolean
 }
 
 export type TransactionSource = 'csv_import' | 'xlsx_import' | 'pdf_import' | 'manual'
