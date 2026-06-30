@@ -25,10 +25,6 @@ export function CurrencyPicker({ value, onChange, className = '' }: Props) {
     : CURRENCIES
 
   useEffect(() => {
-    if (open) inputRef.current?.focus()
-  }, [open])
-
-  useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setOpen(false)

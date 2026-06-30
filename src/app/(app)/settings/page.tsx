@@ -1186,7 +1186,7 @@ function InvestmentsSection() {
   return (
     <div className="space-y-4">
       {/* Add portfolio button */}
-      <div className="flex justify-center">
+      <div className="flex justify-start">
         <button
           onClick={() => {
             setShowAddPortfolio(v => !v)
@@ -1281,12 +1281,22 @@ function InvestmentsSection() {
                           className="flex-1 py-1.5 border border-slate-600 rounded-lg text-xs text-slate-300 hover:text-amber-400 hover:border-amber-400/50 transition-colors">
                           הסתר
                         </button>
+                        <button
+                          onClick={() => { setShowAddTypeForPortfolio(v => v === portfolio.id ? null : portfolio.id); setEditTypeId(null) }}
+                          className={`px-3 py-1.5 border rounded-lg text-xs transition-colors ${
+                            isAddingType
+                              ? 'border-accent text-accent'
+                              : 'border-slate-600 text-accent hover:border-accent/50'
+                          }`}>
+                          {isAddingType ? 'ביטול' : '+ הוסף'}
+                        </button>
                       </div>
                     </div>
                   )}
 
                   {/* Investment types list */}
                   <div className="divide-y divide-slate-800 border-t border-slate-800">
+                    <p className="text-xs text-slate-500 px-4 pt-2 pb-1">השקעות</p>
                     {activeTypes.map((t, typeIdx) => {
                       const isEditingType = editTypeId === t.id
                       if (isEditingType) return (
@@ -1300,20 +1310,22 @@ function InvestmentsSection() {
                         </div>
                       )
                       const curr = getCurrency(t.currency)
-                      const currLabel = curr ? `${curr.symbol} ${curr.code} · ${curr.name}` : t.currency
+                      const currLabel = curr ? `${curr.symbol} ${curr.code}` : t.currency
                       const isTypeExpanded = expandedTypeId === t.id
                       return (
                         <div key={t.id}>
                           <button
                             type="button"
-                            className="w-full flex items-center px-4 py-2.5 gap-3 text-right"
+                            className="w-full flex items-center justify-between px-6 py-2.5 text-right"
                             onClick={() => setExpandedTypeId(v => v === t.id ? null : t.id)}>
-                            <div className="flex-1 min-w-0">
+                            <div className="min-w-0">
                               <span className="text-sm">{t.name}</span>
-                              <span className="text-xs text-slate-400 mr-2">{currLabel}</span>
-                              {t.notes && <span className="text-xs text-slate-500">{t.notes}</span>}
+                              {t.notes && <span className="text-xs text-slate-500 block">{t.notes}</span>}
                             </div>
-                            <span className="text-slate-500 text-xs flex-shrink-0">{isTypeExpanded ? '⌃' : '⌄'}</span>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <span className="text-xs text-slate-400">{currLabel}</span>
+                              <span className="text-slate-500 text-xs">{isTypeExpanded ? '⌃' : '⌄'}</span>
+                            </div>
                           </button>
                           {isTypeExpanded && (
                             <div className="px-4 pb-2.5 flex gap-2">
@@ -1350,35 +1362,27 @@ function InvestmentsSection() {
                     {/* Hidden types inside this portfolio */}
                     {inactiveTypes.map(t => {
                       const curr = getCurrency(t.currency)
-                      const currLabel = curr ? `${curr.symbol} ${curr.code} · ${curr.name}` : t.currency
+                      const currLabel = curr ? `${curr.symbol} ${curr.code}` : t.currency
                       return (
-                      <div key={t.id} className="flex items-center px-4 py-2.5 gap-3 opacity-50">
-                        <div className="flex-1 min-w-0">
-                          <span className="text-sm line-through text-slate-500">{t.name}</span>
-                          <span className="text-xs text-slate-500 mr-2">{currLabel}</span>
+                      <div key={t.id} className="flex items-center justify-between px-6 py-2.5 gap-3 opacity-50">
+                        <span className="text-sm line-through text-slate-500">{t.name}</span>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <span className="text-xs text-slate-500">{currLabel}</span>
+                          <button
+                            onClick={() => handleHideType(t)}
+                            className="text-xs text-green-400">הצג</button>
                         </div>
-                        <button
-                          onClick={() => handleHideType(t)}
-                          className="text-xs text-green-400 flex-shrink-0">הצג</button>
                       </div>
                       )
                     })}
 
-                    {/* Add investment type */}
-                    {isAddingType ? (
+                    {/* Add investment type form */}
+                    {isAddingType && (
                       <div className="px-3 py-3">
                         <AddInvestmentTypeForm
                           onSubmit={data => handleAddType(portfolio.id, data)}
                           onCancel={() => setShowAddTypeForPortfolio(null)}
                         />
-                      </div>
-                    ) : (
-                      <div className="px-4 py-2">
-                        <button
-                          onClick={() => { setShowAddTypeForPortfolio(portfolio.id); setEditTypeId(null) }}
-                          className="text-xs text-accent">
-                          + הוסף השקעה
-                        </button>
                       </div>
                     )}
                   </div>
