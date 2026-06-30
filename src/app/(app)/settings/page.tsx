@@ -501,21 +501,24 @@ function AccountsSection() {
     }
   }
 
-  async function moveAccount(id: string, dir: -1 | 1) {
-    const acc = accounts.find(a => a.id === id)!
-    const sameType = accounts
-      .filter(a => a.isActive && a.type === acc.type)
-      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
-    const idx = sameType.findIndex(a => a.id === id)
-    const newIdx = idx + dir
-    if (newIdx < 0 || newIdx >= sameType.length) return
-    const updated = [...sameType]
-    ;[updated[idx], updated[newIdx]] = [updated[newIdx], updated[idx]]
-    await reorderAccounts(updated.map((a, i) => ({ id: a.id, sortOrder: i })))
-    setAccounts(prev => prev.map(a => {
-      const pos = updated.findIndex(u => u.id === a.id)
-      return pos >= 0 ? { ...a, sortOrder: pos } : a
-    }))
+  const sensors = useDndSensors()
+
+  function makeAccountDragEndHandler(type: 'bank' | 'credit') {
+    return async function handleDragEnd(event: DragEndEvent) {
+      const { active, over } = event
+      if (!over || active.id === over.id) return
+      const sorted = accounts
+        .filter(a => a.type === type && a.isActive !== false)
+        .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+      const oldIndex = sorted.findIndex(a => a.id === String(active.id))
+      const newIndex = sorted.findIndex(a => a.id === String(over.id))
+      const reordered = arrayMove(sorted, oldIndex, newIndex)
+      setAccounts(prev => prev.map(a => {
+        const pos = reordered.findIndex(r => r.id === a.id)
+        return pos >= 0 ? { ...a, sortOrder: pos } : a
+      }))
+      await reorderAccounts(reordered.map((a, i) => ({ id: a.id, sortOrder: i })))
+    }
   }
 
   const bankAccounts = accounts.filter(a => a.type === 'bank')
@@ -527,7 +530,7 @@ function AccountsSection() {
   if (loading) return <p className="text-slate-400 text-sm text-center py-6">טוען...</p>
   if (loadError) return <p className="text-red-400 text-sm text-center py-6">{loadError}</p>
 
-  function renderRow(acc: Account, idx: number, total: number, showMove: boolean) {
+  function renderRow(acc: Account, handleProps?: React.HTMLAttributes<HTMLSpanElement>) {
     const isExpanded = expandedId === acc.id
     const isEditing = editId === acc.id
 
@@ -542,19 +545,29 @@ function AccountsSection() {
 
     return (
       <div key={acc.id} className="bg-surface rounded-xl overflow-hidden">
-        <button type="button" className="w-full flex items-center px-4 py-3 gap-3 text-right"
-          onClick={() => { setExpandedId(v => v === acc.id ? null : acc.id); setEditId(null); setShowAddType(null) }}>
-          <ProviderLogo provider={acc.provider} color={acc.color} type={acc.type} />
-          <div className="flex-1 min-w-0">
-            <span className="text-sm" dir="auto">{acc.name}</span>
-            {acc.last4digits && (
-              acc.type === 'bank'
-                ? <span className="text-xs text-slate-500 mr-2">{acc.last4digits}</span>
-                : <span className="text-xs text-slate-500 mr-2">****{acc.last4digits}</span>
-            )}
-          </div>
-          <span className="text-slate-500 text-xs flex-shrink-0">{isExpanded ? '⌃' : '⌄'}</span>
-        </button>
+        <div className="flex items-center">
+          {handleProps && (
+            <span
+              {...handleProps}
+              className="pl-4 pr-1 py-3 cursor-grab active:cursor-grabbing text-slate-600 hover:text-slate-400 flex-shrink-0 touch-none select-none"
+            >
+              <GripVertical size={16} />
+            </span>
+          )}
+          <button type="button" className="flex-1 flex items-center px-4 py-3 gap-3 text-right"
+            onClick={() => { setExpandedId(v => v === acc.id ? null : acc.id); setEditId(null); setShowAddType(null) }}>
+            <ProviderLogo provider={acc.provider} color={acc.color} type={acc.type} />
+            <div className="flex-1 min-w-0">
+              <span className="text-sm" dir="auto">{acc.name}</span>
+              {acc.last4digits && (
+                acc.type === 'bank'
+                  ? <span className="text-xs text-slate-500 mr-2">{acc.last4digits}</span>
+                  : <span className="text-xs text-slate-500 mr-2">****{acc.last4digits}</span>
+              )}
+            </div>
+            <span className="text-slate-500 text-xs flex-shrink-0">{isExpanded ? '⌃' : '⌄'}</span>
+          </button>
+        </div>
 
         {isExpanded && (
           <div className="border-t border-slate-700/50 px-4 pt-3 pb-3 space-y-3">
@@ -586,14 +599,6 @@ function AccountsSection() {
             </div>
 
             <div className="flex gap-2">
-              {showMove && (
-                <div className="flex gap-1" dir="ltr">
-                  <button onClick={() => moveAccount(acc.id, -1)} disabled={idx === 0}
-                    className="px-2 py-1.5 border border-slate-700 rounded-lg text-slate-500 hover:text-foreground disabled:opacity-20 text-xs">▲</button>
-                  <button onClick={() => moveAccount(acc.id, 1)} disabled={idx === total - 1}
-                    className="px-2 py-1.5 border border-slate-700 rounded-lg text-slate-500 hover:text-foreground disabled:opacity-20 text-xs">▼</button>
-                </div>
-              )}
               <button onClick={() => { setEditId(acc.id); setShowAddType(null) }}
                 className="flex-1 py-1.5 border border-slate-600 rounded-lg text-xs text-slate-300 hover:text-accent hover:border-accent/50 transition-colors">
                 ערוך
@@ -633,7 +638,15 @@ function AccountsSection() {
         <div>
           <p className="text-xs text-slate-500 mb-2 px-1">חשבונות בנק</p>
           <div className="space-y-2">
-            {activeBanks.map((acc, idx) => renderRow(acc, idx, activeBanks.length, true))}
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={makeAccountDragEndHandler('bank')}>
+              <SortableContext items={activeBanks.map(a => a.id)} strategy={verticalListSortingStrategy}>
+                {activeBanks.map(acc => (
+                  <SortableRow key={acc.id} id={acc.id}>
+                    {(handleProps) => renderRow(acc, handleProps)}
+                  </SortableRow>
+                ))}
+              </SortableContext>
+            </DndContext>
           </div>
         </div>
       )}
@@ -642,7 +655,15 @@ function AccountsSection() {
         <div>
           <p className="text-xs text-slate-500 mb-2 px-1">כרטיסי אשראי</p>
           <div className="space-y-2">
-            {activeCredit.map((acc, idx) => renderRow(acc, idx, activeCredit.length, true))}
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={makeAccountDragEndHandler('credit')}>
+              <SortableContext items={activeCredit.map(a => a.id)} strategy={verticalListSortingStrategy}>
+                {activeCredit.map(acc => (
+                  <SortableRow key={acc.id} id={acc.id}>
+                    {(handleProps) => renderRow(acc, handleProps)}
+                  </SortableRow>
+                ))}
+              </SortableContext>
+            </DndContext>
           </div>
         </div>
       )}
@@ -651,7 +672,7 @@ function AccountsSection() {
         <div>
           <p className="text-xs text-slate-500 mb-2 px-1">מזומן</p>
           <div className="space-y-2">
-            {activeCash.map(acc => renderRow(acc, 0, 1, false))}
+            {activeCash.map(acc => renderRow(acc))}
           </div>
         </div>
       )}
