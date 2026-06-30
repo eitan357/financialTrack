@@ -27,6 +27,7 @@ function CreditPageInner() {
   const [rules, setRules] = useState<CategorizationRule[]>([])
   const [previousTransactions, setPreviousTransactions] = useState<Transaction[]>([])
   const [existingTransactions, setExistingTransactions] = useState<Transaction[]>([])
+  const [portfolioAccounts, setPortfolioAccounts] = useState<Account[]>([])
 
   useEffect(() => {
     async function load() {
@@ -45,6 +46,7 @@ function CreditPageInner() {
         setRules(rls)
         setPreviousTransactions(txs)
         setExistingTransactions(txs.filter(t => t.accountId === accountId))
+        setPortfolioAccounts(accs.filter(a => a.type === 'investment' && a.isActive !== false))
       } catch {
         setError('שגיאה בטעינת הנתונים.')
       } finally {
@@ -69,6 +71,7 @@ function CreditPageInner() {
         rules={rules}
         previousTransactions={previousTransactions}
         existingTransactions={existingTransactions}
+        portfolioAccounts={portfolioAccounts}
         onDone={() => router.push(`/import?month=${month}`)}
       />
     </main>

@@ -13,10 +13,11 @@ import { categorize } from '@/lib/categorization/engine'
 import { detectDuplicates } from '@/lib/import/duplicate-detector'
 import { addTransactions } from '@/lib/firestore/transactions'
 import { ImportError } from '@/lib/parsers/import-errors'
-import type { AccountProvider, Category, CategorizationRule, ImportedTransaction, Transaction, TransactionSource } from '@/lib/types'
+import type { AccountProvider, Account, Category, CategorizationRule, ImportedTransaction, Transaction, TransactionSource } from '@/lib/types'
 
 interface CreditRow extends ImportedTransaction {
   skip: boolean
+  portfolioAccountId?: string
 }
 
 interface Props {
@@ -28,10 +29,12 @@ interface Props {
   rules: CategorizationRule[]
   previousTransactions: Transaction[]
   existingTransactions: Transaction[]
+  portfolioAccounts?: Account[]
   onDone: () => void
 }
 
-function toTransaction(t: ImportedTransaction, accountId: string, month: string): Omit<Transaction, 'id'> {
+function toTransaction(t: CreditRow, accountId: string, month: string): Omit<Transaction, 'id'> {
+  const isInvestment = !!t.portfolioAccountId
   return {
     date: t.date,
     merchantName: t.merchantName,
@@ -41,13 +44,14 @@ function toTransaction(t: ImportedTransaction, accountId: string, month: string)
     source: 'xlsx_import' as TransactionSource,
     isImmediate: t.isImmediate,
     month,
-    direction: t.direction,
+    direction: isInvestment ? 'investment' : t.direction,
     ...(t.notes && { description: t.notes }),
-    ...(t.direction !== 'income' && t.categoryId ? { categoryId: t.categoryId } : {}),
+    ...(isInvestment ? { portfolioAccountId: t.portfolioAccountId } : {}),
+    ...(!isInvestment && t.direction !== 'income' && t.categoryId ? { categoryId: t.categoryId } : {}),
   }
 }
 
-export function CreditFlow({ month, accountId, accountName, provider, categories, rules, previousTransactions, existingTransactions, onDone }: Props) {
+export function CreditFlow({ month, accountId, accountName, provider, categories, rules, previousTransactions, existingTransactions, portfolioAccounts = [], onDone }: Props) {
   const router = useRouter()
   const [rows, setRows] = useState<CreditRow[]>([])
   const [xlsxData, setXlsxData] = useState<Uint8Array | null>(null)
@@ -153,7 +157,7 @@ export function CreditFlow({ month, accountId, accountName, provider, categories
       const toSave = duplicates.length > 0
         ? (window.confirm(`נמצאו ${duplicates.length} עסקאות כפולות. לשמור בכל זאת?`) ? toImport : clean)
         : toImport
-      await addTransactions(toSave.map(t => toTransaction(t, accountId, month)))
+      await addTransactions(toSave.map(t => toTransaction(t as CreditRow, accountId, month)))
       setSaved(true)
     } catch (err) {
       console.error('addTransactions failed:', err)
@@ -251,6 +255,7 @@ export function CreditFlow({ month, accountId, accountName, provider, categories
                   <th className="text-right py-2 px-2">תיאור</th>
                   <th className="text-right py-2 px-2">סכום</th>
                   <th className="text-right py-2 px-2">כיוון</th>
+                  <th className="text-right py-2 px-2">תיק</th>
                   <th className="text-right py-2 px-2">מיידי</th>
                   <th className="text-right py-2 px-2">קטגוריה</th>
                 </tr>
@@ -296,12 +301,37 @@ export function CreditFlow({ month, accountId, accountName, provider, categories
                         {tx.skip && <span className="text-slate-500">{tx.currency}</span>}
                       </div>
                     </td>
-                    <td className={`py-1.5 px-2 ${tx.skip ? 'opacity-40 pointer-events-none' : ''}`}>
-                      <DirectionToggle
-                        value={tx.direction}
-                        onChange={v => updateRow(i, { direction: v, categoryId: v === 'income' ? null : tx.categoryId })}
-                        size="sm"
-                      />
+                    <td className={`py-1.5 px-2 ${tx.skip && !tx.portfolioAccountId ? 'opacity-40 pointer-events-none' : ''}`}>
+                      {tx.portfolioAccountId ? (
+                        <span className="text-xs text-purple-400">השקעה</span>
+                      ) : (
+                        <DirectionToggle
+                          value={tx.direction}
+                          onChange={v => updateRow(i, { direction: v, categoryId: v === 'income' ? null : tx.categoryId })}
+                          size="sm"
+                        />
+                      )}
+                    </td>
+                    <td className="py-1.5 px-2">
+                      <select
+                        value={tx.portfolioAccountId ?? ''}
+                        onChange={e => {
+                          const pid = e.target.value || undefined
+                          updateRow(i, {
+                            portfolioAccountId: pid,
+                            skip: pid ? false : tx.skip,
+                            categoryId: pid ? null : tx.categoryId,
+                          })
+                        }}
+                        disabled={tx.skip && !tx.portfolioAccountId}
+                        className="bg-background text-xs rounded px-1 py-0.5 text-purple-400 disabled:opacity-30"
+                        aria-label={`תיק השקעות עבור ${tx.merchantName}`}
+                      >
+                        <option value="">—</option>
+                        {portfolioAccounts.map(p => (
+                          <option key={p.id} value={p.id}>{p.name}</option>
+                        ))}
+                      </select>
                     </td>
                     <td className="py-1.5 px-2 text-center">
                       <input
@@ -315,8 +345,10 @@ export function CreditFlow({ month, accountId, accountName, provider, categories
                       />
                     </td>
                     <td className="py-1.5 px-2">
-                      {tx.skip ? (
+                      {tx.skip && !tx.portfolioAccountId ? (
                         <span className="text-xs text-slate-600">מסונן</span>
+                      ) : tx.portfolioAccountId ? (
+                        <span className="text-xs text-slate-500">—</span>
                       ) : tx.direction === 'expense' ? (
                         <SelectField
                           value={tx.categoryId ?? ''}
