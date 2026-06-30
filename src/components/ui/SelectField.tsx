@@ -45,10 +45,6 @@ export function SelectField({
     : options
 
   useEffect(() => {
-    if (open) inputRef.current?.focus()
-  }, [open])
-
-  useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
         setOpen(false)
@@ -75,7 +71,7 @@ export function SelectField({
           role="option"
           aria-selected={value === ''}
           onClick={() => { onChange(''); setOpen(false); setSearch('') }}
-          className={`px-3 py-2 cursor-pointer hover:bg-slate-700 text-sm text-slate-400 ${value === '' ? 'bg-slate-700/60' : ''}`}
+          className={`px-3 py-2 cursor-pointer hover:bg-slate-700 text-sm text-slate-400 text-right ${value === '' ? 'bg-slate-700/60' : ''}`}
         >
           {nullLabel}
         </li>
@@ -100,7 +96,7 @@ export function SelectField({
           role="option"
           aria-selected={opt.value === value}
           onClick={() => { onChange(opt.value); setOpen(false); setSearch('') }}
-          className={`flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-slate-700 text-sm ${opt.value === value ? 'bg-slate-700/60' : ''}`}
+          className={`flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-slate-700 text-sm text-right ${opt.value === value ? 'bg-slate-700/60' : ''}`}
         >
           {opt.color && (
             <span className="flex-shrink-0 text-base leading-none" style={{ color: opt.color }}>●</span>
@@ -140,14 +136,15 @@ export function SelectField({
       </button>
 
       {open && (
-        <div dir="ltr" className={`absolute z-50 top-full mt-1 left-0 ${dropdownWidth} bg-slate-800 border border-slate-700 rounded-xl shadow-xl`}>
+        <div className={`absolute z-50 top-full mt-1 left-0 ${dropdownWidth} bg-slate-800 border border-slate-700 rounded-xl shadow-xl`}>
           <div className="p-2 border-b border-slate-700">
             <input
               ref={inputRef}
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="חפש..."
-              className="w-full bg-slate-700 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-1 ring-accent"
+              dir="rtl"
+              className="w-full bg-slate-700 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-1 ring-accent text-right"
             />
           </div>
           <ul className="overflow-y-auto max-h-52" role="listbox">

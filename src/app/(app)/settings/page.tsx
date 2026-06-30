@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { Wallet, GripVertical } from 'lucide-react'
+import { Wallet, GripVertical, Eye, EyeOff } from 'lucide-react'
 import { getAccounts, addAccount, deleteAccount, cleanupDuplicateAccounts } from '@/lib/firestore/accounts'
 import { getCategories, addCategory, cleanupDuplicateCategories } from '@/lib/firestore/categories'
 import { getRules, addRule, deleteRule } from '@/lib/firestore/categorization-rules'
@@ -603,9 +603,9 @@ function AccountsSection() {
                 className="flex-1 py-1.5 border border-slate-600 rounded-lg text-xs text-slate-300 hover:text-accent hover:border-accent/50 transition-colors">
                 ערוך
               </button>
-              <button onClick={() => handleToggle(acc)}
-                className="flex-1 py-1.5 border border-slate-600 rounded-lg text-xs text-slate-300 hover:text-amber-400 hover:border-amber-400/50 transition-colors">
-                הסתר
+              <button onClick={() => handleToggle(acc)} title="הסתר"
+                className="flex-1 py-1.5 border border-slate-600 rounded-lg text-xs text-slate-300 hover:text-amber-400 hover:border-amber-400/50 transition-colors flex items-center justify-center">
+                <EyeOff size={14} />
               </button>
             </div>
           </div>
@@ -696,9 +696,9 @@ function AccountsSection() {
                   </button>
                   {isExpanded && (
                     <div className="border-t border-slate-700/50 px-4 py-3">
-                      <button onClick={() => handleToggle(acc)}
-                        className="w-full py-1.5 border border-slate-600 rounded-lg text-xs text-green-400 hover:border-green-400/50 transition-colors">
-                        הצג חשבון
+                      <button onClick={() => handleToggle(acc)} title="הצג חשבון"
+                        className="w-full py-1.5 border border-slate-600 rounded-lg text-xs text-green-400 hover:border-green-400/50 transition-colors flex items-center justify-center">
+                        <Eye size={14} />
                       </button>
                     </div>
                   )}
@@ -869,8 +869,8 @@ function CategoriesSection() {
                         <div className="flex items-center gap-2">
                           <button onClick={() => { setEditId(cat.id); setShowAdd(false) }}
                             className="text-xs text-slate-400 hover:text-accent">ערוך</button>
-                          <button onClick={() => handleToggle(cat)}
-                            className="text-xs text-slate-400 hover:text-amber-400">הסתר</button>
+                          <button onClick={() => handleToggle(cat)} title="הסתר"
+                            className="text-slate-400 hover:text-amber-400"><EyeOff size={14} /></button>
                         </div>
                       </div>
                     )}
@@ -896,7 +896,7 @@ function CategoriesSection() {
                 <div key={cat.id} className="flex items-center px-4 py-3 gap-3 opacity-60">
                   <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: cat.color }} />
                   <span className="flex-1 text-sm line-through text-slate-500">{cat.name}</span>
-                  <button onClick={() => handleToggle(cat)} className="text-xs text-green-400">הצג</button>
+                  <button onClick={() => handleToggle(cat)} title="הצג" className="text-green-400"><Eye size={14} /></button>
                 </div>
               ))}
             </div>
@@ -1341,9 +1341,9 @@ function InvestmentsSection() {
                                   ערוך
                                 </button>
                                 <button
-                                  onClick={() => handleHidePortfolio(portfolio)}
-                                  className="flex-1 py-1.5 border border-slate-600 rounded-lg text-xs text-slate-300 hover:text-amber-400 hover:border-amber-400/50 transition-colors">
-                                  הסתר
+                                  onClick={() => handleHidePortfolio(portfolio)} title="הסתר"
+                                  className="flex-1 py-1.5 border border-slate-600 rounded-lg text-xs text-slate-300 hover:text-amber-400 hover:border-amber-400/50 transition-colors flex items-center justify-center">
+                                  <EyeOff size={14} />
                                 </button>
                                 <button
                                   onClick={() => { setShowAddTypeForPortfolio(v => v === portfolio.id ? null : portfolio.id); setEditTypeId(null) }}
@@ -1416,9 +1416,9 @@ function InvestmentsSection() {
                                                 ערוך
                                               </button>
                                               <button
-                                                onClick={() => handleHideType(t)}
-                                                className="flex-1 py-1.5 border border-slate-600 rounded-lg text-xs text-slate-300 hover:text-amber-400 hover:border-amber-400/50 transition-colors">
-                                                הסתר
+                                                onClick={() => handleHideType(t)} title="הסתר"
+                                                className="flex-1 py-1.5 border border-slate-600 rounded-lg text-xs text-slate-300 hover:text-amber-400 hover:border-amber-400/50 transition-colors flex items-center justify-center">
+                                                <EyeOff size={14} />
                                               </button>
                                             </div>
                                           )}
@@ -1444,8 +1444,8 @@ function InvestmentsSection() {
                                 <div className="flex items-center gap-2 flex-shrink-0">
                                   <span className="text-xs text-slate-500">{currLabel}</span>
                                   <button
-                                    onClick={() => handleHideType(t)}
-                                    className="text-xs text-green-400">הצג</button>
+                                    onClick={() => handleHideType(t)} title="הצג"
+                                    className="text-green-400"><Eye size={14} /></button>
                                 </div>
                               </div>
                               )
@@ -1496,9 +1496,9 @@ function InvestmentsSection() {
                   {isExpanded && (
                     <div className="border-t border-slate-700/50 px-4 py-3">
                       <button
-                        onClick={() => handleHidePortfolio(portfolio)}
-                        className="w-full py-1.5 border border-slate-600 rounded-lg text-xs text-green-400 hover:border-green-400/50 transition-colors">
-                        הצג תיק
+                        onClick={() => handleHidePortfolio(portfolio)} title="הצג תיק"
+                        className="w-full py-1.5 border border-slate-600 rounded-lg text-xs text-green-400 hover:border-green-400/50 transition-colors flex items-center justify-center">
+                        <Eye size={14} />
                       </button>
                     </div>
                   )}

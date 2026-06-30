@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { Upload, CheckCircle, Tag, ChevronRight } from 'lucide-react'
 import { SelectField } from '@/components/ui/SelectField'
 import { DirectionToggle } from '@/components/ui/DirectionToggle'
+import { CurrencyPicker } from '@/components/ui/CurrencyPicker'
 import { parseCSV } from '@/lib/parsers/csv-parser'
 import { getSheetNames, parseSheet } from '@/lib/parsers/xlsx-parser'
 import { mapRows } from '@/lib/parsers/transaction-mapper'
@@ -248,7 +249,7 @@ export function CreditFlow({ month, accountId, accountName, provider, categories
                   <th className="text-right py-2 px-2">תאריך</th>
                   <th className="text-right py-2 px-2">בית עסק</th>
                   <th className="text-right py-2 px-2">תיאור</th>
-                  <th className="text-left py-2 px-2">סכום</th>
+                  <th className="text-right py-2 px-2">סכום</th>
                   <th className="text-right py-2 px-2">כיוון</th>
                   <th className="text-right py-2 px-2">מיידי</th>
                   <th className="text-right py-2 px-2">קטגוריה</th>
@@ -283,7 +284,18 @@ export function CreditFlow({ month, accountId, accountName, provider, categories
                         aria-label={`תיאור עבור ${tx.merchantName}`}
                       />
                     </td>
-                    <td className="py-1.5 px-2 text-left tabular-nums text-xs">{tx.amount.toFixed(2)} {tx.currency}</td>
+                    <td className="py-1.5 px-2 tabular-nums text-xs">
+                      <div className="flex items-center gap-1">
+                        <span>{tx.amount.toFixed(2)}</span>
+                        {!tx.skip && (
+                          <CurrencyPicker
+                            value={tx.currency}
+                            onChange={v => updateRow(i, { currency: v })}
+                          />
+                        )}
+                        {tx.skip && <span className="text-slate-500">{tx.currency}</span>}
+                      </div>
+                    </td>
                     <td className={`py-1.5 px-2 ${tx.skip ? 'opacity-40 pointer-events-none' : ''}`}>
                       <DirectionToggle
                         value={tx.direction}

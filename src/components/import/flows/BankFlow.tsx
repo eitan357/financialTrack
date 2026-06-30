@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { Upload, CheckCircle, Tag, ChevronRight } from 'lucide-react'
 import { SelectField } from '@/components/ui/SelectField'
 import { DirectionToggle } from '@/components/ui/DirectionToggle'
+import { CurrencyPicker } from '@/components/ui/CurrencyPicker'
 import { parseOneZeroXlsx } from '@/lib/parsers/one-zero-xlsx-parser'
 import { parseLeumiPdf } from '@/lib/parsers/leumi-pdf-parser'
 import { parseCSV } from '@/lib/parsers/csv-parser'
@@ -13,8 +14,6 @@ import { detectDuplicates } from '@/lib/import/duplicate-detector'
 import { addTransactions } from '@/lib/firestore/transactions'
 import { ImportError } from '@/lib/parsers/import-errors'
 import type { Account, Category, CategorizationRule, ImportedTransaction, RawTransaction, SalaryEntry, Transaction, TransactionSource, InvestmentEntry, Dividend, InvestmentConversion } from '@/lib/types'
-
-const COMMON_CURRENCIES = ['ILS', 'USD', 'EUR', 'GBP', 'JPY', 'CHF', 'AUD', 'CAD', 'CNY', 'SGD']
 
 export type BankType = 'one-zero' | 'leumi' | 'generic'
 
@@ -282,7 +281,7 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
                   <th className="text-right py-2 px-2">תאריך</th>
                   <th className="text-right py-2 px-2">תיאור</th>
                   <th className="text-right py-2 px-2">הערה</th>
-                  <th className="text-left py-2 px-2">סכום</th>
+                  <th className="text-right py-2 px-2">סכום</th>
                   <th className="text-right py-2 px-2">כיוון</th>
                   <th className="text-right py-2 px-2">מיידי</th>
                   <th className="text-right py-2 px-2">קטגוריה</th>
@@ -318,23 +317,16 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
                         aria-label={`הערה עבור ${row.merchantName}`}
                       />
                     </td>
-                    <td className="py-1.5 px-2 text-left tabular-nums text-xs">
+                    <td className="py-1.5 px-2 tabular-nums text-xs">
                       <div className="flex items-center gap-1">
                         <span>{row.amount.toFixed(2)}</span>
-                        <select
-                          value={row.currency}
-                          onChange={e => updateRow(i, { currency: e.target.value })}
-                          disabled={row.skip}
-                          className="bg-background text-xs rounded px-1 py-0.5 disabled:opacity-40 max-w-16"
-                          aria-label={`מטבע עבור ${row.merchantName}`}
-                        >
-                          {COMMON_CURRENCIES.map(c => (
-                            <option key={c} value={c}>{c}</option>
-                          ))}
-                          {!COMMON_CURRENCIES.includes(row.currency) && (
-                            <option value={row.currency}>{row.currency}</option>
-                          )}
-                        </select>
+                        {!row.skip && (
+                          <CurrencyPicker
+                            value={row.currency}
+                            onChange={v => updateRow(i, { currency: v })}
+                          />
+                        )}
+                        {row.skip && <span className="text-slate-500">{row.currency}</span>}
                       </div>
                     </td>
                     <td className={`py-1.5 px-2 ${row.skip ? 'opacity-40 pointer-events-none' : ''}`}>

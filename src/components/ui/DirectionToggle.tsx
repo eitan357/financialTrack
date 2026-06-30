@@ -7,24 +7,21 @@ interface Props {
 }
 
 export function DirectionToggle({ value, onChange, size = 'md' }: Props) {
-  const py = size === 'sm' ? 'py-1.5' : 'py-2'
+  const py = size === 'sm' ? 'py-1' : 'py-2'
+  const px = size === 'sm' ? 'px-2' : 'px-3'
   const textSize = size === 'sm' ? 'text-xs' : 'text-sm'
+  const isExpense = value === 'expense'
   return (
-    <div className="flex rounded-lg overflow-hidden border border-slate-700">
-      <button
-        type="button"
-        onClick={() => onChange('expense')}
-        className={`flex-1 ${py} ${textSize} font-medium transition-colors ${
-          value === 'expense' ? 'bg-red-500/20 text-red-400' : 'text-slate-400'
-        }`}
-      >הוצאה</button>
-      <button
-        type="button"
-        onClick={() => onChange('income')}
-        className={`flex-1 ${py} ${textSize} font-medium transition-colors ${
-          value === 'income' ? 'bg-green-500/20 text-green-400' : 'text-slate-400'
-        }`}
-      >הכנסה</button>
-    </div>
+    <button
+      type="button"
+      onClick={() => onChange(isExpense ? 'income' : 'expense')}
+      className={`rounded-lg ${py} ${px} ${textSize} font-medium transition-colors ${
+        isExpense
+          ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
+          : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
+      }`}
+    >
+      {isExpense ? '↓ הוצאה' : '↑ הכנסה'}
+    </button>
   )
 }
