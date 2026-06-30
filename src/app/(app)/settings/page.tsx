@@ -784,18 +784,20 @@ function CategoriesSection() {
     setCategories(prev => prev.map(c => c.id === cat.id ? { ...c, isActive: !c.isActive } : c))
   }
 
-  async function moveCategory(id: string, dir: -1 | 1) {
+  const sensors = useDndSensors()
+
+  async function handleCategoryDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
     const activeList = categories.filter(c => c.isActive)
-    const idx = activeList.findIndex(c => c.id === id)
-    const newIdx = idx + dir
-    if (newIdx < 0 || newIdx >= activeList.length) return
-    const updated = [...activeList]
-    ;[updated[idx], updated[newIdx]] = [updated[newIdx], updated[idx]]
-    await reorderCategories(updated.map((c, i) => ({ id: c.id, sortOrder: i })))
+    const oldIndex = activeList.findIndex(c => c.id === String(active.id))
+    const newIndex = activeList.findIndex(c => c.id === String(over.id))
+    const reordered = arrayMove(activeList, oldIndex, newIndex)
     setCategories(prev => {
       const inactive = prev.filter(c => !c.isActive)
-      return [...updated.map((c, i) => ({ ...c, sortOrder: i })), ...inactive]
+      return [...reordered.map((c, i) => ({ ...c, sortOrder: i })), ...inactive]
     })
+    await reorderCategories(reordered.map((c, i) => ({ id: c.id, sortOrder: i })))
   }
 
   if (loading) return <p className="text-slate-400 text-sm text-center py-6">טוען...</p>
@@ -822,32 +824,40 @@ function CategoriesSection() {
 
       {showCategories && (
         <div className="bg-surface rounded-2xl divide-y divide-slate-800">
-          {active.map((cat, idx) => (
-            editId === cat.id ? (
-              <div key={cat.id} className="p-2">
-                <CategoryForm initial={cat}
-                  onSubmit={data => handleUpdate(cat.id, data)}
-                  onCancel={() => setEditId(null)} />
-              </div>
-            ) : (
-              <div key={cat.id} className="flex items-center px-4 py-3 gap-3">
-                <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: cat.color }} />
-                <span className="flex-1 text-sm">{cat.name}</span>
-                <div className="flex items-center gap-2">
-                  <div className="flex flex-col gap-0" dir="ltr">
-                    <button onClick={() => moveCategory(cat.id, -1)} disabled={idx === 0}
-                      className="text-slate-500 hover:text-foreground disabled:opacity-20 text-xs leading-tight">▲</button>
-                    <button onClick={() => moveCategory(cat.id, 1)} disabled={idx === active.length - 1}
-                      className="text-slate-500 hover:text-foreground disabled:opacity-20 text-xs leading-tight">▼</button>
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleCategoryDragEnd}>
+            <SortableContext items={active.map(c => c.id)} strategy={verticalListSortingStrategy}>
+              {active.map(cat => (
+                editId === cat.id ? (
+                  <div key={cat.id} className="p-2">
+                    <CategoryForm initial={cat}
+                      onSubmit={data => handleUpdate(cat.id, data)}
+                      onCancel={() => setEditId(null)} />
                   </div>
-                  <button onClick={() => { setEditId(cat.id); setShowAdd(false) }}
-                    className="text-xs text-slate-400 hover:text-accent">ערוך</button>
-                  <button onClick={() => handleToggle(cat)}
-                    className="text-xs text-slate-400 hover:text-amber-400">הסתר</button>
-                </div>
-              </div>
-            )
-          ))}
+                ) : (
+                  <SortableRow key={cat.id} id={cat.id}>
+                    {(handleProps) => (
+                      <div className="flex items-center px-4 py-3 gap-3">
+                        <span
+                          {...handleProps}
+                          className="cursor-grab active:cursor-grabbing text-slate-600 hover:text-slate-400 flex-shrink-0 touch-none select-none"
+                        >
+                          <GripVertical size={16} />
+                        </span>
+                        <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: cat.color }} />
+                        <span className="flex-1 text-sm">{cat.name}</span>
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => { setEditId(cat.id); setShowAdd(false) }}
+                            className="text-xs text-slate-400 hover:text-accent">ערוך</button>
+                          <button onClick={() => handleToggle(cat)}
+                            className="text-xs text-slate-400 hover:text-amber-400">הסתר</button>
+                        </div>
+                      </div>
+                    )}
+                  </SortableRow>
+                )
+              ))}
+            </SortableContext>
+          </DndContext>
           {active.length === 0 && (
             <p className="text-slate-500 text-sm text-center py-6">אין קטגוריות פעילות</p>
           )}
