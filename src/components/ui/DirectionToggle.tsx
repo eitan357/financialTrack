@@ -21,7 +21,7 @@ export function DirectionToggle({ value, onChange, size = 'md' }: Props) {
           : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
       }`}
     >
-      {isExpense ? '↓ הוצאה' : '↑ הכנסה'}
+      {isExpense ? 'הוצאה' : 'הכנסה'}
     </button>
   )
 }

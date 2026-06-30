@@ -278,7 +278,7 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
                       title="בחר/בטל הכל"
                     />
                   </th>
-                  <th className="text-right py-2 px-2">תאריך</th>
+                  <th className="text-right py-2 px-2 whitespace-nowrap">תאריך</th>
                   <th className="text-right py-2 px-2">תיאור</th>
                   <th className="text-right py-2 px-2">הערה</th>
                   <th className="text-right py-2 px-2">סכום</th>
@@ -302,7 +302,7 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
                         aria-label={`כלול ${row.merchantName}`}
                       />
                     </td>
-                    <td className="py-1.5 px-2 text-slate-400 text-xs">{row.date}</td>
+                    <td className="py-1.5 px-2 text-slate-400 text-xs whitespace-nowrap">{row.date}</td>
                     <td className="py-1.5 px-2 text-xs">
                       <div>{row.merchantName}</div>
                       {match && <div className="text-amber-400 text-xs mt-0.5">⚠️ כבר קיים</div>}
