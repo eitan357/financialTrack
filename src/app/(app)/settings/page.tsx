@@ -61,6 +61,7 @@ const PROVIDER_LOGO: Partial<Record<AccountProvider, string>> = {
   'one-zero': '/logos/one-zero.jpeg',
   max: '/logos/max.jpg',
   isracard: '/logos/isracard.webp',
+  psagot: '/logos/psagot.jfif',
 }
 
 const COLOR_PALETTE = [
@@ -1250,15 +1251,18 @@ function InvestmentsSection() {
                     <ProviderLogo provider={portfolio.provider} color={portfolio.color} />
                     <div className="flex-1 min-w-0">
                       <span className="text-sm font-medium" dir="auto">{portfolio.name}</span>
-                      {portfolio.provider && (
-                        <span className="text-xs text-slate-500 mr-2">{PROVIDER_LABELS[portfolio.provider]}</span>
-                      )}
                     </div>
                     <span className="text-slate-500 text-xs flex-shrink-0">{isExpanded ? '⌃' : '⌄'}</span>
                   </button>
 
                   {isExpanded && (
                     <div className="border-t border-slate-700/50 px-4 pt-3 pb-3 space-y-3">
+                      {portfolio.provider && (
+                        <div className="flex justify-between text-xs">
+                          <span className="text-slate-500">חברת השקעות</span>
+                          <span className="text-slate-300">{PROVIDER_LABELS[portfolio.provider]}</span>
+                        </div>
+                      )}
                       {/* Move / Edit / Hide buttons */}
                       <div className="flex gap-2">
                         <div className="flex gap-1" dir="ltr">
