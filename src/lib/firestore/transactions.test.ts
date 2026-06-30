@@ -1,21 +1,23 @@
 // src/lib/firestore/transactions.test.ts
-const mockGetDocs = jest.fn()
-const mockAddDoc = jest.fn()
-const mockUpdateDoc = jest.fn()
-const mockDeleteDoc = jest.fn()
-const mockSetDoc = jest.fn()
-const mockBatchSet = jest.fn()
-const mockBatchCommit = jest.fn().mockResolvedValue(undefined)
-const mockWriteBatch = jest.fn(() => ({ set: mockBatchSet, commit: mockBatchCommit }))
-const mockDoc = jest.fn(() => 'doc-ref')
-const mockCollection = jest.fn(() => 'col-ref')
-const mockQuery = jest.fn(() => 'query-ref')
-const mockWhere = jest.fn(() => 'where-ref')
-const mockOrderBy = jest.fn(() => 'order-ref')
-const mockLimit = jest.fn(() => 'limit-ref')
+import { vi, beforeEach, describe, it, expect } from 'vitest'
 
-jest.mock('firebase/firestore', () => ({
-  getFirestore: jest.fn(() => ({})),
+const mockGetDocs = vi.fn()
+const mockAddDoc = vi.fn()
+const mockUpdateDoc = vi.fn()
+const mockDeleteDoc = vi.fn()
+const mockSetDoc = vi.fn()
+const mockBatchSet = vi.fn()
+const mockBatchCommit = vi.fn().mockResolvedValue(undefined)
+const mockWriteBatch = vi.fn(() => ({ set: mockBatchSet, commit: mockBatchCommit }))
+const mockDoc = vi.fn(() => 'doc-ref')
+const mockCollection = vi.fn(() => 'col-ref')
+const mockQuery = vi.fn(() => 'query-ref')
+const mockWhere = vi.fn(() => 'where-ref')
+const mockOrderBy = vi.fn(() => 'order-ref')
+const mockLimit = vi.fn(() => 'limit-ref')
+
+vi.mock('firebase/firestore', () => ({
+  getFirestore: vi.fn(() => ({})),
   collection: (...a: unknown[]) => mockCollection(...a),
   query: (...a: unknown[]) => mockQuery(...a),
   where: (...a: unknown[]) => mockWhere(...a),
@@ -29,11 +31,11 @@ jest.mock('firebase/firestore', () => ({
   doc: (...a: unknown[]) => mockDoc(...a),
   writeBatch: (...a: unknown[]) => mockWriteBatch(...a),
 }))
-jest.mock('@/lib/firebase/config', () => ({ app: {} }))
+vi.mock('@/lib/firebase/config', () => ({ app: {} }))
 
-import { getTransactions, addTransactions, updateTransaction, deleteTransaction, getTransactionsForMonths } from './transactions'
+import { getTransactions, addTransactions, updateTransaction, deleteTransaction, getTransactionsForMonths, getInvestmentTransfers } from './transactions'
 
-beforeEach(() => jest.clearAllMocks())
+beforeEach(() => vi.clearAllMocks())
 
 const mockTxData = { date: '2026-06-01', merchantName: 'שופרסל', amount: 150, currency: 'ILS', accountId: 'a1', source: 'csv_import' as const, isImmediate: false, month: '2026-06' }
 
@@ -90,5 +92,18 @@ describe('getTransactionsForMonths', () => {
     const result = await getTransactionsForMonths(['2026-05', '2026-06'])
     expect(mockWhere).toHaveBeenCalledWith('month', 'in', ['2026-05', '2026-06'])
     expect(result[0]).toEqual({ id: 't1', ...mockTxData })
+  })
+})
+
+describe('getInvestmentTransfers', () => {
+  it('returns only transactions with direction investment', async () => {
+    mockGetDocs.mockResolvedValue({ docs: [
+      { id: 't1', data: () => ({ ...mockTxData, direction: 'investment' }) },
+      { id: 't2', data: () => ({ ...mockTxData, direction: 'expense' }) },
+      { id: 't3', data: () => ({ ...mockTxData, direction: 'investment' }) }
+    ] })
+    const result = await getInvestmentTransfers('2026-06')
+    expect(result.every(t => t.direction === 'investment')).toBe(true)
+    expect(result).toHaveLength(2)
   })
 })

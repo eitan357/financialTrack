@@ -81,3 +81,8 @@ export async function getTransactionsForMonths(months: string[]): Promise<Transa
   const snap = await getDocs(q)
   return snap.docs.map(d => ({ id: d.id, ...d.data() } as Transaction))
 }
+
+export async function getInvestmentTransfers(month: string): Promise<Transaction[]> {
+  const txs = await getTransactions(month)
+  return txs.filter(t => t.direction === 'investment')
+}
