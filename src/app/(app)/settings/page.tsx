@@ -1275,7 +1275,7 @@ function InvestmentsSection() {
         <div>
           <p className="text-xs text-slate-500 mb-2 px-1">תיקי השקעות</p>
           <div className="space-y-2">
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handlePortfolioDragEnd}>
+            <DndContext id="portfolios-dnd" sensors={sensors} collisionDetection={closestCenter} onDragEnd={handlePortfolioDragEnd}>
               <SortableContext items={activePortfolios.map(p => p.id)} strategy={verticalListSortingStrategy}>
             {activePortfolios.map(portfolio => {
               const isExpanded = expandedPortfolioId === portfolio.id
@@ -1362,6 +1362,7 @@ function InvestmentsSection() {
                           <div className="divide-y divide-slate-800 border-t border-slate-800">
                             <p className="text-xs text-slate-500 px-4 pt-2 pb-1">השקעות</p>
                             <DndContext
+                              id={`types-dnd-${portfolio.id}`}
                               sensors={sensors}
                               collisionDetection={closestCenter}
                               onDragEnd={(e) => handleTypeDragEnd(e, portfolio.id)}
