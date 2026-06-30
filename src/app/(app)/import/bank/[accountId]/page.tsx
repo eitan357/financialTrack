@@ -45,6 +45,7 @@ function BankPageInner() {
   const [investmentDeposits, setInvestmentDeposits] = useState<InvestmentEntry[]>([])
   const [dividendPayouts, setDividendPayouts] = useState<Dividend[]>([])
   const [conversionPayouts, setConversionPayouts] = useState<InvestmentConversion[]>([])
+  const [portfolioAccounts, setPortfolioAccounts] = useState<Account[]>([])
 
   useEffect(() => {
     async function load() {
@@ -77,6 +78,7 @@ function BankPageInner() {
         setInvestmentDeposits(invEntries.filter(e => e.sourceAccountId === accountId))
         setDividendPayouts(monthDivs.filter(d => !d.staysInPortfolio && d.destinationAccountId === accountId))
         setConversionPayouts(monthConvs.filter(c => c.destinationAccountId === accountId))
+        setPortfolioAccounts(accs.filter(a => a.type === 'investment' && a.isActive !== false))
       } catch {
         setError('שגיאה בטעינת הנתונים.')
       } finally {
@@ -107,6 +109,7 @@ function BankPageInner() {
         investmentDeposits={investmentDeposits}
         dividendPayouts={dividendPayouts}
         conversionPayouts={conversionPayouts}
+        portfolioAccounts={portfolioAccounts}
         onDone={() => router.push(`/import?month=${month}`)}
       />
     </main>

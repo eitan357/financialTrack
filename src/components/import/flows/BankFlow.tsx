@@ -20,6 +20,7 @@ export type BankType = 'one-zero' | 'leumi' | 'generic'
 interface BankImportRow extends ImportedTransaction {
   skip: boolean
   skipReason?: 'salary' | 'credit-payment' | 'investment-transfer'
+  portfolioAccountId?: string
 }
 
 interface Props {
@@ -37,10 +38,12 @@ interface Props {
   investmentDeposits?: InvestmentEntry[]
   dividendPayouts?: Dividend[]
   conversionPayouts?: InvestmentConversion[]
+  portfolioAccounts?: Account[]
   onDone: () => void
 }
 
-function toTransaction(t: ImportedTransaction, accountId: string, month: string, source: TransactionSource): Omit<Transaction, 'id'> {
+function toTransaction(t: BankImportRow, accountId: string, month: string, source: TransactionSource): Omit<Transaction, 'id'> {
+  const isInvestment = !!t.portfolioAccountId
   return {
     date: t.date,
     merchantName: t.merchantName,
@@ -50,9 +53,10 @@ function toTransaction(t: ImportedTransaction, accountId: string, month: string,
     source,
     isImmediate: t.isImmediate,
     month,
-    direction: t.direction,
+    direction: isInvestment ? 'investment' : t.direction,
     ...(t.notes && { description: t.notes }),
-    ...(t.direction !== 'income' && t.categoryId ? { categoryId: t.categoryId } : {}),
+    ...(isInvestment ? { portfolioAccountId: t.portfolioAccountId } : {}),
+    ...(!isInvestment && t.direction !== 'income' && t.categoryId ? { categoryId: t.categoryId } : {}),
   }
 }
 
@@ -110,7 +114,7 @@ export function suggestSkips(
   })
 }
 
-export function BankFlow({ month, accountId, accountName, bankType, categories, rules = [], previousTransactions = [], existingTransactions, salaryEntries = [], creditAccounts = [], creditImmediateAmounts, investmentDeposits = [], dividendPayouts = [], conversionPayouts = [], onDone }: Props) {
+export function BankFlow({ month, accountId, accountName, bankType, categories, rules = [], previousTransactions = [], existingTransactions, salaryEntries = [], creditAccounts = [], creditImmediateAmounts, investmentDeposits = [], dividendPayouts = [], conversionPayouts = [], portfolioAccounts = [], onDone }: Props) {
   const router = useRouter()
   const [rows, setRows] = useState<BankImportRow[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -195,8 +199,8 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
       const toImport = rows.filter(r => !r.skip)
       const { clean, duplicates } = detectDuplicates(toImport, existingTransactions)
       const source: TransactionSource = bankType === 'leumi' ? 'pdf_import' : 'xlsx_import'
-      const toSave = duplicates.length > 0
-        ? (window.confirm(`נמצאו ${duplicates.length} עסקאות כפולות. לשמור בכל זאת?`) ? toImport : clean)
+      const toSave: BankImportRow[] = duplicates.length > 0
+        ? (window.confirm(`נמצאו ${duplicates.length} עסקאות כפולות. לשמור בכל זאת?`) ? toImport : clean as BankImportRow[])
         : toImport
       await addTransactions(toSave.map(t => toTransaction(t, accountId, month, source)))
       setSaved(true)
@@ -283,6 +287,7 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
                   <th className="text-right py-2 px-2">הערה</th>
                   <th className="text-right py-2 px-2">סכום</th>
                   <th className="text-right py-2 px-2">כיוון</th>
+                  <th className="text-right py-2 px-2">תיק</th>
                   <th className="text-right py-2 px-2">מיידי</th>
                   <th className="text-right py-2 px-2">קטגוריה</th>
                 </tr>
@@ -329,12 +334,37 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
                         {row.skip && <span className="text-slate-500">{row.currency}</span>}
                       </div>
                     </td>
-                    <td className={`py-1.5 px-2 ${row.skip ? 'opacity-40 pointer-events-none' : ''}`}>
-                      <DirectionToggle
-                        value={row.direction}
-                        onChange={v => updateRow(i, { direction: v, categoryId: v === 'income' ? null : row.categoryId })}
-                        size="sm"
-                      />
+                    <td className={`py-1.5 px-2 ${row.skip && !row.portfolioAccountId ? 'opacity-40 pointer-events-none' : ''}`}>
+                      {row.portfolioAccountId ? (
+                        <span className="text-xs text-purple-400">השקעה</span>
+                      ) : (
+                        <DirectionToggle
+                          value={row.direction}
+                          onChange={v => updateRow(i, { direction: v, categoryId: v === 'income' ? null : row.categoryId })}
+                          size="sm"
+                        />
+                      )}
+                    </td>
+                    <td className="py-1.5 px-2">
+                      <select
+                        value={row.portfolioAccountId ?? ''}
+                        onChange={e => {
+                          const pid = e.target.value || undefined
+                          updateRow(i, {
+                            portfolioAccountId: pid,
+                            skip: pid ? false : row.skip,
+                            categoryId: pid ? null : row.categoryId,
+                          })
+                        }}
+                        disabled={row.skip && !row.portfolioAccountId}
+                        className="bg-background text-xs rounded px-1 py-0.5 text-purple-400 disabled:opacity-30"
+                        aria-label={`תיק השקעות עבור ${row.merchantName}`}
+                      >
+                        <option value="">—</option>
+                        {portfolioAccounts.map(p => (
+                          <option key={p.id} value={p.id}>{p.name}</option>
+                        ))}
+                      </select>
                     </td>
                     <td className="py-1.5 px-2 text-center">
                       <input
@@ -348,12 +378,14 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
                       />
                     </td>
                     <td className="py-1.5 px-2">
-                      {row.skip ? (
+                      {row.skip && !row.portfolioAccountId ? (
                         row.skipReason === 'investment-transfer' ? (
                           <span className="text-xs text-purple-400">העברה להשקעות</span>
                         ) : (
                           <span className="text-xs text-slate-600">מסונן</span>
                         )
+                      ) : row.portfolioAccountId ? (
+                        <span className="text-xs text-slate-500">—</span>
                       ) : row.direction === 'expense' ? (
                         <SelectField
                           value={row.categoryId ?? ''}
