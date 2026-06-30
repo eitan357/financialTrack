@@ -317,7 +317,7 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
                         value={row.notes ?? ''}
                         onChange={e => updateRow(i, { notes: e.target.value })}
                         placeholder="הערה"
-                        disabled={row.skip}
+                        disabled={row.skip && !row.portfolioAccountId}
                         className="w-full bg-background text-xs rounded px-1 py-0.5 min-w-16 disabled:opacity-40"
                         aria-label={`הערה עבור ${row.merchantName}`}
                       />
@@ -325,13 +325,13 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
                     <td className="py-1.5 px-2 tabular-nums text-xs">
                       <div className="flex items-center gap-1">
                         <span>{row.amount.toFixed(2)}</span>
-                        {!row.skip && (
+                        {(!row.skip || !!row.portfolioAccountId) && (
                           <CurrencyPicker
                             value={row.currency}
                             onChange={v => updateRow(i, { currency: v })}
                           />
                         )}
-                        {row.skip && <span className="text-slate-500">{row.currency}</span>}
+                        {row.skip && !row.portfolioAccountId && <span className="text-slate-500">{row.currency}</span>}
                       </div>
                     </td>
                     <td className={`py-1.5 px-2 ${row.skip && !row.portfolioAccountId ? 'opacity-40 pointer-events-none' : ''}`}>
@@ -371,7 +371,7 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
                         type="checkbox"
                         checked={row.isImmediate}
                         onChange={e => updateRow(i, { isImmediate: e.target.checked })}
-                        disabled={row.skip}
+                        disabled={row.skip && !row.portfolioAccountId}
                         className="accent-amber-400 disabled:opacity-40"
                         aria-label={`חיוב מיידי עבור ${row.merchantName}`}
                         title="חיוב מיידי"
