@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { Wallet } from 'lucide-react'
+import { Wallet, GripVertical } from 'lucide-react'
 import { getAccounts, addAccount, deleteAccount, cleanupDuplicateAccounts } from '@/lib/firestore/accounts'
 import { getCategories, addCategory, cleanupDuplicateCategories } from '@/lib/firestore/categories'
 import { getRules, addRule, deleteRule } from '@/lib/firestore/categorization-rules'
@@ -16,6 +16,32 @@ import { getInvestmentTypes, addInvestmentType, deleteInvestmentType } from '@/l
 import { AddInvestmentTypeForm } from '@/components/investments/AddInvestmentTypeForm'
 import type { InvestmentType } from '@/lib/types'
 import { getCurrency } from '@/lib/currencies'
+import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
+import { SortableContext, verticalListSortingStrategy, arrayMove, useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+
+function useDndSensors() {
+  return useSensors(
+    useSensor(PointerSensor),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } })
+  )
+}
+
+function SortableRow({ id, children }: {
+  id: string
+  children: (handleProps: React.HTMLAttributes<HTMLSpanElement>) => React.ReactNode
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={isDragging ? 'opacity-50 relative z-10' : ''}
+    >
+      {children({ ...attributes, ...listeners })}
+    </div>
+  )
+}
 
 type Tab = 'accounts' | 'categories' | 'investments' | 'maintenance'
 
