@@ -23,6 +23,8 @@ function amountDisplay(amount: number, direction: Transaction['direction'], curr
   const sym = getCurrency(currency).symbol
   if (direction === 'income')
     return { text: `${sym}${fmt(amount)}`, colorClass: 'text-green-400' }
+  if (direction === 'investment')
+    return { text: `${sym}-${fmt(amount)}`, colorClass: 'text-purple-400' }
   if (amount < 0)
     return { text: `${sym}${fmt(Math.abs(amount))}`, colorClass: 'text-green-400' }
   return { text: `${sym}-${fmt(amount)}`, colorClass: 'text-red-400' }
@@ -171,7 +173,8 @@ function DetailView({ transaction, categories, onEdit, onClose, onEditSalary, di
   const categoryName = categories.find(c => c.id === transaction.categoryId)?.name
   const { text, colorClass } = amountDisplay(displayAmount ?? transaction.amount, transaction.direction, transaction.currency ?? 'ILS')
   const isIncome = transaction.direction === 'income'
-  const isRefund = !isIncome && transaction.amount < 0
+  const isInvestment = transaction.direction === 'investment'
+  const isRefund = !isIncome && !isInvestment && transaction.amount < 0
 
   return (
     <div
@@ -192,6 +195,8 @@ function DetailView({ transaction, categories, onEdit, onClose, onEditSalary, di
           </div>
           {isIncome ? (
             <div className="text-xs text-green-500/70 mt-0.5">הכנסה</div>
+          ) : isInvestment ? (
+            <div className="text-xs text-purple-500/70 mt-0.5">השקעה</div>
           ) : isRefund ? (
             <div className="text-xs text-green-500/70 mt-0.5">זיכוי</div>
           ) : categoryName ? (
@@ -244,6 +249,7 @@ export function TransactionRow({ transaction, categories, onCategoryChange: _onC
   const [, mm, dd] = transaction.date.split('-')
   const hasCategory = !!transaction.categoryId
   const isIncome = transaction.direction === 'income'
+  const isInvestment = transaction.direction === 'investment'
   const { text, colorClass } = amountDisplay(displayAmount ?? transaction.amount, transaction.direction, transaction.currency ?? 'ILS')
 
   if (mode === 'edit') {
@@ -278,7 +284,7 @@ export function TransactionRow({ transaction, categories, onCategoryChange: _onC
     >
       <span className="text-xs text-slate-500 w-10 flex-shrink-0 tabular-nums">{dd}/{mm}</span>
       <div className="flex-1 min-w-0">
-        <div className={`text-sm truncate ${isIncome ? 'text-foreground' : !hasCategory ? 'text-amber-400' : 'text-foreground'}`}>
+        <div className={`text-sm truncate ${isIncome || isInvestment ? 'text-foreground' : !hasCategory ? 'text-amber-400' : 'text-foreground'}`}>
           {transaction.merchantName}
         </div>
         {accountLabel && <div className="text-xs text-slate-500">{accountLabel}</div>}

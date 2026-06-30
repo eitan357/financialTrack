@@ -84,3 +84,31 @@ describe('TransactionRow — edit form', () => {
     expect(screen.getByRole('combobox')).toHaveValue('c1')
   })
 })
+
+describe('TransactionRow — investment direction', () => {
+  const investmentTx: Transaction = {
+    id: 'tx-inv',
+    date: '2026-06-15',
+    merchantName: 'העברה לתיק',
+    amount: 5000,
+    currency: 'ILS',
+    accountId: 'a1',
+    source: 'xlsx_import',
+    isImmediate: false,
+    month: '2026-06',
+    direction: 'investment',
+    portfolioAccountId: 'p1',
+  }
+
+  it('renders amount in purple', () => {
+    render(<TransactionRow transaction={investmentTx} categories={cats} onCategoryChange={jest.fn()} onUpdate={jest.fn()} onDelete={jest.fn()} />)
+    const amount = screen.getByText(/5,000/)
+    expect(amount).toHaveClass('text-purple-400')
+  })
+
+  it('shows "השקעה" label in detail view', () => {
+    render(<TransactionRow transaction={investmentTx} categories={cats} onCategoryChange={jest.fn()} onUpdate={jest.fn()} onDelete={jest.fn()} />)
+    fireEvent.click(screen.getByText('העברה לתיק'))
+    expect(screen.getByText('השקעה')).toBeInTheDocument()
+  })
+})

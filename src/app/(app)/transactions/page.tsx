@@ -210,7 +210,7 @@ export default function TransactionsPage() {
     })),
   ].sort((a, b) => itemDate(b).localeCompare(itemDate(a)))
 
-  const uncategorizedCount = baseTransactions.filter(t => !t.categoryId && t.direction !== 'income' && t.amount > 0).length
+  const uncategorizedCount = baseTransactions.filter(t => !t.categoryId && t.direction !== 'income' && t.direction !== 'investment' && t.amount > 0).length
 
   // Per-currency totals
   const currencyTotals = new Map<string, { income: number; expense: number }>()
@@ -220,7 +220,7 @@ export default function TransactionsPage() {
     const entry = currencyTotals.get(cur)!
     if (t.direction === 'income') {
       entry.income += (accountFilter === 'all' && t.salaryDetails) ? t.salaryDetails.netAmount : t.amount
-    } else {
+    } else if (t.direction !== 'investment') {
       entry.expense += t.amount
     }
   }
