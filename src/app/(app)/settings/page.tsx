@@ -1201,36 +1201,38 @@ function InvestmentsSection() {
     }
   }
 
-  async function movePortfolio(id: string, dir: -1 | 1) {
+  const sensors = useDndSensors()
+
+  async function handlePortfolioDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
     const sorted = portfolios
       .filter(p => p.isActive !== false)
       .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
-    const idx = sorted.findIndex(p => p.id === id)
-    const newIdx = idx + dir
-    if (newIdx < 0 || newIdx >= sorted.length) return
-    const updated = [...sorted]
-    ;[updated[idx], updated[newIdx]] = [updated[newIdx], updated[idx]]
-    await reorderAccounts(updated.map((p, i) => ({ id: p.id, sortOrder: i })))
+    const oldIndex = sorted.findIndex(p => p.id === String(active.id))
+    const newIndex = sorted.findIndex(p => p.id === String(over.id))
+    const reordered = arrayMove(sorted, oldIndex, newIndex)
     setPortfolios(prev => prev.map(p => {
-      const pos = updated.findIndex(u => u.id === p.id)
+      const pos = reordered.findIndex(r => r.id === p.id)
       return pos >= 0 ? { ...p, sortOrder: pos } : p
     }))
+    await reorderAccounts(reordered.map((p, i) => ({ id: p.id, sortOrder: i })))
   }
 
-  async function moveType(id: string, portfolioId: string, dir: -1 | 1) {
+  async function handleTypeDragEnd(event: DragEndEvent, portfolioId: string) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
     const sorted = types
       .filter(t => t.portfolioAccountId === portfolioId && t.isActive !== false)
       .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
-    const idx = sorted.findIndex(t => t.id === id)
-    const newIdx = idx + dir
-    if (newIdx < 0 || newIdx >= sorted.length) return
-    const updated = [...sorted]
-    ;[updated[idx], updated[newIdx]] = [updated[newIdx], updated[idx]]
-    await reorderInvestmentTypes(updated.map((t, i) => ({ id: t.id, sortOrder: i })))
+    const oldIndex = sorted.findIndex(t => t.id === String(active.id))
+    const newIndex = sorted.findIndex(t => t.id === String(over.id))
+    const reordered = arrayMove(sorted, oldIndex, newIndex)
     setTypes(prev => prev.map(t => {
-      const pos = updated.findIndex(u => u.id === t.id)
+      const pos = reordered.findIndex(r => r.id === t.id)
       return pos >= 0 ? { ...t, sortOrder: pos } : t
     }))
+    await reorderInvestmentTypes(reordered.map((t, i) => ({ id: t.id, sortOrder: i })))
   }
 
   if (loading) return <p className="text-slate-400 text-sm text-center py-6">טוען...</p>
@@ -1273,6 +1275,8 @@ function InvestmentsSection() {
         <div>
           <p className="text-xs text-slate-500 mb-2 px-1">תיקי השקעות</p>
           <div className="space-y-2">
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handlePortfolioDragEnd}>
+              <SortableContext items={activePortfolios.map(p => p.id)} strategy={verticalListSortingStrategy}>
             {activePortfolios.map(portfolio => {
               const isExpanded = expandedPortfolioId === portfolio.id
               const isEditing = editPortfolioId === portfolio.id
@@ -1283,173 +1287,188 @@ function InvestmentsSection() {
               const inactiveTypes = portfolioTypes.filter(t => t.isActive === false)
               const isAddingType = showAddTypeForPortfolio === portfolio.id
 
-              if (isEditing) return (
-                <div key={portfolio.id} className="bg-surface rounded-xl p-2">
-                  <PortfolioForm
-                    initial={portfolio}
-                    onSubmit={data => handleUpdatePortfolio(portfolio.id, data)}
-                    onCancel={() => { setEditPortfolioId(null); setExpandedPortfolioId(portfolio.id) }}
-                    onDelete={() => setDeleteConfirm({ kind: 'portfolio', item: portfolio })}
-                  />
-                </div>
-              )
-
               return (
-                <div key={portfolio.id} className="bg-surface rounded-2xl overflow-hidden">
-                  {/* Portfolio header row — click to expand */}
-                  <button
-                    type="button"
-                    className="w-full flex items-center px-4 py-3 gap-3 text-right"
-                    onClick={() => {
-                      setExpandedPortfolioId(v => v === portfolio.id ? null : portfolio.id)
-                      setEditPortfolioId(null)
-                      setShowAddPortfolio(false)
-                    }}>
-                    <ProviderLogo provider={portfolio.provider} color={portfolio.color} />
-                    <div className="flex-1 min-w-0">
-                      <span className="text-sm font-medium" dir="auto">{portfolio.name}</span>
-                    </div>
-                    <span className="text-slate-500 text-xs flex-shrink-0">{isExpanded ? '⌃' : '⌄'}</span>
-                  </button>
-
-                  {isExpanded && (
-                    <div className="border-t border-slate-700/50 px-4 pt-3 pb-3 space-y-3">
-                      {portfolio.provider && (
-                        <div className="flex justify-between text-xs">
-                          <span className="text-slate-500">חברת השקעות</span>
-                          <span className="text-slate-300">{PROVIDER_LABELS[portfolio.provider]}</span>
-                        </div>
-                      )}
-                      {/* Move / Edit / Hide buttons */}
-                      <div className="flex gap-2">
-                        <div className="flex gap-1" dir="ltr">
-                          <button
-                            onClick={() => movePortfolio(portfolio.id, -1)}
-                            disabled={activePortfolios.findIndex(p => p.id === portfolio.id) === 0}
-                            className="px-2 py-1.5 border border-slate-700 rounded-lg text-slate-500 hover:text-foreground disabled:opacity-20 text-xs">▲</button>
-                          <button
-                            onClick={() => movePortfolio(portfolio.id, 1)}
-                            disabled={activePortfolios.findIndex(p => p.id === portfolio.id) === activePortfolios.length - 1}
-                            className="px-2 py-1.5 border border-slate-700 rounded-lg text-slate-500 hover:text-foreground disabled:opacity-20 text-xs">▼</button>
-                        </div>
-                        <button
-                          onClick={() => { setEditPortfolioId(portfolio.id); setShowAddTypeForPortfolio(null) }}
-                          className="flex-1 py-1.5 border border-slate-600 rounded-lg text-xs text-slate-300 hover:text-accent hover:border-accent/50 transition-colors">
-                          ערוך
-                        </button>
-                        <button
-                          onClick={() => handleHidePortfolio(portfolio)}
-                          className="flex-1 py-1.5 border border-slate-600 rounded-lg text-xs text-slate-300 hover:text-amber-400 hover:border-amber-400/50 transition-colors">
-                          הסתר
-                        </button>
-                        <button
-                          onClick={() => { setShowAddTypeForPortfolio(v => v === portfolio.id ? null : portfolio.id); setEditTypeId(null) }}
-                          className={`px-3 py-1.5 border rounded-lg text-xs transition-colors ${
-                            isAddingType
-                              ? 'border-accent text-accent'
-                              : 'border-slate-600 text-accent hover:border-accent/50'
-                          }`}>
-                          {isAddingType ? 'ביטול' : '+ הוסף'}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Investment types list */}
-                  <div className="divide-y divide-slate-800 border-t border-slate-800">
-                    <p className="text-xs text-slate-500 px-4 pt-2 pb-1">השקעות</p>
-                    {activeTypes.map((t, typeIdx) => {
-                      const isEditingType = editTypeId === t.id
-                      if (isEditingType) return (
-                        <div key={t.id} className="px-3 py-3">
-                          <AddInvestmentTypeForm
-                            initial={t}
-                            onSubmit={data => handleUpdateType(t.id, data)}
-                            onCancel={() => setEditTypeId(null)}
-                            onDelete={() => setDeleteConfirm({ kind: 'type', item: t })}
+                <SortableRow key={portfolio.id} id={portfolio.id}>
+                  {(portfolioHandleProps) => (
+                    <div className="bg-surface rounded-2xl overflow-hidden">
+                      {isEditing ? (
+                        <div className="p-2">
+                          <PortfolioForm
+                            initial={portfolio}
+                            onSubmit={data => handleUpdatePortfolio(portfolio.id, data)}
+                            onCancel={() => { setEditPortfolioId(null); setExpandedPortfolioId(portfolio.id) }}
+                            onDelete={() => setDeleteConfirm({ kind: 'portfolio', item: portfolio })}
                           />
                         </div>
-                      )
-                      const curr = getCurrency(t.currency)
-                      const currLabel = curr ? `${curr.symbol} ${curr.code}` : t.currency
-                      const isTypeExpanded = expandedTypeId === t.id
-                      return (
-                        <div key={t.id}>
-                          <button
-                            type="button"
-                            className="w-full flex items-center justify-between px-6 py-2.5 text-right"
-                            onClick={() => setExpandedTypeId(v => v === t.id ? null : t.id)}>
-                            <div className="min-w-0">
-                              <span className="text-sm">{t.name}</span>
-                              {t.notes && <span className="text-xs text-slate-500 block">{t.notes}</span>}
-                            </div>
-                            <div className="flex items-center gap-2 flex-shrink-0">
-                              <span className="text-xs text-slate-400">{currLabel}</span>
-                              <span className="text-slate-500 text-xs">{isTypeExpanded ? '⌃' : '⌄'}</span>
-                            </div>
-                          </button>
-                          {isTypeExpanded && (
-                            <div className="px-4 pb-2.5 flex gap-2">
-                              <div className="flex gap-1" dir="ltr">
-                                <button
-                                  onClick={() => moveType(t.id, portfolio.id, -1)}
-                                  disabled={typeIdx === 0}
-                                  className="px-2 py-1.5 border border-slate-700 rounded-lg text-slate-500 hover:text-foreground disabled:opacity-20 text-xs">▲</button>
-                                <button
-                                  onClick={() => moveType(t.id, portfolio.id, 1)}
-                                  disabled={typeIdx === activeTypes.length - 1}
-                                  className="px-2 py-1.5 border border-slate-700 rounded-lg text-slate-500 hover:text-foreground disabled:opacity-20 text-xs">▼</button>
+                      ) : (
+                        <>
+                          {/* Portfolio header row */}
+                          <div className="flex items-center">
+                            <span
+                              {...portfolioHandleProps}
+                              className="pl-4 pr-1 py-3 cursor-grab active:cursor-grabbing text-slate-600 hover:text-slate-400 flex-shrink-0 touch-none select-none"
+                            >
+                              <GripVertical size={16} />
+                            </span>
+                            <button
+                              type="button"
+                              className="flex-1 flex items-center px-3 py-3 gap-3 text-right"
+                              onClick={() => {
+                                setExpandedPortfolioId(v => v === portfolio.id ? null : portfolio.id)
+                                setEditPortfolioId(null)
+                                setShowAddPortfolio(false)
+                              }}>
+                              <ProviderLogo provider={portfolio.provider} color={portfolio.color} />
+                              <div className="flex-1 min-w-0">
+                                <span className="text-sm font-medium" dir="auto">{portfolio.name}</span>
                               </div>
-                              <button
-                                onClick={() => { setEditTypeId(t.id); setExpandedTypeId(null); setShowAddTypeForPortfolio(null) }}
-                                className="flex-1 py-1.5 border border-slate-600 rounded-lg text-xs text-slate-300 hover:text-accent hover:border-accent/50 transition-colors">
-                                ערוך
-                              </button>
-                              <button
-                                onClick={() => handleHideType(t)}
-                                className="flex-1 py-1.5 border border-slate-600 rounded-lg text-xs text-slate-300 hover:text-amber-400 hover:border-amber-400/50 transition-colors">
-                                הסתר
-                              </button>
+                              <span className="text-slate-500 text-xs flex-shrink-0">{isExpanded ? '⌃' : '⌄'}</span>
+                            </button>
+                          </div>
+
+                          {isExpanded && (
+                            <div className="border-t border-slate-700/50 px-4 pt-3 pb-3 space-y-3">
+                              {portfolio.provider && (
+                                <div className="flex justify-between text-xs">
+                                  <span className="text-slate-500">חברת השקעות</span>
+                                  <span className="text-slate-300">{PROVIDER_LABELS[portfolio.provider]}</span>
+                                </div>
+                              )}
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => { setEditPortfolioId(portfolio.id); setShowAddTypeForPortfolio(null) }}
+                                  className="flex-1 py-1.5 border border-slate-600 rounded-lg text-xs text-slate-300 hover:text-accent hover:border-accent/50 transition-colors">
+                                  ערוך
+                                </button>
+                                <button
+                                  onClick={() => handleHidePortfolio(portfolio)}
+                                  className="flex-1 py-1.5 border border-slate-600 rounded-lg text-xs text-slate-300 hover:text-amber-400 hover:border-amber-400/50 transition-colors">
+                                  הסתר
+                                </button>
+                                <button
+                                  onClick={() => { setShowAddTypeForPortfolio(v => v === portfolio.id ? null : portfolio.id); setEditTypeId(null) }}
+                                  className={`px-3 py-1.5 border rounded-lg text-xs transition-colors ${
+                                    isAddingType
+                                      ? 'border-accent text-accent'
+                                      : 'border-slate-600 text-accent hover:border-accent/50'
+                                  }`}>
+                                  {isAddingType ? 'ביטול' : '+ הוסף'}
+                                </button>
+                              </div>
                             </div>
                           )}
-                        </div>
-                      )
-                    })}
 
-                    {activeTypes.length === 0 && !isAddingType && (
-                      <p className="text-slate-500 text-xs text-center py-3 px-4">אין השקעות בתיק זה</p>
-                    )}
+                          {/* Investment types list */}
+                          <div className="divide-y divide-slate-800 border-t border-slate-800">
+                            <p className="text-xs text-slate-500 px-4 pt-2 pb-1">השקעות</p>
+                            <DndContext
+                              sensors={sensors}
+                              collisionDetection={closestCenter}
+                              onDragEnd={(e) => handleTypeDragEnd(e, portfolio.id)}
+                            >
+                              <SortableContext items={activeTypes.map(t => t.id)} strategy={verticalListSortingStrategy}>
+                                {activeTypes.map(t => {
+                                  const isEditingType = editTypeId === t.id
+                                  if (isEditingType) return (
+                                    <div key={t.id} className="px-3 py-3">
+                                      <AddInvestmentTypeForm
+                                        initial={t}
+                                        onSubmit={data => handleUpdateType(t.id, data)}
+                                        onCancel={() => setEditTypeId(null)}
+                                        onDelete={() => setDeleteConfirm({ kind: 'type', item: t })}
+                                      />
+                                    </div>
+                                  )
+                                  const curr = getCurrency(t.currency)
+                                  const currLabel = curr ? `${curr.symbol} ${curr.code}` : t.currency
+                                  const isTypeExpanded = expandedTypeId === t.id
+                                  return (
+                                    <SortableRow key={t.id} id={t.id}>
+                                      {(typeHandleProps) => (
+                                        <div>
+                                          <div className="flex items-center">
+                                            <span
+                                              {...typeHandleProps}
+                                              className="pl-6 pr-1 py-2.5 cursor-grab active:cursor-grabbing text-slate-600 hover:text-slate-400 flex-shrink-0 touch-none select-none"
+                                            >
+                                              <GripVertical size={14} />
+                                            </span>
+                                            <button
+                                              type="button"
+                                              className="flex-1 flex items-center justify-between pr-4 py-2.5 text-right"
+                                              onClick={() => setExpandedTypeId(v => v === t.id ? null : t.id)}>
+                                              <div className="min-w-0">
+                                                <span className="text-sm">{t.name}</span>
+                                                {t.notes && <span className="text-xs text-slate-500 block">{t.notes}</span>}
+                                              </div>
+                                              <div className="flex items-center gap-2 flex-shrink-0">
+                                                <span className="text-xs text-slate-400">{currLabel}</span>
+                                                <span className="text-slate-500 text-xs">{isTypeExpanded ? '⌃' : '⌄'}</span>
+                                              </div>
+                                            </button>
+                                          </div>
+                                          {isTypeExpanded && (
+                                            <div className="px-4 pb-2.5 flex gap-2">
+                                              <button
+                                                onClick={() => { setEditTypeId(t.id); setExpandedTypeId(null); setShowAddTypeForPortfolio(null) }}
+                                                className="flex-1 py-1.5 border border-slate-600 rounded-lg text-xs text-slate-300 hover:text-accent hover:border-accent/50 transition-colors">
+                                                ערוך
+                                              </button>
+                                              <button
+                                                onClick={() => handleHideType(t)}
+                                                className="flex-1 py-1.5 border border-slate-600 rounded-lg text-xs text-slate-300 hover:text-amber-400 hover:border-amber-400/50 transition-colors">
+                                                הסתר
+                                              </button>
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+                                    </SortableRow>
+                                  )
+                                })}
+                              </SortableContext>
+                            </DndContext>
 
-                    {/* Hidden types inside this portfolio */}
-                    {inactiveTypes.map(t => {
-                      const curr = getCurrency(t.currency)
-                      const currLabel = curr ? `${curr.symbol} ${curr.code}` : t.currency
-                      return (
-                      <div key={t.id} className="flex items-center justify-between px-6 py-2.5 gap-3 opacity-50">
-                        <span className="text-sm line-through text-slate-500">{t.name}</span>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <span className="text-xs text-slate-500">{currLabel}</span>
-                          <button
-                            onClick={() => handleHideType(t)}
-                            className="text-xs text-green-400">הצג</button>
-                        </div>
-                      </div>
-                      )
-                    })}
+                            {activeTypes.length === 0 && !isAddingType && (
+                              <p className="text-slate-500 text-xs text-center py-3 px-4">אין השקעות בתיק זה</p>
+                            )}
 
-                    {/* Add investment type form */}
-                    {isAddingType && (
-                      <div className="px-3 py-3">
-                        <AddInvestmentTypeForm
-                          onSubmit={data => handleAddType(portfolio.id, data)}
-                          onCancel={() => setShowAddTypeForPortfolio(null)}
-                        />
-                      </div>
-                    )}
-                  </div>
-                </div>
+                            {/* Hidden types inside this portfolio */}
+                            {inactiveTypes.map(t => {
+                              const curr = getCurrency(t.currency)
+                              const currLabel = curr ? `${curr.symbol} ${curr.code}` : t.currency
+                              return (
+                              <div key={t.id} className="flex items-center justify-between px-6 py-2.5 gap-3 opacity-50">
+                                <span className="text-sm line-through text-slate-500">{t.name}</span>
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                  <span className="text-xs text-slate-500">{currLabel}</span>
+                                  <button
+                                    onClick={() => handleHideType(t)}
+                                    className="text-xs text-green-400">הצג</button>
+                                </div>
+                              </div>
+                              )
+                            })}
+
+                            {/* Add investment type form */}
+                            {isAddingType && (
+                              <div className="px-3 py-3">
+                                <AddInvestmentTypeForm
+                                  onSubmit={data => handleAddType(portfolio.id, data)}
+                                  onCancel={() => setShowAddTypeForPortfolio(null)}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </SortableRow>
               )
             })}
+              </SortableContext>
+            </DndContext>
           </div>
         </div>
       )}
