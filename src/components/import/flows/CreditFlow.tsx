@@ -262,9 +262,9 @@ export function CreditFlow({ month, accountId, accountName, provider, categories
               </thead>
               <tbody>
                 {rows.map((tx, i) => {
-                  const match = tx.skip ? undefined : existingMatch(tx)
+                  const match = (tx.skip && !tx.portfolioAccountId) ? undefined : existingMatch(tx)
                   return (
-                  <tr key={i} className={`border-b border-slate-700/40 ${tx.skip ? 'opacity-30' : match ? 'bg-amber-900/10' : ''}`}>
+                  <tr key={i} className={`border-b border-slate-700/40 ${(tx.skip && !tx.portfolioAccountId) ? 'opacity-30' : match ? 'bg-amber-900/10' : ''}`}>
                     <td className="py-1.5 px-2 text-center">
                       <input
                         type="checkbox"
