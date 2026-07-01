@@ -87,7 +87,7 @@ const PROVIDER_LOGO: Partial<Record<AccountProvider, string>> = {
   'one-zero': '/logos/one-zero.jpeg',
   max: '/logos/max.jpg',
   isracard: '/logos/isracard.webp',
-  psagot: '/logos/psagot.jfif',
+  psagot: '/logos/psagot.jpg',
 }
 
 const COLOR_PALETTE = [
@@ -292,13 +292,13 @@ function AccountForm({ type, initial, bankAccounts, onSubmit, onCancel, onDelete
           className="flex-1 py-2 border border-slate-600 rounded-lg text-sm">ביטול</button>
         <button type="submit" disabled={saving}
           className="flex-1 py-2 bg-accent rounded-lg text-sm font-semibold disabled:opacity-50">
-          {saving ? 'שומר...' : (initial ? 'עדכן' : 'הוסף')}
+          {saving ? 'שומר...' : (initial ? 'עדכון' : 'הוספה')}
         </button>
       </div>
       {onDelete && (
         <button type="button" onClick={onDelete}
           className="w-full py-2 text-xs text-red-500 hover:text-red-400 border border-red-900/40 rounded-lg mt-1">
-          מחק חשבון
+          מחיקת חשבון
         </button>
       )}
     </form>
@@ -405,13 +405,13 @@ function PortfolioForm({ initial, onSubmit, onCancel, onDelete }: {
           className="flex-1 py-2 border border-slate-600 rounded-lg text-sm">ביטול</button>
         <button type="submit" disabled={saving}
           className="flex-1 py-2 bg-accent rounded-lg text-sm font-semibold disabled:opacity-50">
-          {saving ? 'שומר...' : (initial ? 'עדכן' : 'הוסף')}
+          {saving ? 'שומר...' : (initial ? 'עדכון' : 'הוספה')}
         </button>
       </div>
       {onDelete && (
         <button type="button" onClick={onDelete}
           className="w-full py-2 text-xs text-red-500 hover:text-red-400 border border-red-900/40 rounded-lg mt-1">
-          מחק תיק
+          מחיקת תיק
         </button>
       )}
     </form>
@@ -600,8 +600,8 @@ function AccountsSection() {
 
             <div className="flex gap-2">
               <button onClick={() => { setEditId(acc.id); setShowAddType(null) }}
-                className="flex-1 py-1.5 border border-slate-600 rounded-lg text-xs text-slate-300 hover:text-accent hover:border-accent/50 transition-colors">
-                ערוך
+                className="px-3 py-1 border border-slate-600 rounded-lg text-xs text-slate-300 hover:text-accent hover:border-accent/50 transition-colors">
+                עריכה
               </button>
               <button onClick={() => handleToggle(acc)} title="הסתר"
                 className="px-3 py-1.5 text-xs text-slate-400 hover:text-amber-400 transition-colors flex items-center">
@@ -620,12 +620,12 @@ function AccountsSection() {
         <button
           onClick={() => { setShowAddType(v => v === 'bank' ? null : 'bank'); setEditId(null); setExpandedId(null) }}
           className={`flex-1 py-2 text-xs rounded-xl border transition-colors ${showAddType === 'bank' ? 'border-accent text-accent' : 'border-slate-600 text-slate-400 hover:border-slate-500'}`}>
-          {showAddType === 'bank' ? 'ביטול' : '+ הוסף חשבון בנק'}
+          {showAddType === 'bank' ? 'ביטול' : '+ הוספת חשבון בנק+'}
         </button>
         <button
           onClick={() => { setShowAddType(v => v === 'credit' ? null : 'credit'); setEditId(null); setExpandedId(null) }}
           className={`flex-1 py-2 text-xs rounded-xl border transition-colors ${showAddType === 'credit' ? 'border-accent text-accent' : 'border-slate-600 text-slate-400 hover:border-slate-500'}`}>
-          {showAddType === 'credit' ? 'ביטול' : '+ הוסף כרטיס אשראי'}
+          {showAddType === 'credit' ? 'ביטול' : '+ הוספת כרטיס אשראי+'}
         </button>
       </div>
 
@@ -838,7 +838,7 @@ function CategoriesSection() {
           <span>{active.length} קטגוריות פעילות</span>
         </button>
         <button onClick={() => { setShowAdd(v => !v); setEditId(null) }}
-          className="text-xs text-accent">{showAdd ? 'ביטול' : '+ הוסף קטגוריה'}</button>
+          className="text-xs text-accent">{showAdd ? 'ביטול' : '+ הוספת קטגוריה+'}</button>
       </div>
 
       {showAdd && <CategoryForm onSubmit={handleAdd} onCancel={() => setShowAdd(false)} />}
@@ -868,7 +868,7 @@ function CategoriesSection() {
                         <span className="flex-1 text-sm">{cat.name}</span>
                         <div className="flex items-center gap-2">
                           <button onClick={() => { setEditId(cat.id); setShowAdd(false) }}
-                            className="text-xs text-slate-400 hover:text-accent">ערוך</button>
+                            className="text-xs text-slate-400 hover:text-accent">עריכה</button>
                           <button onClick={() => handleToggle(cat)} title="הסתר"
                             className="text-slate-400 hover:text-amber-400"><EyeOff size={14} /></button>
                         </div>
@@ -934,6 +934,7 @@ function RulesSection() {
   const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
   const [showAdd, setShowAdd] = useState(false)
+  const [showHidden, setShowHidden] = useState(false)
   const [keyword, setKeyword] = useState('')
   const [matchType, setMatchType] = useState<MatchType>('contains')
   const [categoryId, setCategoryId] = useState('')
@@ -982,12 +983,15 @@ function RulesSection() {
   if (loading) return <p className="text-slate-400 text-sm text-center py-6">טוען...</p>
   if (loadError) return <p className="text-red-400 text-sm text-center py-6">{loadError}</p>
 
+  const activeRules = rules.filter(r => r.isActive !== false)
+  const hiddenRules = rules.filter(r => r.isActive === false)
+
   return (
     <div className="space-y-3">
       <div className="flex justify-between items-center">
-        <p className="text-xs text-slate-500">{rules.length} חוקים</p>
+        <p className="text-xs text-slate-500">{activeRules.length} חוקים פעילים</p>
         <button onClick={() => setShowAdd(v => !v)} className="text-xs text-accent">
-          {showAdd ? 'ביטול' : '+ הוסף חוק'}
+          {showAdd ? 'ביטול' : '+ הוספת חוק+'}
         </button>
       </div>
 
@@ -1025,33 +1029,57 @@ function RulesSection() {
             <button type="button" onClick={() => setShowAdd(false)}
               className="flex-1 py-2 border border-slate-600 rounded-lg text-sm">ביטול</button>
             <button type="submit"
-              className="flex-1 py-2 bg-accent rounded-lg text-sm font-semibold">הוסף</button>
+              className="flex-1 py-2 bg-accent rounded-lg text-sm font-semibold">הוספה</button>
           </div>
         </form>
       )}
 
       <div className="bg-surface rounded-2xl divide-y divide-slate-800">
-        {rules.length === 0 ? (
-          <p className="text-slate-500 text-sm text-center py-6">אין חוקים עדיין</p>
-        ) : rules.map(rule => {
-          const hidden = rule.isActive === false
-          return (
-            <div key={rule.id} className={`flex items-center px-4 py-3 gap-3 ${hidden ? 'opacity-40' : ''}`}>
-              <div className="flex-1 min-w-0">
-                <span className={`text-sm font-medium ${hidden ? 'line-through text-slate-500' : ''}`}>{rule.keyword}</span>
-                <span className="text-xs text-slate-500 mx-2">{MATCH_LABELS[rule.matchType]}</span>
-                <span className="text-xs text-slate-400">→ {catMap[rule.categoryId]?.name ?? '—'}</span>
-              </div>
-              <button onClick={() => handleToggleRule(rule)} title={hidden ? 'הצג' : 'הסתר'}
-                className={`flex-shrink-0 ${hidden ? 'text-slate-300 hover:text-white' : 'text-slate-400 hover:text-amber-400'}`}>
-                {hidden ? <Eye size={14} /> : <EyeOff size={14} />}
-              </button>
-              <button onClick={() => handleDelete(rule.id)}
-                className="text-xs text-red-400 hover:text-red-300 flex-shrink-0">מחק</button>
+        {activeRules.length === 0 ? (
+          <p className="text-slate-500 text-sm text-center py-6">אין חוקים פעילים</p>
+        ) : activeRules.map(rule => (
+          <div key={rule.id} className="flex items-center px-4 py-3 gap-3">
+            <div className="flex-1 min-w-0">
+              <span className="text-sm font-medium">{rule.keyword}</span>
+              <span className="text-xs text-slate-500 mx-2">{MATCH_LABELS[rule.matchType]}</span>
+              <span className="text-xs text-slate-400">→ {catMap[rule.categoryId]?.name ?? '—'}</span>
             </div>
-          )
-        })}
+            <button onClick={() => handleToggleRule(rule)} title="הסתר"
+              className="flex-shrink-0 text-slate-400 hover:text-amber-400">
+              <EyeOff size={14} />
+            </button>
+            <button onClick={() => handleDelete(rule.id)}
+              className="text-xs text-red-400 hover:text-red-300 flex-shrink-0">מחיקה</button>
+          </div>
+        ))}
       </div>
+
+      {hiddenRules.length > 0 && (
+        <div>
+          <button onClick={() => setShowHidden(v => !v)} className="text-xs text-slate-500">
+            {showHidden ? '▲ הסתר מוסתרים' : `▼ הצג ${hiddenRules.length} חוקים מוסתרים`}
+          </button>
+          {showHidden && (
+            <div className="bg-surface rounded-2xl divide-y divide-slate-800 mt-2">
+              {hiddenRules.map(rule => (
+                <div key={rule.id} className="flex items-center px-4 py-3 gap-3 opacity-60">
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm font-medium line-through text-slate-500">{rule.keyword}</span>
+                    <span className="text-xs text-slate-500 mx-2">{MATCH_LABELS[rule.matchType]}</span>
+                    <span className="text-xs text-slate-400">→ {catMap[rule.categoryId]?.name ?? '—'}</span>
+                  </div>
+                  <button onClick={() => handleToggleRule(rule)} title="הצג"
+                    className="flex-shrink-0 text-slate-300 hover:text-white">
+                    <Eye size={14} />
+                  </button>
+                  <button onClick={() => handleDelete(rule.id)}
+                    className="text-xs text-red-400 hover:text-red-300 flex-shrink-0">מחיקה</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -1271,7 +1299,7 @@ function InvestmentsSection() {
               ? 'border-accent text-accent'
               : 'border-slate-600 text-slate-400 hover:border-slate-500'
           }`}>
-          {showAddPortfolio ? 'ביטול' : '+ הוסף תיק השקעות'}
+          {showAddPortfolio ? 'ביטול' : '+ הוספת תיק השקעות+'}
         </button>
       </div>
 
@@ -1347,17 +1375,7 @@ function InvestmentsSection() {
                                   <span className="text-slate-300">{PROVIDER_LABELS[portfolio.provider]}</span>
                                 </div>
                               )}
-                              <div className="flex gap-2">
-                                <button
-                                  onClick={() => { setEditPortfolioId(portfolio.id); setShowAddTypeForPortfolio(null) }}
-                                  className="flex-1 py-1.5 border border-slate-600 rounded-lg text-xs text-slate-300 hover:text-accent hover:border-accent/50 transition-colors">
-                                  ערוך
-                                </button>
-                                <button
-                                  onClick={() => handleHidePortfolio(portfolio)} title="הסתר"
-                                  className="px-3 py-1.5 text-xs text-slate-400 hover:text-amber-400 transition-colors flex items-center">
-                                  <EyeOff size={14} />
-                                </button>
+                              <div className="flex justify-end">
                                 <button
                                   onClick={() => { setShowAddTypeForPortfolio(v => v === portfolio.id ? null : portfolio.id); setEditTypeId(null) }}
                                   className={`px-3 py-1.5 border rounded-lg text-xs transition-colors ${
@@ -1365,7 +1383,19 @@ function InvestmentsSection() {
                                       ? 'border-accent text-accent'
                                       : 'border-slate-600 text-accent hover:border-accent/50'
                                   }`}>
-                                  {isAddingType ? 'ביטול' : 'הוסף השקעה+'}
+                                  {isAddingType ? 'ביטול' : 'הוספת השקעה+'}
+                                </button>
+                              </div>
+                              <div className="flex gap-2 items-center">
+                                <button
+                                  onClick={() => { setEditPortfolioId(portfolio.id); setShowAddTypeForPortfolio(null) }}
+                                  className="px-3 py-1 border border-slate-600 rounded-lg text-xs text-slate-300 hover:text-accent hover:border-accent/50 transition-colors">
+                                  עריכה
+                                </button>
+                                <button
+                                  onClick={() => handleHidePortfolio(portfolio)} title="הסתר"
+                                  className="px-3 py-1.5 text-xs text-slate-400 hover:text-amber-400 transition-colors flex items-center">
+                                  <EyeOff size={14} />
                                 </button>
                               </div>
                             </div>
@@ -1425,8 +1455,8 @@ function InvestmentsSection() {
                                             <div className="px-4 pb-2.5 flex gap-2">
                                               <button
                                                 onClick={() => { setEditTypeId(t.id); setExpandedTypeId(null); setShowAddTypeForPortfolio(null) }}
-                                                className="flex-1 py-1.5 border border-slate-600 rounded-lg text-xs text-slate-300 hover:text-accent hover:border-accent/50 transition-colors">
-                                                ערוך
+                                                className="px-3 py-1 border border-slate-600 rounded-lg text-xs text-slate-300 hover:text-accent hover:border-accent/50 transition-colors">
+                                                עריכה
                                               </button>
                                               <button
                                                 onClick={() => handleHideType(t)} title="הסתר"

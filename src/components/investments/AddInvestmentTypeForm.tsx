@@ -62,13 +62,13 @@ export function AddInvestmentTypeForm({ initial, onSubmit, onCancel, onDelete }:
         <button type="button" onClick={onCancel} className="text-sm text-slate-400 px-4 py-2">ביטול</button>
         <button type="submit" disabled={!name.trim()}
           className="bg-accent text-white text-sm px-4 py-2 rounded-lg disabled:opacity-40">
-          {initial ? 'שמור' : 'הוסף'}
+          {initial ? 'שמור' : 'הוספה'}
         </button>
       </div>
       {onDelete && (
         <button type="button" onClick={onDelete}
           className="w-full py-2 text-xs text-red-500 hover:text-red-400 border border-red-900/40 rounded-lg">
-          מחק השקעה
+          מחיקת השקעה
         </button>
       )}
     </form>
