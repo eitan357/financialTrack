@@ -56,7 +56,7 @@ export function CashFlow({ month, cashAccountId, categories, existingTransaction
       amount: entry.amount,
       date: entry.date,
       categoryId: entry.categoryId ?? null,
-      direction: entry.direction ?? 'expense',
+      direction: entry.direction === 'income' ? 'income' : 'expense',
     })
   }
 
