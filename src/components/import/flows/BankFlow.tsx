@@ -224,7 +224,7 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
     )
   }
 
-  const uncategorized = activeRows.filter(t => !t.categoryId && t.direction !== 'income').length
+  const uncategorized = activeRows.filter(t => !t.categoryId && t.direction !== 'income' && !t.portfolioAccountId).length
 
   return (
     <div>
@@ -294,10 +294,10 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
               </thead>
               <tbody>
                 {rows.map((row, i) => {
-                  const match = row.skip ? undefined : existingMatch(row)
+                  const match = (row.skip && !row.portfolioAccountId) ? undefined : existingMatch(row)
                   return (
                   <tr key={`${row.date}-${row.merchantName}-${i}`}
-                    className={`border-b border-slate-700/40 ${row.skip ? 'opacity-30' : match ? 'bg-amber-900/10' : ''}`}>
+                    className={`border-b border-slate-700/40 ${(row.skip && !row.portfolioAccountId) ? 'opacity-30' : match ? 'bg-amber-900/10' : ''}`}>
                     <td className="py-1.5 px-2 text-center">
                       <input
                         type="checkbox"

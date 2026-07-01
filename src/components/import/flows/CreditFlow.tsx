@@ -180,7 +180,7 @@ export function CreditFlow({ month, accountId, accountName, provider, categories
     )
   }
 
-  const uncategorized = activeRows.filter(t => !t.categoryId && t.direction !== 'income').length
+  const uncategorized = activeRows.filter(t => !t.categoryId && t.direction !== 'income' && !t.portfolioAccountId).length
 
   return (
     <div>
