@@ -1,25 +1,37 @@
 const mockGetInvestmentTypes = jest.fn()
-const mockGetInvestmentEntriesByYear = jest.fn()
+const mockGetInvestmentEntries = jest.fn()
 const mockAddInvestmentEntry = jest.fn()
 const mockDeleteInvestmentEntry = jest.fn()
-const mockGetDividendsByYear = jest.fn()
+const mockGetDividends = jest.fn()
 const mockAddDividend = jest.fn()
 const mockDeleteDividend = jest.fn()
+const mockGetInvestmentConversions = jest.fn()
+const mockAddInvestmentConversion = jest.fn()
+const mockDeleteInvestmentConversion = jest.fn()
 const mockGetAccounts = jest.fn()
+const mockGetTransactions = jest.fn()
 
 jest.mock('@/lib/firestore/investments', () => ({
   getInvestmentTypes: (...a: unknown[]) => mockGetInvestmentTypes(...a),
-  getInvestmentEntriesByYear: (...a: unknown[]) => mockGetInvestmentEntriesByYear(...a),
+  getInvestmentEntries: (...a: unknown[]) => mockGetInvestmentEntries(...a),
   addInvestmentEntry: (...a: unknown[]) => mockAddInvestmentEntry(...a),
   deleteInvestmentEntry: (...a: unknown[]) => mockDeleteInvestmentEntry(...a),
 }))
 jest.mock('@/lib/firestore/dividends', () => ({
-  getDividendsByYear: (...a: unknown[]) => mockGetDividendsByYear(...a),
+  getDividends: (...a: unknown[]) => mockGetDividends(...a),
   addDividend: (...a: unknown[]) => mockAddDividend(...a),
   deleteDividend: (...a: unknown[]) => mockDeleteDividend(...a),
 }))
+jest.mock('@/lib/firestore/conversions', () => ({
+  getInvestmentConversions: (...a: unknown[]) => mockGetInvestmentConversions(...a),
+  addInvestmentConversion: (...a: unknown[]) => mockAddInvestmentConversion(...a),
+  deleteInvestmentConversion: (...a: unknown[]) => mockDeleteInvestmentConversion(...a),
+}))
 jest.mock('@/lib/firestore/accounts', () => ({
   getAccounts: (...a: unknown[]) => mockGetAccounts(...a),
+}))
+jest.mock('@/lib/firestore/transactions', () => ({
+  getTransactions: (...a: unknown[]) => mockGetTransactions(...a),
 }))
 
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
@@ -43,8 +55,10 @@ beforeEach(() => {
   jest.clearAllMocks()
   mockGetAccounts.mockResolvedValue(portfolios)
   mockGetInvestmentTypes.mockResolvedValue(types)
-  mockGetInvestmentEntriesByYear.mockResolvedValue(entries)
-  mockGetDividendsByYear.mockResolvedValue(dividends)
+  mockGetInvestmentEntries.mockResolvedValue(entries)
+  mockGetDividends.mockResolvedValue(dividends)
+  mockGetInvestmentConversions.mockResolvedValue([])
+  mockGetTransactions.mockResolvedValue([])
 })
 
 describe('InvestmentsPage', () => {
@@ -56,27 +70,28 @@ describe('InvestmentsPage', () => {
 
   it('shows investment type name in entries list after loading', async () => {
     render(<InvestmentsPage />)
-    await waitFor(() => expect(screen.getAllByText('הראל').length).toBeGreaterThan(0))
-    expect(screen.getAllByText(/1,000/).length).toBeGreaterThan(0)
+    await waitFor(() => expect(screen.getAllByText(/1,000/).length).toBeGreaterThan(0))
+    expect(screen.getAllByText(/הראל/).length).toBeGreaterThan(0)
   })
 
   it('shows dividends after loading', async () => {
     render(<InvestmentsPage />)
-    await waitFor(() => expect(screen.getByText(/45/)).toBeInTheDocument())
-    expect(screen.getByText(/165/)).toBeInTheDocument()
+    await waitFor(() => expect(screen.getAllByText(/165/).length).toBeGreaterThan(0))
+    expect(screen.getAllByText(/הכנסה/).length).toBeGreaterThan(0)
   })
 
-  it('shows add entry form when "+ הוסף הפקדה" button is clicked', async () => {
+  it('shows add entry form when "+ הוסף פעילות" button is clicked', async () => {
     render(<InvestmentsPage />)
-    await waitFor(() => screen.getAllByText('הראל'))
-    fireEvent.click(screen.getByRole('button', { name: '+ הוסף הפקדה' }))
-    expect(screen.getByLabelText('סכום')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getAllByText(/1,000/).length).toBeGreaterThan(0))
+    fireEvent.click(screen.getByRole('button', { name: '+ הוסף פעילות' }))
+    expect(screen.getByLabelText(/סכום/)).toBeInTheDocument()
   })
 
-  it('shows add dividend form when "+ הוסף הכנסה" button is clicked', async () => {
+  it('shows add dividend form when "הכנסה" toggle is clicked', async () => {
     render(<InvestmentsPage />)
-    await waitFor(() => screen.getAllByText('הראל'))
-    fireEvent.click(screen.getByRole('button', { name: '+ הוסף הכנסה' }))
+    await waitFor(() => expect(screen.getAllByText(/1,000/).length).toBeGreaterThan(0))
+    fireEvent.click(screen.getByRole('button', { name: '+ הוסף פעילות' }))
+    fireEvent.click(screen.getByRole('button', { name: 'הכנסה' }))
     expect(screen.getByLabelText('שווי ב-₪')).toBeInTheDocument()
   })
 
@@ -84,11 +99,35 @@ describe('InvestmentsPage', () => {
     const newEntry: InvestmentEntry = { id: 'e2', date: '2026-06-15', month: '2026-06', investmentTypeId: 't1', amount: 500, currency: 'ILS' }
     mockAddInvestmentEntry.mockResolvedValue(newEntry)
     render(<InvestmentsPage />)
-    await waitFor(() => screen.getAllByText('הראל'))
-    fireEvent.click(screen.getByRole('button', { name: '+ הוסף הפקדה' }))
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: 't1' } })
-    fireEvent.change(screen.getByLabelText('סכום'), { target: { value: '500' } })
+    await waitFor(() => expect(screen.getAllByText(/1,000/).length).toBeGreaterThan(0))
+    fireEvent.click(screen.getByRole('button', { name: '+ הוסף פעילות' }))
+    // Open the custom SelectField dropdown by clicking the trigger button (shows placeholder)
+    fireEvent.click(screen.getByText('בחר סוג...'))
+    // Click the option for הראל
+    await waitFor(() => screen.getByRole('option', { name: 'הראל' }))
+    fireEvent.click(screen.getByRole('option', { name: 'הראל' }))
+    fireEvent.change(screen.getByLabelText(/סכום/), { target: { value: '500' } })
     fireEvent.click(screen.getByRole('button', { name: 'הוסף' }))
     await waitFor(() => expect(mockAddInvestmentEntry).toHaveBeenCalled())
+  })
+
+  it('shows investment transfer transaction in activity list', async () => {
+    mockGetTransactions.mockResolvedValue([{
+      id: 'tx-inv1',
+      date: '2026-06-10',
+      merchantName: 'העברה לפסגות',
+      amount: 5000,
+      currency: 'ILS',
+      accountId: 'bank1',
+      source: 'xlsx_import',
+      isImmediate: false,
+      month: '2026-06',
+      direction: 'investment',
+      portfolioAccountId: 'p1',
+    }])
+    render(<InvestmentsPage />)
+    await waitFor(() => {
+      expect(screen.getByText(/העברה: העברה לפסגות/)).toBeInTheDocument()
+    })
   })
 })

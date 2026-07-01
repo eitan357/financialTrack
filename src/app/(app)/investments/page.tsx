@@ -6,13 +6,15 @@ import { getInvestmentTypes, getInvestmentEntries, addInvestmentEntry, deleteInv
 import { getDividends, addDividend, deleteDividend } from '@/lib/firestore/dividends'
 import { getInvestmentConversions, addInvestmentConversion, deleteInvestmentConversion } from '@/lib/firestore/conversions'
 import { getAccounts } from '@/lib/firestore/accounts'
+import { getTransactions } from '@/lib/firestore/transactions'
 import { AddInvestmentActivityForm } from '@/components/investments/AddInvestmentActivityForm'
-import type { InvestmentType, InvestmentEntry, Dividend, Account, InvestmentConversion } from '@/lib/types'
+import type { InvestmentType, InvestmentEntry, Dividend, Account, InvestmentConversion, Transaction } from '@/lib/types'
 
 type InvItem =
   | { kind: 'deposit'; entry: InvestmentEntry; typeName: string; bankName: string | undefined }
   | { kind: 'dividend'; dividend: Dividend; typeName: string }
   | { kind: 'conversion'; conversion: InvestmentConversion; typeName: string }
+  | { kind: 'transfer'; transaction: Transaction }
 
 export default function InvestmentsPage() {
   const [month, setMonth] = usePersistedMonth()
@@ -24,6 +26,7 @@ export default function InvestmentsPage() {
   const [entries, setEntries] = useState<InvestmentEntry[]>([])
   const [dividends, setDividends] = useState<Dividend[]>([])
   const [conversions, setConversions] = useState<InvestmentConversion[]>([])
+  const [transfers, setTransfers] = useState<Transaction[]>([])
   const [portfolioFilter, setPortfolioFilter] = useState<string>('all')
   const [showAddForm, setShowAddForm] = useState(false)
   const [deletingItem, setDeletingItem] = useState<{ kind: 'deposit'; id: string } | { kind: 'dividend'; id: string } | { kind: 'conversion'; id: string } | null>(null)
@@ -33,12 +36,13 @@ export default function InvestmentsPage() {
     setError(null)
     async function load() {
       try {
-        const [accs, types, ents, divs, convs] = await Promise.all([
+        const [accs, types, ents, divs, convs, txs] = await Promise.all([
           getAccounts(),
           getInvestmentTypes(),
           getInvestmentEntries(month),
           getDividends(month),
           getInvestmentConversions(month),
+          getTransactions(month),
         ])
         setPortfolios(accs.filter(a => a.type === 'investment'))
         setBankAccounts(accs.filter(a => a.type === 'bank' && a.isActive))
@@ -46,6 +50,7 @@ export default function InvestmentsPage() {
         setEntries(ents)
         setDividends(divs)
         setConversions(convs)
+        setTransfers(txs.filter(t => t.direction === 'investment'))
       } catch (e) {
         setError('שגיאה בטעינת נתוני השקעות. בדוק את חיבור הרשת.')
         console.error(e)
@@ -100,11 +105,12 @@ export default function InvestmentsPage() {
     ...dividends.map(d => d.investmentTypeId),
     ...conversions.map(c => c.investmentTypeId),
   ])
-  const portfolioIdsWithData = new Set(
-    investmentTypes
+  const portfolioIdsWithData = new Set([
+    ...investmentTypes
       .filter(t => typeIdsInMonth.has(t.id))
-      .map(t => t.portfolioAccountId)
-  )
+      .map(t => t.portfolioAccountId),
+    ...transfers.map(t => t.portfolioAccountId).filter((id): id is string => !!id),
+  ])
   const visiblePortfolios = portfolios.filter(
     p => p.isActive !== false || portfolioIdsWithData.has(p.id)
   )
@@ -122,9 +128,14 @@ export default function InvestmentsPage() {
     ? conversions
     : conversions.filter(c => typeMap[c.investmentTypeId]?.portfolioAccountId === portfolioFilter)
 
+  const filteredTransfers = portfolioFilter === 'all'
+    ? transfers
+    : transfers.filter(t => t.portfolioAccountId === portfolioFilter)
+
   function itemDate(item: InvItem): string {
     if (item.kind === 'deposit') return item.entry.date
     if (item.kind === 'dividend') return item.dividend.date
+    if (item.kind === 'transfer') return item.transaction.date
     return item.conversion.date
   }
 
@@ -145,6 +156,10 @@ export default function InvestmentsPage() {
       conversion: c,
       typeName: typeMap[c.investmentTypeId]?.name ?? c.investmentTypeId,
     })),
+    ...filteredTransfers.map(t => ({
+      kind: 'transfer' as const,
+      transaction: t,
+    })),
   ].sort((a, b) => itemDate(b).localeCompare(itemDate(a)))
 
   const depositTotal = filteredEntries.reduce((s, e) => {
@@ -154,6 +169,7 @@ export default function InvestmentsPage() {
     return s + (d.ilsEquivalent ?? (d.currency === 'ILS' ? d.amount : 0))
   }, 0)
   const conversionTotal = filteredConversions.reduce((s, c) => s + c.ilsReceived, 0)
+  const transferTotal = filteredTransfers.reduce((s, t) => s + t.amount, 0)
 
   return (
     <main className="p-4 max-w-lg mx-auto pb-24">
@@ -259,6 +275,20 @@ export default function InvestmentsPage() {
                 </div>
               )
             }
+            if (item.kind === 'transfer') {
+              const [, mm, dd] = item.transaction.date.split('-')
+              const portfolioName = portfolios.find(p => p.id === item.transaction.portfolioAccountId)?.name ?? 'תיק השקעות'
+              return (
+                <div key={item.transaction.id} className="flex items-center gap-2 py-2.5 border-b border-slate-800 last:border-0">
+                  <span className="text-xs text-slate-500 tabular-nums flex-shrink-0" style={{ width: '2.5rem' }}>{dd}/{mm}</span>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm text-purple-400">העברה: {item.transaction.merchantName}</span>
+                    <span className="text-xs text-slate-500 block">{portfolioName}</span>
+                  </div>
+                  <span className="text-sm tabular-nums text-purple-400 flex-shrink-0" dir="ltr">₪-{item.transaction.amount.toLocaleString('he-IL')}</span>
+                </div>
+              )
+            }
             // conversion
             const [, mm, dd] = item.conversion.date.split('-')
             return (
@@ -298,6 +328,12 @@ export default function InvestmentsPage() {
               <div className="flex justify-between text-xs text-slate-400">
                 <span>המרות</span>
                 <span className="tabular-nums text-green-400" dir="ltr">₪+{conversionTotal.toLocaleString('he-IL')}</span>
+              </div>
+            )}
+            {transferTotal > 0 && (
+              <div className="flex justify-between text-xs text-slate-400">
+                <span>העברות</span>
+                <span className="tabular-nums text-purple-400" dir="ltr">₪-{transferTotal.toLocaleString('he-IL')}</span>
               </div>
             )}
           </div>
