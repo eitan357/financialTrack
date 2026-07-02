@@ -14,6 +14,7 @@ interface Props {
   onUpdate: (transactionId: string, updates: Partial<Omit<Transaction, 'id'>>) => Promise<void>
   onDelete: (transactionId: string) => void
   onEditSalary?: () => void
+  onEditInvestment?: () => void
   displayAmount?: number
   accountLabel?: string
 }
@@ -25,6 +26,8 @@ function amountDisplay(amount: number, direction: Transaction['direction'], curr
     return { text: `${sym}${fmt(amount)}`, colorClass: 'text-green-400' }
   if (direction === 'investment')
     return { text: `${sym}-${fmt(amount)}`, colorClass: 'text-purple-400' }
+  if (direction === 'divestment')
+    return { text: `${sym}${fmt(amount)}`, colorClass: 'text-purple-400' }
   if (amount < 0)
     return { text: `${sym}${fmt(Math.abs(amount))}`, colorClass: 'text-green-400' }
   return { text: `${sym}-${fmt(amount)}`, colorClass: 'text-red-400' }
@@ -161,12 +164,13 @@ function EditForm({ transaction, categories, onUpdate, onDelete, onClose }: {
   )
 }
 
-function DetailView({ transaction, categories, onEdit, onClose, onEditSalary, displayAmount }: {
+function DetailView({ transaction, categories, onEdit, onClose, onEditSalary, onEditInvestment, displayAmount }: {
   transaction: Transaction
   categories: Category[]
   onEdit: () => void
   onClose: () => void
   onEditSalary?: () => void
+  onEditInvestment?: () => void
   displayAmount?: number
 }) {
   const [yyyy, mm, dd] = transaction.date.split('-')
@@ -174,7 +178,8 @@ function DetailView({ transaction, categories, onEdit, onClose, onEditSalary, di
   const { text, colorClass } = amountDisplay(displayAmount ?? transaction.amount, transaction.direction, transaction.currency ?? 'ILS')
   const isIncome = transaction.direction === 'income'
   const isInvestment = transaction.direction === 'investment'
-  const isRefund = !isIncome && !isInvestment && transaction.amount < 0
+  const isDivestment = transaction.direction === 'divestment'
+  const isRefund = !isIncome && !isInvestment && !isDivestment && transaction.amount < 0
 
   return (
     <div
@@ -197,6 +202,8 @@ function DetailView({ transaction, categories, onEdit, onClose, onEditSalary, di
             <div className="text-xs text-green-500/70 mt-0.5">הכנסה</div>
           ) : isInvestment ? (
             <div className="text-xs text-purple-500/70 mt-0.5">השקעה</div>
+          ) : isDivestment ? (
+            <div className="text-xs text-purple-500/70 mt-0.5">מכירת השקעה</div>
           ) : isRefund ? (
             <div className="text-xs text-green-500/70 mt-0.5">זיכוי</div>
           ) : categoryName ? (
@@ -236,20 +243,32 @@ function DetailView({ transaction, categories, onEdit, onClose, onEditSalary, di
       )}
       <div className="flex justify-end" onClick={e => e.stopPropagation()}>
         <button
-          onClick={transaction.salaryDetails && onEditSalary ? onEditSalary : onEdit}
+          onClick={
+            transaction.salaryDetails && onEditSalary
+              ? onEditSalary
+              : (transaction.direction === 'investment' || transaction.direction === 'divestment') && onEditInvestment
+                ? onEditInvestment
+                : onEdit
+          }
           className="text-sm py-1.5 px-4 border border-accent text-accent rounded-lg hover:bg-accent hover:text-white transition-colors"
-        >{transaction.salaryDetails && onEditSalary ? 'ערוך משכורת' : 'ערוך'}</button>
+        >
+          {transaction.salaryDetails && onEditSalary
+            ? 'ערוך משכורת'
+            : (transaction.direction === 'investment' || transaction.direction === 'divestment') && onEditInvestment
+              ? 'עריכת השקעה'
+              : 'ערוך'}
+        </button>
       </div>
     </div>
   )
 }
 
-export function TransactionRow({ transaction, categories, onCategoryChange: _onCategoryChange, onUpdate, onDelete, onEditSalary, displayAmount, accountLabel }: Props) {
+export function TransactionRow({ transaction, categories, onCategoryChange: _onCategoryChange, onUpdate, onDelete, onEditSalary, onEditInvestment, displayAmount, accountLabel }: Props) {
   const [mode, setMode] = useState<'row' | 'detail' | 'edit'>('row')
   const [, mm, dd] = transaction.date.split('-')
   const hasCategory = !!transaction.categoryId
   const isIncome = transaction.direction === 'income'
-  const isInvestment = transaction.direction === 'investment'
+  const isInvestment = transaction.direction === 'investment' || transaction.direction === 'divestment'
   const { text, colorClass } = amountDisplay(displayAmount ?? transaction.amount, transaction.direction, transaction.currency ?? 'ILS')
 
   if (mode === 'edit') {
@@ -272,6 +291,7 @@ export function TransactionRow({ transaction, categories, onCategoryChange: _onC
         onEdit={() => setMode('edit')}
         onClose={() => setMode('row')}
         onEditSalary={onEditSalary}
+        onEditInvestment={onEditInvestment}
         displayAmount={displayAmount}
       />
     )

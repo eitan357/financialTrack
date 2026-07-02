@@ -210,7 +210,13 @@ export default function TransactionsPage() {
     })),
   ].sort((a, b) => itemDate(b).localeCompare(itemDate(a)))
 
-  const uncategorizedCount = baseTransactions.filter(t => !t.categoryId && t.direction !== 'income' && t.direction !== 'investment' && t.amount > 0).length
+  const uncategorizedCount = baseTransactions.filter(t =>
+    !t.categoryId &&
+    t.direction !== 'income' &&
+    t.direction !== 'investment' &&
+    t.direction !== 'divestment' &&
+    t.amount > 0
+  ).length
 
   // Per-currency totals
   const currencyTotals = new Map<string, { income: number; expense: number }>()
@@ -220,7 +226,7 @@ export default function TransactionsPage() {
     const entry = currencyTotals.get(cur)!
     if (t.direction === 'income') {
       entry.income += (accountFilter === 'all' && t.salaryDetails) ? t.salaryDetails.netAmount : t.amount
-    } else if (t.direction !== 'investment') {
+    } else if (t.direction !== 'investment' && t.direction !== 'divestment') {
       entry.expense += t.amount
     }
   }
@@ -231,6 +237,15 @@ export default function TransactionsPage() {
   else if (currencyTotals.has('ILS')) currencyTotals.set('ILS', ilsEntry)
 
   const currencyEntries = [...currencyTotals.entries()]
+
+  // Investment totals (ILS only, shown separately from income/expense)
+  const investmentBuys = filteredTx
+    .filter(t => t.direction === 'investment' && (t.currency ?? 'ILS') === 'ILS')
+    .reduce((s, t) => s + t.amount, 0)
+  const investmentSells = filteredTx
+    .filter(t => t.direction === 'divestment' && (t.currency ?? 'ILS') === 'ILS')
+    .reduce((s, t) => s + t.amount, 0)
+  const investmentNet = investmentSells - investmentBuys
 
   return (
     <main className="p-4 max-w-lg mx-auto pb-24">
@@ -312,6 +327,11 @@ export default function TransactionsPage() {
                 onDelete={handleDelete}
                 displayAmount={accountFilter === 'all' && item.tx.salaryDetails ? item.tx.salaryDetails.netAmount : undefined}
                 onEditSalary={item.tx.salaryDetails ? () => router.push(`/import/salary?month=${month}`) : undefined}
+                onEditInvestment={
+                  (item.tx.direction === 'investment' || item.tx.direction === 'divestment')
+                    ? () => router.push(`/investments?month=${month}&highlight=${item.tx.id}`)
+                    : undefined
+                }
                 accountLabel={accountFilter === 'all'
                   ? (item.tx.salaryDetails && (item.tx.salaryDetails.cashAmount ?? 0) > 0
                     ? 'משכורת'
@@ -384,6 +404,29 @@ export default function TransactionsPage() {
                 <span dir="ltr">₪0</span>
               </div>
             )}
+            {(investmentBuys > 0 || investmentSells > 0) && (() => {
+              const ilsTotals = currencyTotals.get('ILS') ?? { income: 0, expense: 0 }
+              const ilsNet = ilsTotals.income - ilsTotals.expense
+              const netWithInvestments = ilsNet + investmentNet
+              const fmtAbs = (n: number) => Math.abs(n).toLocaleString('he-IL')
+              return (
+                <>
+                  <div className="border-t border-slate-800 my-1" />
+                  <div className="flex justify-between text-xs text-slate-400">
+                    <span>השקעות (נטו)</span>
+                    <span className="tabular-nums text-purple-400" dir="ltr">
+                      {investmentNet >= 0 ? '+' : '-'}₪{fmtAbs(investmentNet)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-xs text-slate-400">
+                    <span>נטו כולל השקעות</span>
+                    <span className={`tabular-nums ${netWithInvestments >= 0 ? 'text-green-400' : 'text-red-400'}`} dir="ltr">
+                      {netWithInvestments >= 0 ? '₪' : '-₪'}{fmtAbs(netWithInvestments)}
+                    </span>
+                  </div>
+                </>
+              )
+            })()}
           </div>
         </div>
       )}
