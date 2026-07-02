@@ -6,11 +6,11 @@ import { getCategories } from '@/lib/firestore/categories'
 import { getRules } from '@/lib/firestore/categorization-rules'
 import { getTransactions } from '@/lib/firestore/transactions'
 import { getSalaryEntries } from '@/lib/firestore/salary'
-import { getInvestmentEntries } from '@/lib/firestore/investments'
+import { getInvestmentEntries, getInvestmentTypes } from '@/lib/firestore/investments'
 import { getDividends } from '@/lib/firestore/dividends'
 import { getInvestmentConversions } from '@/lib/firestore/conversions'
 import { BankFlow, type BankType } from '@/components/import/flows/BankFlow'
-import type { Account, Category, CategorizationRule, Transaction, SalaryEntry, InvestmentEntry, Dividend, InvestmentConversion } from '@/lib/types'
+import type { Account, Category, CategorizationRule, Transaction, SalaryEntry, InvestmentEntry, Dividend, InvestmentConversion, InvestmentType } from '@/lib/types'
 
 function currentMonth(): string {
   const n = new Date()
@@ -46,12 +46,13 @@ function BankPageInner() {
   const [dividendPayouts, setDividendPayouts] = useState<Dividend[]>([])
   const [conversionPayouts, setConversionPayouts] = useState<InvestmentConversion[]>([])
   const [portfolioAccounts, setPortfolioAccounts] = useState<Account[]>([])
+  const [investmentTypes, setInvestmentTypes] = useState<InvestmentType[]>([])
 
   useEffect(() => {
     async function load() {
       setLoading(true)
       try {
-        const [accs, cats, rls, txs, salaries, invEntries, monthDivs, monthConvs] = await Promise.all([
+        const [accs, cats, rls, txs, salaries, invEntries, monthDivs, monthConvs, invTypes] = await Promise.all([
           getAccounts(),
           getCategories(),
           getRules(),
@@ -60,6 +61,7 @@ function BankPageInner() {
           getInvestmentEntries(month),
           getDividends(month),
           getInvestmentConversions(month),
+          getInvestmentTypes(),
         ])
         const acc = accs.find(a => a.id === accountId)
         if (!acc) { router.replace('/import'); return }
@@ -79,6 +81,7 @@ function BankPageInner() {
         setDividendPayouts(monthDivs.filter(d => !d.staysInPortfolio && d.destinationAccountId === accountId))
         setConversionPayouts(monthConvs.filter(c => c.destinationAccountId === accountId))
         setPortfolioAccounts(accs.filter(a => a.type === 'investment' && a.isActive !== false))
+        setInvestmentTypes(invTypes)
       } catch {
         setError('שגיאה בטעינת הנתונים.')
       } finally {
@@ -110,6 +113,7 @@ function BankPageInner() {
         dividendPayouts={dividendPayouts}
         conversionPayouts={conversionPayouts}
         portfolioAccounts={portfolioAccounts}
+        investmentTypes={investmentTypes}
         onDone={() => router.push(`/import?month=${month}`)}
       />
     </main>

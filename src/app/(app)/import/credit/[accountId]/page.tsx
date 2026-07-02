@@ -5,8 +5,9 @@ import { getAccounts } from '@/lib/firestore/accounts'
 import { getCategories } from '@/lib/firestore/categories'
 import { getRules } from '@/lib/firestore/categorization-rules'
 import { getTransactions } from '@/lib/firestore/transactions'
+import { getInvestmentTypes } from '@/lib/firestore/investments'
 import { CreditFlow } from '@/components/import/flows/CreditFlow'
-import type { Account, Category, CategorizationRule, Transaction } from '@/lib/types'
+import type { Account, Category, CategorizationRule, Transaction, InvestmentType } from '@/lib/types'
 
 function currentMonth(): string {
   const n = new Date()
@@ -28,16 +29,18 @@ function CreditPageInner() {
   const [previousTransactions, setPreviousTransactions] = useState<Transaction[]>([])
   const [existingTransactions, setExistingTransactions] = useState<Transaction[]>([])
   const [portfolioAccounts, setPortfolioAccounts] = useState<Account[]>([])
+  const [investmentTypes, setInvestmentTypes] = useState<InvestmentType[]>([])
 
   useEffect(() => {
     async function load() {
       setLoading(true)
       try {
-        const [accs, cats, rls, txs] = await Promise.all([
+        const [accs, cats, rls, txs, invTypes] = await Promise.all([
           getAccounts(),
           getCategories(),
           getRules(),
           getTransactions(month),
+          getInvestmentTypes(),
         ])
         const acc = accs.find(a => a.id === accountId)
         if (!acc) { router.replace('/import'); return }
@@ -47,6 +50,7 @@ function CreditPageInner() {
         setPreviousTransactions(txs)
         setExistingTransactions(txs.filter(t => t.accountId === accountId))
         setPortfolioAccounts(accs.filter(a => a.type === 'investment' && a.isActive !== false))
+        setInvestmentTypes(invTypes)
       } catch {
         setError('שגיאה בטעינת הנתונים.')
       } finally {
@@ -72,6 +76,7 @@ function CreditPageInner() {
         previousTransactions={previousTransactions}
         existingTransactions={existingTransactions}
         portfolioAccounts={portfolioAccounts}
+        investmentTypes={investmentTypes}
         onDone={() => router.push(`/import?month=${month}`)}
       />
     </main>

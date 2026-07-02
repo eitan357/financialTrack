@@ -13,11 +13,36 @@ import { categorize } from '@/lib/categorization/engine'
 import { detectDuplicates } from '@/lib/import/duplicate-detector'
 import { addTransactions } from '@/lib/firestore/transactions'
 import { ImportError } from '@/lib/parsers/import-errors'
-import type { AccountProvider, Account, Category, CategorizationRule, ImportedTransaction, Transaction, TransactionSource } from '@/lib/types'
+import { InvestmentPicker } from '@/components/investments/InvestmentPicker'
+import type { InvestmentSelection } from '@/components/investments/InvestmentPicker'
+import type { AccountProvider, Account, Category, CategorizationRule, ImportedTransaction, Transaction, TransactionSource, InvestmentType } from '@/lib/types'
+
+const PROVIDER_ALIASES: Record<string, string[]> = {
+  psagot: ['פסגות'],
+  hapoalim: ['פועלים', 'bank hapoalim'],
+  leumi: ['לאומי', 'bank leumi'],
+  discount: ['דיסקונט'],
+  mizrahi: ['מזרחי', 'mizrahi tefahot'],
+  'one-zero': ['one zero', 'one-zero'],
+}
+
+function autoDetectPortfolio(merchantName: string, portfolios: Account[]): string | undefined {
+  const name = merchantName.toLowerCase()
+  for (const p of portfolios) {
+    if (p.name && name.includes(p.name.toLowerCase())) return p.id
+    if (p.provider) {
+      const aliases = PROVIDER_ALIASES[p.provider] ?? []
+      if (aliases.some(a => name.includes(a.toLowerCase()))) return p.id
+    }
+  }
+  return undefined
+}
 
 interface CreditRow extends ImportedTransaction {
   skip: boolean
   portfolioAccountId?: string
+  investmentTypeId?: string
+  investmentDirection?: 'investment' | 'divestment'
 }
 
 interface Props {
@@ -30,11 +55,13 @@ interface Props {
   previousTransactions: Transaction[]
   existingTransactions: Transaction[]
   portfolioAccounts?: Account[]
+  investmentTypes?: InvestmentType[]
   onDone: () => void
 }
 
 function toTransaction(t: CreditRow, accountId: string, month: string): Omit<Transaction, 'id'> {
   const isInvestment = !!t.portfolioAccountId
+  const dir = isInvestment ? (t.investmentDirection ?? 'investment') : t.direction
   return {
     date: t.date,
     merchantName: t.merchantName,
@@ -44,14 +71,17 @@ function toTransaction(t: CreditRow, accountId: string, month: string): Omit<Tra
     source: 'xlsx_import' as TransactionSource,
     isImmediate: t.isImmediate,
     month,
-    direction: isInvestment ? 'investment' : t.direction,
+    direction: dir,
     ...(t.notes && { description: t.notes }),
-    ...(isInvestment ? { portfolioAccountId: t.portfolioAccountId } : {}),
+    ...(isInvestment ? {
+      portfolioAccountId: t.portfolioAccountId,
+      ...(t.investmentTypeId ? { investmentTypeId: t.investmentTypeId } : {}),
+    } : {}),
     ...(!isInvestment && t.direction !== 'income' && t.categoryId ? { categoryId: t.categoryId } : {}),
   }
 }
 
-export function CreditFlow({ month, accountId, accountName, provider, categories, rules, previousTransactions, existingTransactions, portfolioAccounts = [], onDone }: Props) {
+export function CreditFlow({ month, accountId, accountName, provider, categories, rules, previousTransactions, existingTransactions, portfolioAccounts = [], investmentTypes = [], onDone }: Props) {
   const router = useRouter()
   const [rows, setRows] = useState<CreditRow[]>([])
   const [xlsxData, setXlsxData] = useState<Uint8Array | null>(null)
@@ -87,7 +117,11 @@ export function CreditFlow({ month, accountId, accountName, provider, categories
   }
 
   function setTransactions(txs: ImportedTransaction[]) {
-    setRows(txs.map(t => ({ ...t, skip: false })))
+    setRows(txs.map(t => {
+      const detected = autoDetectPortfolio(t.merchantName, portfolioAccounts)
+      if (!detected) return { ...t, skip: false }
+      return { ...t, skip: false, portfolioAccountId: detected, investmentDirection: 'investment' as const, categoryId: null }
+    }))
   }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -255,7 +289,7 @@ export function CreditFlow({ month, accountId, accountName, provider, categories
                   <th className="text-right py-2 px-2">תיאור</th>
                   <th className="text-right py-2 px-2">סכום</th>
                   <th className="text-right py-2 px-2">כיוון</th>
-                  <th className="text-right py-2 px-2">תיק</th>
+                  <th className="text-right py-2 px-2">השקעה</th>
                   <th className="text-right py-2 px-2">מיידי</th>
                   <th className="text-right py-2 px-2">קטגוריה</th>
                 </tr>
@@ -312,26 +346,44 @@ export function CreditFlow({ month, accountId, accountName, provider, categories
                         />
                       )}
                     </td>
-                    <td className="py-1.5 px-2">
-                      <select
-                        value={tx.portfolioAccountId ?? ''}
-                        onChange={e => {
-                          const pid = e.target.value || undefined
-                          updateRow(i, {
-                            portfolioAccountId: pid,
-                            skip: pid ? false : tx.skip,
-                            categoryId: pid ? null : tx.categoryId,
-                          })
+                    <td className="py-1.5 px-2 min-w-28">
+                      <InvestmentPicker
+                        portfolios={portfolioAccounts}
+                        types={investmentTypes}
+                        value={tx.portfolioAccountId
+                          ? { portfolioAccountId: tx.portfolioAccountId, investmentTypeId: tx.investmentTypeId }
+                          : null}
+                        onChange={(sel: InvestmentSelection | null) => {
+                          if (sel) {
+                            updateRow(i, {
+                              portfolioAccountId: sel.portfolioAccountId,
+                              investmentTypeId: sel.investmentTypeId,
+                              investmentDirection: tx.investmentDirection ?? 'investment',
+                              skip: false,
+                              categoryId: null,
+                            })
+                          } else {
+                            updateRow(i, { portfolioAccountId: undefined, investmentTypeId: undefined, investmentDirection: undefined })
+                          }
                         }}
                         disabled={tx.skip && !tx.portfolioAccountId}
-                        className="bg-background text-xs rounded px-1 py-0.5 text-purple-400 disabled:opacity-30"
-                        aria-label={`תיק השקעות עבור ${tx.merchantName}`}
-                      >
-                        <option value="">—</option>
-                        {portfolioAccounts.map(p => (
-                          <option key={p.id} value={p.id}>{p.name}</option>
-                        ))}
-                      </select>
+                        size="sm"
+                        placeholder="—"
+                      />
+                      {tx.portfolioAccountId && (
+                        <div className="flex mt-0.5 rounded overflow-hidden border border-slate-700 text-xs">
+                          <button
+                            type="button"
+                            onClick={() => updateRow(i, { investmentDirection: 'investment' })}
+                            className={`flex-1 py-0.5 ${(tx.investmentDirection ?? 'investment') === 'investment' ? 'bg-green-900/60 text-green-400' : 'text-slate-500 hover:text-slate-300'}`}
+                          >קנייה</button>
+                          <button
+                            type="button"
+                            onClick={() => updateRow(i, { investmentDirection: 'divestment' })}
+                            className={`flex-1 py-0.5 ${tx.investmentDirection === 'divestment' ? 'bg-red-900/60 text-red-400' : 'text-slate-500 hover:text-slate-300'}`}
+                          >מכירה</button>
+                        </div>
+                      )}
                     </td>
                     <td className="py-1.5 px-2 text-center">
                       <input
