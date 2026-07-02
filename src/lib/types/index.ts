@@ -77,8 +77,9 @@ export interface Transaction {
   source: TransactionSource
   isImmediate: boolean
   month: string // YYYY-MM
-  direction?: 'income' | 'expense' | 'investment' // undefined = 'expense' for backward compat
-  portfolioAccountId?: string // set when direction === 'investment'
+  direction?: 'income' | 'expense' | 'investment' | 'divestment'
+  portfolioAccountId?: string  // set when direction is 'investment' or 'divestment'
+  investmentTypeId?: string    // optional: specific investment type within portfolio
   salaryDetails?: SalaryDetails
 }
 

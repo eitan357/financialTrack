@@ -84,5 +84,5 @@ export async function getTransactionsForMonths(months: string[]): Promise<Transa
 
 export async function getInvestmentTransfers(month: string): Promise<Transaction[]> {
   const txs = await getTransactions(month)
-  return txs.filter(t => t.direction === 'investment')
+  return txs.filter(t => t.direction === 'investment' || t.direction === 'divestment')
 }
