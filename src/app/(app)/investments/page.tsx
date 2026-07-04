@@ -50,7 +50,7 @@ export default function InvestmentsPage() {
         setEntries(ents)
         setDividends(divs)
         setConversions(convs)
-        setTransfers(txs.filter(t => t.direction === 'investment'))
+        setTransfers(txs.filter(t => t.direction === 'investment' || t.direction === 'divestment'))
       } catch (e) {
         setError('שגיאה בטעינת נתוני השקעות. בדוק את חיבור הרשת.')
         console.error(e)
@@ -169,7 +169,6 @@ export default function InvestmentsPage() {
     return s + (d.ilsEquivalent ?? (d.currency === 'ILS' ? d.amount : 0))
   }, 0)
   const conversionTotal = filteredConversions.reduce((s, c) => s + c.ilsReceived, 0)
-  const transferTotal = filteredTransfers.reduce((s, t) => s + t.amount, 0)
 
   return (
     <main className="p-4 max-w-lg mx-auto pb-24">
@@ -233,11 +232,11 @@ export default function InvestmentsPage() {
                 <div key={item.entry.id} className="flex items-center gap-2 py-2.5 border-b border-slate-800 last:border-0">
                   <span className="text-xs text-slate-500 tabular-nums flex-shrink-0" style={{ width: '2.5rem' }}>{dd}/{mm}</span>
                   <div className="flex-1 min-w-0">
-                    <span className="text-sm text-purple-400">קנייה: {item.typeName}</span>
+                    <span className="text-sm text-foreground">קנייה: {item.typeName}</span>
                     {item.bankName && <span className="text-xs text-slate-500 block">{item.bankName}</span>}
                   </div>
                   {ilsAmount !== null && (
-                    <span className="text-sm tabular-nums text-purple-400 flex-shrink-0" dir="ltr">₪-{ilsAmount.toLocaleString('he-IL')}</span>
+                    <span className="text-sm tabular-nums text-green-400 flex-shrink-0" dir="ltr">₪-{ilsAmount.toLocaleString('he-IL')}</span>
                   )}
                   {deletingItem?.kind === 'deposit' && deletingItem.id === item.entry.id ? (
                     <span className="flex items-center gap-1 text-xs flex-shrink-0">
@@ -258,10 +257,10 @@ export default function InvestmentsPage() {
                 <div key={item.dividend.id} className="flex items-center gap-2 py-2.5 border-b border-slate-800 last:border-0">
                   <span className="text-xs text-slate-500 tabular-nums flex-shrink-0" style={{ width: '2.5rem' }}>{dd}/{mm}</span>
                   <div className="flex-1 min-w-0">
-                    <span className="text-sm text-purple-400">הכנסה: {item.typeName}</span>
+                    <span className="text-sm text-foreground">הכנסה: {item.typeName}</span>
                   </div>
                   {ilsAmount !== null && (
-                    <span className="text-sm tabular-nums text-green-400 flex-shrink-0" dir="ltr">₪+{ilsAmount.toLocaleString('he-IL')}</span>
+                    <span className="text-sm tabular-nums text-purple-400 flex-shrink-0" dir="ltr">₪+{ilsAmount.toLocaleString('he-IL')}</span>
                   )}
                   {deletingItem?.kind === 'dividend' && deletingItem.id === item.dividend.id ? (
                     <span className="flex items-center gap-1 text-xs flex-shrink-0">
@@ -278,14 +277,18 @@ export default function InvestmentsPage() {
             if (item.kind === 'transfer') {
               const [, mm, dd] = item.transaction.date.split('-')
               const portfolioName = portfolios.find(p => p.id === item.transaction.portfolioAccountId)?.name ?? 'תיק השקעות'
+              const typeName = investmentTypes.find(t => t.id === item.transaction.investmentTypeId)?.name
+              const isBuy = item.transaction.direction === 'investment'
               return (
                 <div key={item.transaction.id} className="flex items-center gap-2 py-2.5 border-b border-slate-800 last:border-0">
                   <span className="text-xs text-slate-500 tabular-nums flex-shrink-0" style={{ width: '2.5rem' }}>{dd}/{mm}</span>
                   <div className="flex-1 min-w-0">
-                    <span className="text-sm text-purple-400">העברה: {item.transaction.merchantName}</span>
-                    <span className="text-xs text-slate-500 block">{portfolioName}</span>
+                    <span className="text-sm text-foreground">{isBuy ? 'קנייה' : 'מכירה'}: {item.transaction.merchantName}</span>
+                    <span className="text-xs text-slate-500 block">{typeName ? `${typeName} — ${portfolioName}` : portfolioName}</span>
                   </div>
-                  <span className="text-sm tabular-nums text-purple-400 flex-shrink-0" dir="ltr">₪-{item.transaction.amount.toLocaleString('he-IL')}</span>
+                  <span className={`text-sm tabular-nums flex-shrink-0 ${isBuy ? 'text-green-400' : 'text-red-400'}`} dir="ltr">
+                    {isBuy ? '₪-' : '₪+'}{item.transaction.amount.toLocaleString('he-IL')}
+                  </span>
                 </div>
               )
             }
@@ -295,9 +298,9 @@ export default function InvestmentsPage() {
               <div key={item.conversion.id} className="flex items-center gap-2 py-2.5 border-b border-slate-800 last:border-0">
                 <span className="text-xs text-slate-500 tabular-nums flex-shrink-0" style={{ width: '2.5rem' }}>{dd}/{mm}</span>
                 <div className="flex-1 min-w-0">
-                  <span className="text-sm text-purple-400">מכירה: {item.typeName}</span>
+                  <span className="text-sm text-foreground">המרה: {item.typeName}</span>
                 </div>
-                <span className="text-sm tabular-nums text-green-400 flex-shrink-0" dir="ltr">₪+{item.conversion.ilsReceived.toLocaleString('he-IL')}</span>
+                <span className="text-sm tabular-nums text-purple-400 flex-shrink-0" dir="ltr">₪+{item.conversion.ilsReceived.toLocaleString('he-IL')}</span>
                 {deletingItem?.kind === 'conversion' && deletingItem.id === item.conversion.id ? (
                   <span className="flex items-center gap-1 text-xs flex-shrink-0">
                     <button onClick={() => handleDeleteConversion(item.conversion.id)} className="text-red-400 hover:text-red-300">מחק</button>
@@ -312,30 +315,32 @@ export default function InvestmentsPage() {
           })}
 
           <div className="py-3 border-t border-slate-700 space-y-1.5">
-            {depositTotal > 0 && (
-              <div className="flex justify-between text-xs text-slate-400">
-                <span>קניות</span>
-                <span className="tabular-nums text-purple-400" dir="ltr">₪-{depositTotal.toLocaleString('he-IL')}</span>
-              </div>
-            )}
-            {incomeTotal > 0 && (
-              <div className="flex justify-between text-xs text-slate-400">
-                <span>הכנסות</span>
-                <span className="tabular-nums text-green-400" dir="ltr">₪+{incomeTotal.toLocaleString('he-IL')}</span>
-              </div>
-            )}
-            {conversionTotal > 0 && (
-              <div className="flex justify-between text-xs text-slate-400">
-                <span>המרות</span>
-                <span className="tabular-nums text-green-400" dir="ltr">₪+{conversionTotal.toLocaleString('he-IL')}</span>
-              </div>
-            )}
-            {transferTotal > 0 && (
-              <div className="flex justify-between text-xs text-slate-400">
-                <span>העברות</span>
-                <span className="tabular-nums text-purple-400" dir="ltr">₪-{transferTotal.toLocaleString('he-IL')}</span>
-              </div>
-            )}
+            {(() => {
+              const investmentTransferTotal = filteredTransfers
+                .filter(t => t.direction === 'investment')
+                .reduce((s, t) => s + t.amount, 0)
+              const divestmentTotal = filteredTransfers
+                .filter(t => t.direction === 'divestment')
+                .reduce((s, t) => s + t.amount, 0)
+              const totalIn = depositTotal + investmentTransferTotal
+              const totalOut = divestmentTotal + conversionTotal + incomeTotal
+              return (
+                <>
+                  {totalIn > 0 && (
+                    <div className="flex justify-between text-xs text-slate-400">
+                      <span>סה&quot;כ נכנס לתיק</span>
+                      <span className="tabular-nums text-green-400" dir="ltr">₪-{totalIn.toLocaleString('he-IL')}</span>
+                    </div>
+                  )}
+                  {totalOut > 0 && (
+                    <div className="flex justify-between text-xs text-slate-400">
+                      <span>סה&quot;כ יצא מהתיק</span>
+                      <span className="tabular-nums text-purple-400" dir="ltr">₪+{totalOut.toLocaleString('he-IL')}</span>
+                    </div>
+                  )}
+                </>
+              )
+            })()}
           </div>
         </div>
       )}
