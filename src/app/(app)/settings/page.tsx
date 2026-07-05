@@ -620,12 +620,12 @@ function AccountsSection() {
         <button
           onClick={() => { setShowAddType(v => v === 'bank' ? null : 'bank'); setEditId(null); setExpandedId(null) }}
           className={`flex-1 py-2 text-xs rounded-xl border transition-colors ${showAddType === 'bank' ? 'border-accent text-accent' : 'border-slate-600 text-slate-400 hover:border-slate-500'}`}>
-          {showAddType === 'bank' ? 'ביטול' : 'הוספת חשבון בנק'}
+          {showAddType === 'bank' ? 'ביטול' : '+ הוספת חשבון בנק'}
         </button>
         <button
           onClick={() => { setShowAddType(v => v === 'credit' ? null : 'credit'); setEditId(null); setExpandedId(null) }}
           className={`flex-1 py-2 text-xs rounded-xl border transition-colors ${showAddType === 'credit' ? 'border-accent text-accent' : 'border-slate-600 text-slate-400 hover:border-slate-500'}`}>
-          {showAddType === 'credit' ? 'ביטול' : 'הוספת כרטיס אשראי'}
+          {showAddType === 'credit' ? 'ביטול' : '+ הוספת כרטיס אשראי'}
         </button>
       </div>
 
@@ -838,7 +838,7 @@ function CategoriesSection() {
           <span>{active.length} קטגוריות פעילות</span>
         </button>
         <button onClick={() => { setShowAdd(v => !v); setEditId(null) }}
-          className="text-xs text-accent">{showAdd ? 'ביטול' : 'הוספת קטגוריה'}</button>
+          className="text-xs text-accent">{showAdd ? 'ביטול' : '+ הוספת קטגוריה'}</button>
       </div>
 
       {showAdd && <CategoryForm onSubmit={handleAdd} onCancel={() => setShowAdd(false)} />}
@@ -1016,7 +1016,7 @@ function RulesSection() {
       <div className="flex justify-between items-center">
         <p className="text-xs text-slate-500">{activeRules.length} חוקים פעילים</p>
         <button onClick={() => setShowAdd(v => !v)} className="text-xs text-accent">
-          {showAdd ? 'ביטול' : 'הוספת חוק'}
+          {showAdd ? 'ביטול' : '+ הוספת חוק'}
         </button>
       </div>
 
@@ -1367,7 +1367,7 @@ function InvestmentsSection() {
               ? 'border-accent text-accent'
               : 'border-slate-600 text-slate-400 hover:border-slate-500'
           }`}>
-          {showAddPortfolio ? 'ביטול' : 'הוספת תיק השקעות'}
+          {showAddPortfolio ? 'ביטול' : '+ הוספת תיק השקעות'}
         </button>
       </div>
 
@@ -1376,7 +1376,7 @@ function InvestmentsSection() {
       )}
 
       {activePortfolios.length === 0 && !showAddPortfolio && (
-        <p className="text-slate-500 text-sm text-center py-6">אין תיקי השקעות. לחץ על ״הוספת תיק השקעות״ להתחלה.</p>
+        <p className="text-slate-500 text-sm text-center py-6">אין תיקי השקעות. לחץ על ״+ הוספת תיק השקעות״ להתחלה.</p>
       )}
 
       {/* Active portfolios */}
@@ -1451,7 +1451,7 @@ function InvestmentsSection() {
                                       ? 'border-accent text-accent'
                                       : 'border-slate-600 text-accent hover:border-accent/50'
                                   }`}>
-                                  {isAddingType ? 'ביטול' : 'הוספת השקעה'}
+                                  {isAddingType ? 'ביטול' : '+ הוספת השקעה'}
                                 </button>
                               </div>
                               <div className="flex gap-2 items-center justify-end">
