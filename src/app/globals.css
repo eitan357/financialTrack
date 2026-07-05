@@ -21,3 +21,20 @@ body {
 /* Right-align date text in Hebrew RTL context */
 input[type="date"] { text-align: right; }
 input[type="date"]::-webkit-datetime-edit { text-align: right; }
+
+@keyframes float-up {
+  0%   { opacity: 1; transform: translateY(0) translateX(-50%); }
+  100% { opacity: 0; transform: translateY(-60px) translateX(-50%); }
+}
+
+@keyframes tutorial-right {
+  0%, 15%  { transform: translateX(0) rotate(0); opacity: 1; }
+  65%      { transform: translateX(140%) rotate(15deg); opacity: 0; }
+  66%, 100%{ transform: translateX(0) rotate(0); opacity: 0; }
+}
+
+@keyframes tutorial-left {
+  0%, 15%  { transform: translateX(0) rotate(0); opacity: 1; }
+  65%      { transform: translateX(-140%) rotate(-15deg); opacity: 0; }
+  66%, 100%{ transform: translateX(0) rotate(0); opacity: 0; }
+}
