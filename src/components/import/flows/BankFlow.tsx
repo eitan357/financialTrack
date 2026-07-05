@@ -1,10 +1,7 @@
 'use client'
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { Upload, CheckCircle, Tag, ChevronRight } from 'lucide-react'
-import { SelectField } from '@/components/ui/SelectField'
-import { DirectionToggle } from '@/components/ui/DirectionToggle'
-import { CurrencyPicker } from '@/components/ui/CurrencyPicker'
+import { Upload, CheckCircle, ChevronRight } from 'lucide-react'
 import { parseOneZeroXlsx } from '@/lib/parsers/one-zero-xlsx-parser'
 import { parseLeumiPdf } from '@/lib/parsers/leumi-pdf-parser'
 import { parseCSV } from '@/lib/parsers/csv-parser'
@@ -13,8 +10,8 @@ import { categorize } from '@/lib/categorization/engine'
 import { detectDuplicates } from '@/lib/import/duplicate-detector'
 import { addTransactions } from '@/lib/firestore/transactions'
 import { ImportError } from '@/lib/parsers/import-errors'
-import { InvestmentPicker } from '@/components/investments/InvestmentPicker'
-import type { InvestmentSelection } from '@/components/investments/InvestmentPicker'
+import { SwipeImportDeck } from '../SwipeImportDeck'
+import type { SwipeRow } from '../deckUtils'
 import type { Account, Category, CategorizationRule, ImportedTransaction, RawTransaction, SalaryEntry, Transaction, TransactionSource, InvestmentEntry, Dividend, InvestmentConversion, InvestmentType } from '@/lib/types'
 
 export type BankType = 'one-zero' | 'leumi' | 'generic'
@@ -153,16 +150,6 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
   const [parsing, setParsing] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const activeRows = rows.filter(r => !r.skip)
-  const skippedCount = rows.filter(r => r.skip).length
-
-  function existingMatch(tx: ImportedTransaction) {
-    return existingTransactions.find(e =>
-      e.date === tx.date && Math.abs(e.amount) === tx.amount && e.merchantName === tx.merchantName
-    )
-  }
-  const duplicateCount = activeRows.filter(r => existingMatch(r)).length
-
   function applyCategories(raw: RawTransaction[]): ImportedTransaction[] {
     return raw.map(r => {
       const res = categorize(r.merchantName, rules, previousTransactions)
@@ -227,14 +214,10 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
     }
   }
 
-  function updateRow(index: number, updates: Partial<BankImportRow>) {
-    setRows(prev => prev.map((r, i) => i === index ? { ...r, ...updates } : r))
-  }
-
-  async function handleSave() {
+  async function handleDeckSave(approved: SwipeRow[]) {
     setSaving(true); setError(null)
     try {
-      const toImport = rows.filter(r => !r.skip)
+      const toImport = approved as BankImportRow[]
       const { clean, duplicates } = detectDuplicates(toImport, existingTransactions)
       const source: TransactionSource = bankType === 'leumi' ? 'pdf_import' : 'xlsx_import'
       const toSave: BankImportRow[] = duplicates.length > 0
@@ -250,19 +233,19 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
   }
 
   if (saved) {
+    const importedCount = rows.filter(r => !r.skip).length
+    const skippedCount = rows.filter(r => r.skip).length
     return (
       <div className="text-center py-8">
         <CheckCircle size={48} className="mx-auto text-green-400 mb-4" />
         <h2 className="text-xl font-bold mb-2">נשמר!</h2>
         <p className="text-slate-400 text-sm mb-6">
-          {activeRows.length} עסקאות יובאו{skippedCount > 0 ? `, ${skippedCount} סוננו` : ''}
+          {importedCount} עסקאות יובאו{skippedCount > 0 ? `, ${skippedCount} סוננו` : ''}
         </p>
         <button onClick={onDone} className="w-full py-3 bg-accent rounded-xl font-semibold">חזור לרשימה</button>
       </div>
     )
   }
-
-  const uncategorized = activeRows.filter(t => !t.categoryId && t.direction !== 'income' && !t.portfolioAccountId).length
 
   return (
     <div>
@@ -292,182 +275,19 @@ export function BankFlow({ month, accountId, accountName, bankType, categories, 
 
       {parsing && <p className="text-slate-400 text-sm text-center mb-3">מנתח קובץ...</p>}
       {error && <p role="alert" className="text-red-400 text-sm mb-3">{error}</p>}
-      {duplicateCount > 0 && (
-        <p className="text-amber-400 text-xs mb-2">⚠️ {duplicateCount} עסקאות מסומנות כבר קיימות בחשבון — בדוק השורות המסומנות</p>
-      )}
-      {activeRows.some(r => r.currency !== 'ILS') && (
-        <p className="text-amber-400 text-xs mb-2">⚠️ זוהו עסקאות במטבע זר — ניתן לשנות את המטבע בעמודת הסכום</p>
-      )}
 
       {rows.length > 0 && (
-        <>
-          {uncategorized > 0 && (
-            <p className="text-blue-400 text-xs mb-2 flex items-center gap-1">
-              <Tag size={12} />{uncategorized} עסקאות ממתינות לקיטלוג
-            </p>
-          )}
-          <div className="overflow-x-auto rounded-xl mb-4">
-            <table className="w-full text-sm" aria-label="עסקאות בנק לייבוא">
-              <thead>
-                <tr className="text-slate-400 border-b border-slate-700 text-xs">
-                  <th className="py-2 px-2 w-8 text-center">
-                    <input
-                      type="checkbox"
-                      checked={activeRows.length === rows.length && rows.length > 0}
-                      onChange={e => setRows(prev => prev.map(r => ({ ...r, skip: !e.target.checked })))}
-                      className="accent-accent"
-                      aria-label="בחר/בטל הכל"
-                      title="בחר/בטל הכל"
-                    />
-                  </th>
-                  <th className="text-right py-2 px-2 whitespace-nowrap">תאריך</th>
-                  <th className="text-right py-2 px-2">תיאור</th>
-                  <th className="text-right py-2 px-2">הערה</th>
-                  <th className="text-right py-2 px-2">סכום</th>
-                  <th className="text-right py-2 px-2">כיוון</th>
-                  <th className="text-right py-2 px-2">השקעה</th>
-                  <th className="text-right py-2 px-2">מיידי</th>
-                  <th className="text-right py-2 px-2">קטגוריה</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row, i) => {
-                  const match = (row.skip && !row.portfolioAccountId) ? undefined : existingMatch(row)
-                  return (
-                  <tr key={`${row.date}-${row.merchantName}-${i}`}
-                    className={`border-b border-slate-700/40 ${(row.skip && !row.portfolioAccountId) ? 'opacity-30' : match ? 'bg-amber-900/10' : ''}`}>
-                    <td className="py-1.5 px-2 text-center">
-                      <input
-                        type="checkbox"
-                        checked={!row.skip}
-                        onChange={e => updateRow(i, { skip: !e.target.checked })}
-                        className="accent-accent"
-                        aria-label={`כלול ${row.merchantName}`}
-                      />
-                    </td>
-                    <td className="py-1.5 px-2 text-slate-400 text-xs whitespace-nowrap">{row.date}</td>
-                    <td className="py-1.5 px-2 text-xs">
-                      <div>{row.merchantName}</div>
-                      {match && <div className="text-amber-400 text-xs mt-0.5">⚠️ כבר קיים</div>}
-                    </td>
-                    <td className="py-1.5 px-2">
-                      <input
-                        value={row.notes ?? ''}
-                        onChange={e => updateRow(i, { notes: e.target.value })}
-                        placeholder="הערה"
-                        disabled={row.skip && !row.portfolioAccountId}
-                        className="w-full bg-background text-xs rounded px-1 py-0.5 min-w-16 disabled:opacity-40"
-                        aria-label={`הערה עבור ${row.merchantName}`}
-                      />
-                    </td>
-                    <td className="py-1.5 px-2 tabular-nums text-xs">
-                      <div className="flex items-center gap-1">
-                        <span>{row.amount.toFixed(2)}</span>
-                        {(!row.skip || !!row.portfolioAccountId) && (
-                          <CurrencyPicker
-                            value={row.currency}
-                            onChange={v => updateRow(i, { currency: v })}
-                          />
-                        )}
-                        {row.skip && !row.portfolioAccountId && <span className="text-slate-500">{row.currency}</span>}
-                      </div>
-                    </td>
-                    <td className={`py-1.5 px-2 ${row.skip && !row.portfolioAccountId ? 'opacity-40 pointer-events-none' : ''}`}>
-                      {row.portfolioAccountId ? (
-                        <span className="text-xs text-purple-400">השקעה</span>
-                      ) : (
-                        <DirectionToggle
-                          value={row.direction}
-                          onChange={v => updateRow(i, { direction: v, categoryId: v === 'income' ? null : row.categoryId })}
-                          size="sm"
-                        />
-                      )}
-                    </td>
-                    <td className="py-1.5 px-2 min-w-28">
-                      <InvestmentPicker
-                        portfolios={portfolioAccounts}
-                        types={investmentTypes}
-                        value={row.portfolioAccountId
-                          ? { portfolioAccountId: row.portfolioAccountId, investmentTypeId: row.investmentTypeId }
-                          : null}
-                        onChange={(sel: InvestmentSelection | null) => {
-                          if (sel) {
-                            updateRow(i, {
-                              portfolioAccountId: sel.portfolioAccountId,
-                              investmentTypeId: sel.investmentTypeId,
-                              investmentDirection: row.investmentDirection ?? 'investment',
-                              skip: false,
-                              categoryId: null,
-                            })
-                          } else {
-                            updateRow(i, { portfolioAccountId: undefined, investmentTypeId: undefined, investmentDirection: undefined })
-                          }
-                        }}
-                        disabled={row.skip && !row.portfolioAccountId}
-                        size="sm"
-                        placeholder="—"
-                      />
-                      {row.portfolioAccountId && (
-                        <div className="flex mt-0.5 rounded overflow-hidden border border-slate-700 text-xs">
-                          <button
-                            type="button"
-                            onClick={() => updateRow(i, { investmentDirection: 'investment' })}
-                            className={`flex-1 py-0.5 ${(row.investmentDirection ?? 'investment') === 'investment' ? 'bg-green-900/60 text-green-400' : 'text-slate-500 hover:text-slate-300'}`}
-                          >קנייה</button>
-                          <button
-                            type="button"
-                            onClick={() => updateRow(i, { investmentDirection: 'divestment' })}
-                            className={`flex-1 py-0.5 ${row.investmentDirection === 'divestment' ? 'bg-red-900/60 text-red-400' : 'text-slate-500 hover:text-slate-300'}`}
-                          >מכירה</button>
-                        </div>
-                      )}
-                    </td>
-                    <td className="py-1.5 px-2 text-center">
-                      <input
-                        type="checkbox"
-                        checked={row.isImmediate}
-                        onChange={e => updateRow(i, { isImmediate: e.target.checked })}
-                        disabled={row.skip && !row.portfolioAccountId}
-                        className="accent-amber-400 disabled:opacity-40"
-                        aria-label={`חיוב מיידי עבור ${row.merchantName}`}
-                        title="חיוב מיידי"
-                      />
-                    </td>
-                    <td className="py-1.5 px-2">
-                      {row.skip && !row.portfolioAccountId ? (
-                        row.skipReason === 'investment-transfer' ? (
-                          <span className="text-xs text-purple-400">העברה להשקעות</span>
-                        ) : (
-                          <span className="text-xs text-slate-600">מסונן</span>
-                        )
-                      ) : row.portfolioAccountId ? (
-                        <span className="text-xs text-slate-500">—</span>
-                      ) : row.direction === 'expense' ? (
-                        <SelectField
-                          value={row.categoryId ?? ''}
-                          onChange={v => updateRow(i, { categoryId: v || null, categorizationSource: 'manual' })}
-                          options={categories.filter(c => c.isActive).map(c => ({ value: c.id, label: c.name, color: c.color }))}
-                          nullable
-                          nullLabel="— ללא —"
-                          placeholder="— ללא —"
-                          size="sm"
-                          disabled={row.skip}
-                        />
-                      ) : (
-                        <span className="text-xs text-green-400">הכנסה</span>
-                      )}
-                    </td>
-                  </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-          <button onClick={handleSave} disabled={saving || activeRows.length === 0}
-            className="w-full py-3 bg-accent rounded-xl text-sm font-semibold disabled:opacity-50 mb-3">
-            {saving ? 'שומר...' : `שמור ${activeRows.length} עסקאות`}
-          </button>
-        </>
+        <SwipeImportDeck
+          rows={rows}
+          categories={categories}
+          portfolioAccounts={portfolioAccounts}
+          investmentTypes={investmentTypes}
+          accountName={accountName}
+          month={month}
+          saving={saving}
+          onSave={handleDeckSave}
+          onDone={onDone}
+        />
       )}
 
     </div>
