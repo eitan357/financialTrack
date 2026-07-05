@@ -598,7 +598,7 @@ function AccountsSection() {
               )}
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex gap-2 justify-end">
               <button onClick={() => { setEditId(acc.id); setShowAddType(null) }}
                 className="px-3 py-1 border border-slate-600 rounded-lg text-xs text-slate-300 hover:text-accent hover:border-accent/50 transition-colors">
                 עריכה
@@ -620,12 +620,12 @@ function AccountsSection() {
         <button
           onClick={() => { setShowAddType(v => v === 'bank' ? null : 'bank'); setEditId(null); setExpandedId(null) }}
           className={`flex-1 py-2 text-xs rounded-xl border transition-colors ${showAddType === 'bank' ? 'border-accent text-accent' : 'border-slate-600 text-slate-400 hover:border-slate-500'}`}>
-          {showAddType === 'bank' ? 'ביטול' : '+ הוספת חשבון בנק+'}
+          {showAddType === 'bank' ? 'ביטול' : 'הוספת חשבון בנק'}
         </button>
         <button
           onClick={() => { setShowAddType(v => v === 'credit' ? null : 'credit'); setEditId(null); setExpandedId(null) }}
           className={`flex-1 py-2 text-xs rounded-xl border transition-colors ${showAddType === 'credit' ? 'border-accent text-accent' : 'border-slate-600 text-slate-400 hover:border-slate-500'}`}>
-          {showAddType === 'credit' ? 'ביטול' : '+ הוספת כרטיס אשראי+'}
+          {showAddType === 'credit' ? 'ביטול' : 'הוספת כרטיס אשראי'}
         </button>
       </div>
 
@@ -838,7 +838,7 @@ function CategoriesSection() {
           <span>{active.length} קטגוריות פעילות</span>
         </button>
         <button onClick={() => { setShowAdd(v => !v); setEditId(null) }}
-          className="text-xs text-accent">{showAdd ? 'ביטול' : '+ הוספת קטגוריה+'}</button>
+          className="text-xs text-accent">{showAdd ? 'ביטול' : 'הוספת קטגוריה'}</button>
       </div>
 
       {showAdd && <CategoryForm onSubmit={handleAdd} onCancel={() => setShowAdd(false)} />}
@@ -940,6 +940,11 @@ function RulesSection() {
   const [categoryId, setCategoryId] = useState('')
   const [keywordError, setKeywordError] = useState<string | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
+  const [editId, setEditId] = useState<string | null>(null)
+  const [editKeyword, setEditKeyword] = useState('')
+  const [editMatchType, setEditMatchType] = useState<MatchType>('contains')
+  const [editCategoryId, setEditCategoryId] = useState('')
+  const [editError, setEditError] = useState<string | null>(null)
 
   useEffect(() => {
     Promise.all([getRules(), getCategories()])
@@ -973,9 +978,29 @@ function RulesSection() {
   }
 
   async function handleToggleRule(rule: CategorizationRule) {
-    const next = rule.isActive === false
-    await updateRule(rule.id, { isActive: next ? undefined : false })
-    setRules(prev => prev.map(r => r.id === rule.id ? { ...r, isActive: next ? undefined : false } : r))
+    const isHidden = rule.isActive === false
+    const newIsActive = isHidden ? true : false
+    await updateRule(rule.id, { isActive: newIsActive })
+    setRules(prev => prev.map(r => r.id === rule.id ? { ...r, isActive: newIsActive } : r))
+  }
+
+  function startEdit(rule: CategorizationRule) {
+    setEditId(rule.id)
+    setEditKeyword(rule.keyword)
+    setEditMatchType(rule.matchType)
+    setEditCategoryId(rule.categoryId)
+    setEditError(null)
+    setShowAdd(false)
+  }
+
+  async function handleEditRule(e: React.FormEvent) {
+    e.preventDefault()
+    if (!editKeyword.trim()) { setEditError('שדה חובה'); return }
+    if (!editId || !editCategoryId) return
+    setEditError(null)
+    await updateRule(editId, { keyword: editKeyword.trim(), matchType: editMatchType, categoryId: editCategoryId })
+    setRules(prev => prev.map(r => r.id === editId ? { ...r, keyword: editKeyword.trim(), matchType: editMatchType, categoryId: editCategoryId } : r))
+    setEditId(null)
   }
 
   const catMap = Object.fromEntries(categories.map(c => [c.id, c]))
@@ -991,7 +1016,7 @@ function RulesSection() {
       <div className="flex justify-between items-center">
         <p className="text-xs text-slate-500">{activeRules.length} חוקים פעילים</p>
         <button onClick={() => setShowAdd(v => !v)} className="text-xs text-accent">
-          {showAdd ? 'ביטול' : '+ הוספת חוק+'}
+          {showAdd ? 'ביטול' : 'הוספת חוק'}
         </button>
       </div>
 
@@ -1038,19 +1063,62 @@ function RulesSection() {
         {activeRules.length === 0 ? (
           <p className="text-slate-500 text-sm text-center py-6">אין חוקים פעילים</p>
         ) : activeRules.map(rule => (
-          <div key={rule.id} className="flex items-center px-4 py-3 gap-3">
-            <div className="flex-1 min-w-0">
-              <span className="text-sm font-medium">{rule.keyword}</span>
-              <span className="text-xs text-slate-500 mx-2">{MATCH_LABELS[rule.matchType]}</span>
-              <span className="text-xs text-slate-400">→ {catMap[rule.categoryId]?.name ?? '—'}</span>
+          editId === rule.id ? (
+            <div key={rule.id} className="p-3">
+              <form onSubmit={handleEditRule} className="space-y-3">
+                <div>
+                  <label className="text-xs text-slate-400 block mb-1">מילת מפתח</label>
+                  <input value={editKeyword}
+                    onChange={e => { setEditKeyword(e.target.value); if (editError && e.target.value.trim()) setEditError(null) }}
+                    autoFocus
+                    className={`w-full bg-background rounded-lg px-3 py-2 text-sm outline-none ${editError ? 'ring-1 ring-red-500' : 'focus:ring-1 ring-accent'}`} />
+                  {editError && <p className="text-xs text-red-400 mt-1">{editError}</p>}
+                </div>
+                <div className="flex gap-3">
+                  <div className="flex-1">
+                    <label className="text-xs text-slate-400 block mb-1">סוג התאמה</label>
+                    <select value={editMatchType} onChange={e => setEditMatchType(e.target.value as MatchType)}
+                      className="w-full bg-background rounded-lg px-3 py-2 text-sm outline-none">
+                      <option value="contains">מכיל</option>
+                      <option value="startsWith">מתחיל ב</option>
+                      <option value="exact">שווה</option>
+                    </select>
+                  </div>
+                  <div className="flex-1">
+                    <label className="text-xs text-slate-400 block mb-1">קטגוריה</label>
+                    <SelectField
+                      value={editCategoryId}
+                      onChange={setEditCategoryId}
+                      options={categories.map(c => ({ value: c.id, label: c.name, color: c.color }))}
+                      placeholder="בחר קטגוריה..."
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setEditId(null)}
+                    className="flex-1 py-2 border border-slate-600 rounded-lg text-sm">ביטול</button>
+                  <button type="submit"
+                    className="flex-1 py-2 bg-accent rounded-lg text-sm font-semibold">שמור</button>
+                </div>
+              </form>
             </div>
-            <button onClick={() => handleToggleRule(rule)} title="הסתר"
-              className="flex-shrink-0 text-slate-400 hover:text-amber-400">
-              <EyeOff size={14} />
-            </button>
-            <button onClick={() => handleDelete(rule.id)}
-              className="text-xs text-red-400 hover:text-red-300 flex-shrink-0">מחיקה</button>
-          </div>
+          ) : (
+            <div key={rule.id} className="flex items-center px-4 py-3 gap-3">
+              <div className="flex-1 min-w-0">
+                <span className="text-sm font-medium">{rule.keyword}</span>
+                <span className="text-xs text-slate-500 mx-2">{MATCH_LABELS[rule.matchType]}</span>
+                <span className="text-xs text-slate-400">→ {catMap[rule.categoryId]?.name ?? '—'}</span>
+              </div>
+              <button onClick={() => startEdit(rule)}
+                className="text-xs text-slate-400 hover:text-accent flex-shrink-0">עריכה</button>
+              <button onClick={() => handleToggleRule(rule)} title="הסתר"
+                className="flex-shrink-0 text-slate-400 hover:text-amber-400">
+                <EyeOff size={14} />
+              </button>
+              <button onClick={() => handleDelete(rule.id)}
+                className="text-xs text-red-400 hover:text-red-300 flex-shrink-0">מחיקה</button>
+            </div>
+          )
         ))}
       </div>
 
@@ -1299,7 +1367,7 @@ function InvestmentsSection() {
               ? 'border-accent text-accent'
               : 'border-slate-600 text-slate-400 hover:border-slate-500'
           }`}>
-          {showAddPortfolio ? 'ביטול' : '+ הוספת תיק השקעות+'}
+          {showAddPortfolio ? 'ביטול' : 'הוספת תיק השקעות'}
         </button>
       </div>
 
@@ -1308,7 +1376,7 @@ function InvestmentsSection() {
       )}
 
       {activePortfolios.length === 0 && !showAddPortfolio && (
-        <p className="text-slate-500 text-sm text-center py-6">אין תיקי השקעות. לחץ על ״+ הוסף תיק השקעות״ להתחלה.</p>
+        <p className="text-slate-500 text-sm text-center py-6">אין תיקי השקעות. לחץ על ״הוספת תיק השקעות״ להתחלה.</p>
       )}
 
       {/* Active portfolios */}
@@ -1383,10 +1451,10 @@ function InvestmentsSection() {
                                       ? 'border-accent text-accent'
                                       : 'border-slate-600 text-accent hover:border-accent/50'
                                   }`}>
-                                  {isAddingType ? 'ביטול' : 'הוספת השקעה+'}
+                                  {isAddingType ? 'ביטול' : 'הוספת השקעה'}
                                 </button>
                               </div>
-                              <div className="flex gap-2 items-center">
+                              <div className="flex gap-2 items-center justify-end">
                                 <button
                                   onClick={() => { setEditPortfolioId(portfolio.id); setShowAddTypeForPortfolio(null) }}
                                   className="px-3 py-1 border border-slate-600 rounded-lg text-xs text-slate-300 hover:text-accent hover:border-accent/50 transition-colors">
@@ -1452,7 +1520,7 @@ function InvestmentsSection() {
                                             </button>
                                           </div>
                                           {isTypeExpanded && (
-                                            <div className="px-4 pb-2.5 flex gap-2">
+                                            <div className="px-4 pb-2.5 flex gap-2 justify-end">
                                               <button
                                                 onClick={() => { setEditTypeId(t.id); setExpandedTypeId(null); setShowAddTypeForPortfolio(null) }}
                                                 className="px-3 py-1 border border-slate-600 rounded-lg text-xs text-slate-300 hover:text-accent hover:border-accent/50 transition-colors">
