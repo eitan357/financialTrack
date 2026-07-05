@@ -1,13 +1,15 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { usePersistedMonth } from '@/hooks/usePersistedMonth'
 import { MonthHeader } from '@/components/layout/MonthHeader'
 import { getInvestmentTypes, getInvestmentEntries, addInvestmentEntry, deleteInvestmentEntry } from '@/lib/firestore/investments'
 import { getDividends, addDividend, deleteDividend } from '@/lib/firestore/dividends'
 import { getInvestmentConversions, addInvestmentConversion, deleteInvestmentConversion } from '@/lib/firestore/conversions'
 import { getAccounts } from '@/lib/firestore/accounts'
-import { getTransactions } from '@/lib/firestore/transactions'
+import { getTransactions, updateTransaction, addTransactionGetId } from '@/lib/firestore/transactions'
 import { AddInvestmentActivityForm } from '@/components/investments/AddInvestmentActivityForm'
+import { InvestmentTransferEditForm } from '@/components/investments/InvestmentTransferEditForm'
 import type { InvestmentType, InvestmentEntry, Dividend, Account, InvestmentConversion, Transaction } from '@/lib/types'
 
 type InvItem =
@@ -18,6 +20,7 @@ type InvItem =
 
 export default function InvestmentsPage() {
   const [month, setMonth] = usePersistedMonth()
+  const searchParams = useSearchParams()
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [portfolios, setPortfolios] = useState<Account[]>([])
@@ -29,7 +32,13 @@ export default function InvestmentsPage() {
   const [transfers, setTransfers] = useState<Transaction[]>([])
   const [portfolioFilter, setPortfolioFilter] = useState<string>('all')
   const [showAddForm, setShowAddForm] = useState(false)
+  const [showSellForm, setShowSellForm] = useState(false)
   const [deletingItem, setDeletingItem] = useState<{ kind: 'deposit'; id: string } | { kind: 'dividend'; id: string } | { kind: 'conversion'; id: string } | null>(null)
+  const [expandedItemKey, setExpandedItemKey] = useState<string | null>(null)
+  const [editingTransferId, setEditingTransferId] = useState<string | null>(null)
+
+  // Ref map for scroll-to-highlight
+  const rowRefs = useRef<Record<string, HTMLDivElement | null>>({})
 
   useEffect(() => {
     setLoading(true)
@@ -60,6 +69,20 @@ export default function InvestmentsPage() {
     }
     load()
   }, [month])
+
+  // Highlight from URL param
+  useEffect(() => {
+    const highlight = searchParams?.get('highlight')
+    if (highlight) {
+      const key = `transfer-${highlight}`
+      setExpandedItemKey(key)
+      // Scroll after a short delay to allow render
+      setTimeout(() => {
+        const el = rowRefs.current[key]
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 300)
+    }
+  }, [searchParams])
 
   async function handleAddEntry(entry: Omit<InvestmentEntry, 'id'>) {
     const newEntry = await addInvestmentEntry(entry)
@@ -95,6 +118,70 @@ export default function InvestmentsPage() {
     await deleteInvestmentConversion(id)
     setConversions(prev => prev.filter(c => c.id !== id))
     setDeletingItem(null)
+  }
+
+  async function handleUpdateTransfer(id: string, data: Parameters<React.ComponentProps<typeof InvestmentTransferEditForm>['onSave']>[0]) {
+    const txMonth = data.date.slice(0, 7)
+    await updateTransaction(id, {
+      date: data.date,
+      merchantName: data.merchantName,
+      amount: data.amount,
+      portfolioAccountId: data.portfolioAccountId,
+      investmentTypeId: data.investmentTypeId,
+      direction: data.direction,
+      accountId: data.accountId,
+      month: txMonth,
+      ...(data.notes ? { description: data.notes } : { description: undefined }),
+    })
+    setTransfers(prev => prev.map(t => t.id === id ? {
+      ...t,
+      date: data.date,
+      merchantName: data.merchantName,
+      amount: data.amount,
+      portfolioAccountId: data.portfolioAccountId,
+      investmentTypeId: data.investmentTypeId,
+      direction: data.direction,
+      accountId: data.accountId,
+      month: txMonth,
+      description: data.notes,
+    } : t))
+    setEditingTransferId(null)
+    setExpandedItemKey(null)
+  }
+
+  async function handleAddSell(data: Parameters<React.ComponentProps<typeof InvestmentTransferEditForm>['onSave']>[0]) {
+    const txMonth = data.date.slice(0, 7)
+    const id = await addTransactionGetId({
+      date: data.date,
+      merchantName: data.merchantName,
+      amount: data.amount,
+      currency: 'ILS',
+      accountId: data.accountId,
+      source: 'manual',
+      isImmediate: false,
+      month: txMonth,
+      direction: data.direction,
+      portfolioAccountId: data.portfolioAccountId,
+      ...(data.investmentTypeId ? { investmentTypeId: data.investmentTypeId } : {}),
+      ...(data.notes ? { description: data.notes } : {}),
+    })
+    if (txMonth === month) {
+      setTransfers(prev => [...prev, {
+        id,
+        date: data.date,
+        merchantName: data.merchantName,
+        amount: data.amount,
+        currency: 'ILS',
+        accountId: data.accountId,
+        source: 'manual' as const,
+        isImmediate: false,
+        month: txMonth,
+        direction: data.direction,
+        portfolioAccountId: data.portfolioAccountId,
+        investmentTypeId: data.investmentTypeId,
+      }])
+    }
+    setShowSellForm(false)
   }
 
   const typeMap = Object.fromEntries(investmentTypes.map(t => [t.id, t]))
@@ -192,14 +279,18 @@ export default function InvestmentsPage() {
         </div>
       )}
 
-      {/* Add button — hidden while form is open, like transactions page */}
-      {!showAddForm && (
+      {/* Floating action buttons */}
+      {!showAddForm && !showSellForm && (
         <button
           onClick={() => setShowAddForm(true)}
-          className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-accent text-white text-sm font-semibold px-5 py-2.5 rounded-full shadow-lg z-10"
-        >
-          + הוסף פעילות
-        </button>
+          className="fixed bottom-20 left-4 bg-accent text-white text-sm font-semibold px-5 py-2.5 rounded-full shadow-lg z-10"
+        >+ פעילות</button>
+      )}
+      {!showAddForm && !showSellForm && (
+        <button
+          onClick={() => setShowSellForm(true)}
+          className="fixed bottom-20 right-4 bg-red-900/80 border border-red-700 text-red-300 text-sm font-semibold px-4 py-2 rounded-full shadow-lg z-10"
+        >+ מכירה</button>
       )}
 
       {showAddForm && (
@@ -212,6 +303,20 @@ export default function InvestmentsPage() {
           onSubmitConversion={handleAddConversion}
           onCancel={() => setShowAddForm(false)}
         />
+      )}
+
+      {showSellForm && (
+        <div className="bg-surface rounded-2xl px-4 py-4 mb-4">
+          <h3 className="text-sm font-semibold mb-3">הוספת מכירה</h3>
+          <InvestmentTransferEditForm
+            defaultDirection="divestment"
+            portfolios={activePortfolios}
+            investmentTypes={activeTypes}
+            bankAccounts={bankAccounts}
+            onSave={handleAddSell}
+            onCancel={() => setShowSellForm(false)}
+          />
+        </div>
       )}
 
       {loading ? (
@@ -228,87 +333,290 @@ export default function InvestmentsPage() {
             if (item.kind === 'deposit') {
               const [, mm, dd] = item.entry.date.split('-')
               const ilsAmount = item.entry.ilsEquivalent ?? (item.entry.currency === 'ILS' ? item.entry.amount : null)
+              const key = `deposit-${item.entry.id}`
+              const isExpanded = expandedItemKey === key
               return (
-                <div key={item.entry.id} className="flex items-center gap-2 py-2.5 border-b border-slate-800 last:border-0">
-                  <span className="text-xs text-slate-500 tabular-nums flex-shrink-0" style={{ width: '2.5rem' }}>{dd}/{mm}</span>
-                  <div className="flex-1 min-w-0">
-                    <span className="text-sm text-foreground">קנייה: {item.typeName}</span>
-                    {item.bankName && <span className="text-xs text-slate-500 block">{item.bankName}</span>}
+                <div
+                  key={item.entry.id}
+                  className="border-b border-slate-800 last:border-0"
+                  ref={el => { rowRefs.current[key] = el }}
+                  data-item-key={key}
+                >
+                  <div
+                    className="flex items-center gap-2 py-2.5 cursor-pointer hover:bg-slate-800/30 transition-colors"
+                    onClick={() => setExpandedItemKey(isExpanded ? null : key)}
+                  >
+                    <span className="text-xs text-slate-500 tabular-nums flex-shrink-0" style={{ width: '2.5rem' }}>{dd}/{mm}</span>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm text-foreground">קנייה: {item.typeName}</span>
+                      {item.bankName && <span className="text-xs text-slate-500 block">{item.bankName}</span>}
+                    </div>
+                    {ilsAmount !== null && (
+                      <span className="text-sm tabular-nums text-green-400 flex-shrink-0" dir="ltr">₪-{ilsAmount.toLocaleString('he-IL')}</span>
+                    )}
+                    <span className="text-slate-500 text-xs flex-shrink-0">{isExpanded ? '⌃' : '⌄'}</span>
                   </div>
-                  {ilsAmount !== null && (
-                    <span className="text-sm tabular-nums text-green-400 flex-shrink-0" dir="ltr">₪-{ilsAmount.toLocaleString('he-IL')}</span>
-                  )}
-                  {deletingItem?.kind === 'deposit' && deletingItem.id === item.entry.id ? (
-                    <span className="flex items-center gap-1 text-xs flex-shrink-0">
-                      <button onClick={() => handleDeleteEntry(item.entry.id)} className="text-red-400 hover:text-red-300">מחק</button>
-                      <span className="text-slate-600">|</span>
-                      <button onClick={() => setDeletingItem(null)} className="text-slate-400">ביטול</button>
-                    </span>
-                  ) : (
-                    <button onClick={() => setDeletingItem({ kind: 'deposit', id: item.entry.id })} className="text-slate-600 hover:text-red-400 text-xs flex-shrink-0">✕</button>
+                  {isExpanded && (
+                    <div className="pb-3 px-2 space-y-1.5 text-xs" onClick={e => e.stopPropagation()}>
+                      <div className="flex justify-between text-slate-400">
+                        <span>תאריך</span><span>{item.entry.date}</span>
+                      </div>
+                      <div className="flex justify-between text-slate-400">
+                        <span>השקעה</span><span className="text-foreground">{item.typeName}</span>
+                      </div>
+                      {item.bankName && (
+                        <div className="flex justify-between text-slate-400">
+                          <span>חשבון מקור</span><span className="text-foreground">{item.bankName}</span>
+                        </div>
+                      )}
+                      {ilsAmount !== null && (
+                        <div className="flex justify-between text-slate-400">
+                          <span>סכום (₪)</span><span className="text-green-400 tabular-nums" dir="ltr">₪{ilsAmount.toLocaleString('he-IL')}</span>
+                        </div>
+                      )}
+                      {item.entry.notes && (
+                        <div className="flex justify-between text-slate-400">
+                          <span>הערות</span><span className="text-foreground">{item.entry.notes}</span>
+                        </div>
+                      )}
+                      <div className="pt-1">
+                        {deletingItem?.kind === 'deposit' && deletingItem.id === item.entry.id ? (
+                          <span className="flex items-center gap-1 text-xs">
+                            <button onClick={() => handleDeleteEntry(item.entry.id)} className="text-red-400 hover:text-red-300">מחק</button>
+                            <span className="text-slate-600">|</span>
+                            <button onClick={() => setDeletingItem(null)} className="text-slate-400">ביטול</button>
+                          </span>
+                        ) : (
+                          <button onClick={() => setDeletingItem({ kind: 'deposit', id: item.entry.id })} className="text-slate-500 hover:text-red-400 text-xs">מחק</button>
+                        )}
+                      </div>
+                    </div>
                   )}
                 </div>
               )
             }
+
             if (item.kind === 'dividend') {
               const [, mm, dd] = item.dividend.date.split('-')
               const ilsAmount = item.dividend.ilsEquivalent ?? (item.dividend.currency === 'ILS' ? item.dividend.amount : null)
+              const key = `dividend-${item.dividend.id}`
+              const isExpanded = expandedItemKey === key
               return (
-                <div key={item.dividend.id} className="flex items-center gap-2 py-2.5 border-b border-slate-800 last:border-0">
-                  <span className="text-xs text-slate-500 tabular-nums flex-shrink-0" style={{ width: '2.5rem' }}>{dd}/{mm}</span>
-                  <div className="flex-1 min-w-0">
-                    <span className="text-sm text-foreground">הכנסה: {item.typeName}</span>
+                <div
+                  key={item.dividend.id}
+                  className="border-b border-slate-800 last:border-0"
+                  ref={el => { rowRefs.current[key] = el }}
+                  data-item-key={key}
+                >
+                  <div
+                    className="flex items-center gap-2 py-2.5 cursor-pointer hover:bg-slate-800/30 transition-colors"
+                    onClick={() => setExpandedItemKey(isExpanded ? null : key)}
+                  >
+                    <span className="text-xs text-slate-500 tabular-nums flex-shrink-0" style={{ width: '2.5rem' }}>{dd}/{mm}</span>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm text-foreground">הכנסה: {item.typeName}</span>
+                    </div>
+                    {ilsAmount !== null && (
+                      <span className="text-sm tabular-nums text-purple-400 flex-shrink-0" dir="ltr">₪+{ilsAmount.toLocaleString('he-IL')}</span>
+                    )}
+                    <span className="text-slate-500 text-xs flex-shrink-0">{isExpanded ? '⌃' : '⌄'}</span>
                   </div>
-                  {ilsAmount !== null && (
-                    <span className="text-sm tabular-nums text-purple-400 flex-shrink-0" dir="ltr">₪+{ilsAmount.toLocaleString('he-IL')}</span>
-                  )}
-                  {deletingItem?.kind === 'dividend' && deletingItem.id === item.dividend.id ? (
-                    <span className="flex items-center gap-1 text-xs flex-shrink-0">
-                      <button onClick={() => handleDeleteDividend(item.dividend.id)} className="text-red-400 hover:text-red-300">מחק</button>
-                      <span className="text-slate-600">|</span>
-                      <button onClick={() => setDeletingItem(null)} className="text-slate-400">ביטול</button>
-                    </span>
-                  ) : (
-                    <button onClick={() => setDeletingItem({ kind: 'dividend', id: item.dividend.id })} className="text-slate-600 hover:text-red-400 text-xs flex-shrink-0">✕</button>
+                  {isExpanded && (
+                    <div className="pb-3 px-2 space-y-1.5 text-xs" onClick={e => e.stopPropagation()}>
+                      <div className="flex justify-between text-slate-400">
+                        <span>תאריך</span><span>{item.dividend.date}</span>
+                      </div>
+                      <div className="flex justify-between text-slate-400">
+                        <span>השקעה</span><span className="text-foreground">{item.typeName}</span>
+                      </div>
+                      {ilsAmount !== null && (
+                        <div className="flex justify-between text-slate-400">
+                          <span>סכום (₪)</span><span className="text-purple-400 tabular-nums" dir="ltr">₪{ilsAmount.toLocaleString('he-IL')}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between text-slate-400">
+                        <span>נשאר בתיק</span><span className="text-foreground">{item.dividend.staysInPortfolio ? 'כן' : 'לא'}</span>
+                      </div>
+                      {item.dividend.destinationAccountId && bankMap[item.dividend.destinationAccountId] && (
+                        <div className="flex justify-between text-slate-400">
+                          <span>חשבון יעד</span><span className="text-foreground">{bankMap[item.dividend.destinationAccountId].name}</span>
+                        </div>
+                      )}
+                      {item.dividend.notes && (
+                        <div className="flex justify-between text-slate-400">
+                          <span>הערות</span><span className="text-foreground">{item.dividend.notes}</span>
+                        </div>
+                      )}
+                      <div className="pt-1">
+                        {deletingItem?.kind === 'dividend' && deletingItem.id === item.dividend.id ? (
+                          <span className="flex items-center gap-1 text-xs">
+                            <button onClick={() => handleDeleteDividend(item.dividend.id)} className="text-red-400 hover:text-red-300">מחק</button>
+                            <span className="text-slate-600">|</span>
+                            <button onClick={() => setDeletingItem(null)} className="text-slate-400">ביטול</button>
+                          </span>
+                        ) : (
+                          <button onClick={() => setDeletingItem({ kind: 'dividend', id: item.dividend.id })} className="text-slate-500 hover:text-red-400 text-xs">מחק</button>
+                        )}
+                      </div>
+                    </div>
                   )}
                 </div>
               )
             }
+
             if (item.kind === 'transfer') {
               const [, mm, dd] = item.transaction.date.split('-')
               const portfolioName = portfolios.find(p => p.id === item.transaction.portfolioAccountId)?.name ?? 'תיק השקעות'
               const typeName = investmentTypes.find(t => t.id === item.transaction.investmentTypeId)?.name
+              const sourceAccount = bankAccounts.find(a => a.id === item.transaction.accountId)
               const isBuy = item.transaction.direction === 'investment'
-              return (
-                <div key={item.transaction.id} className="flex items-center gap-2 py-2.5 border-b border-slate-800 last:border-0">
-                  <span className="text-xs text-slate-500 tabular-nums flex-shrink-0" style={{ width: '2.5rem' }}>{dd}/{mm}</span>
-                  <div className="flex-1 min-w-0">
-                    <span className="text-sm text-foreground">{isBuy ? 'קנייה' : 'מכירה'}: {item.transaction.merchantName}</span>
-                    <span className="text-xs text-slate-500 block">{typeName ? `${typeName} — ${portfolioName}` : portfolioName}</span>
+              const key = `transfer-${item.transaction.id}`
+              const isExpanded = expandedItemKey === key
+              const isEditing = editingTransferId === item.transaction.id
+
+              if (isEditing) {
+                return (
+                  <div
+                    key={key}
+                    className="py-3 border-b border-slate-800 last:border-0"
+                    ref={el => { rowRefs.current[key] = el }}
+                    data-item-key={key}
+                  >
+                    <InvestmentTransferEditForm
+                      initial={item.transaction}
+                      portfolios={portfolios.filter(p => p.isActive !== false)}
+                      investmentTypes={investmentTypes.filter(t => t.isActive !== false)}
+                      bankAccounts={bankAccounts}
+                      onSave={data => handleUpdateTransfer(item.transaction.id, data)}
+                      onCancel={() => setEditingTransferId(null)}
+                    />
                   </div>
-                  <span className={`text-sm tabular-nums flex-shrink-0 ${isBuy ? 'text-green-400' : 'text-red-400'}`} dir="ltr">
-                    {isBuy ? '₪-' : '₪+'}{item.transaction.amount.toLocaleString('he-IL')}
-                  </span>
+                )
+              }
+
+              return (
+                <div
+                  key={key}
+                  className="border-b border-slate-800 last:border-0"
+                  ref={el => { rowRefs.current[key] = el }}
+                  data-item-key={key}
+                >
+                  <div
+                    className="flex items-center gap-2 py-2.5 cursor-pointer hover:bg-slate-800/30 transition-colors"
+                    onClick={() => setExpandedItemKey(isExpanded ? null : key)}
+                  >
+                    <span className="text-xs text-slate-500 tabular-nums flex-shrink-0" style={{ width: '2.5rem' }}>{dd}/{mm}</span>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm text-foreground">{isBuy ? 'קנייה' : 'מכירה'}: {item.transaction.merchantName}</span>
+                      <span className="text-xs text-slate-500 block">{typeName ? `${typeName} — ${portfolioName}` : portfolioName}</span>
+                    </div>
+                    <span className={`text-sm tabular-nums flex-shrink-0 ${isBuy ? 'text-green-400' : 'text-red-400'}`} dir="ltr">
+                      {isBuy ? '₪-' : '₪+'}{item.transaction.amount.toLocaleString('he-IL')}
+                    </span>
+                    <span className="text-slate-500 text-xs flex-shrink-0">{isExpanded ? '⌃' : '⌄'}</span>
+                  </div>
+
+                  {isExpanded && (
+                    <div className="pb-3 px-2 space-y-1.5 text-xs" onClick={e => e.stopPropagation()}>
+                      <div className="flex justify-between text-slate-400">
+                        <span>תאריך</span><span>{item.transaction.date}</span>
+                      </div>
+                      <div className="flex justify-between text-slate-400">
+                        <span>תיאור מהבנק</span><span className="text-foreground">{item.transaction.merchantName}</span>
+                      </div>
+                      <div className="flex justify-between text-slate-400">
+                        <span>תיק</span><span className="text-foreground">{portfolioName}</span>
+                      </div>
+                      {typeName && (
+                        <div className="flex justify-between text-slate-400">
+                          <span>השקעה</span><span className="text-foreground">{typeName}</span>
+                        </div>
+                      )}
+                      {sourceAccount && (
+                        <div className="flex justify-between text-slate-400">
+                          <span>חשבון בנק</span><span className="text-foreground">{sourceAccount.name}</span>
+                        </div>
+                      )}
+                      {item.transaction.description && (
+                        <div className="flex justify-between text-slate-400">
+                          <span>הערות</span><span className="text-foreground">{item.transaction.description}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between text-slate-400">
+                        <span>כיוון</span><span className={isBuy ? 'text-green-400' : 'text-red-400'}>{isBuy ? 'קנייה' : 'מכירה'}</span>
+                      </div>
+                      <div className="pt-1">
+                        <button
+                          onClick={() => setEditingTransferId(item.transaction.id)}
+                          className="text-xs text-accent hover:underline"
+                        >ערוך</button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )
             }
+
             // conversion
             const [, mm, dd] = item.conversion.date.split('-')
+            const convKey = `conversion-${item.conversion.id}`
+            const isConvExpanded = expandedItemKey === convKey
             return (
-              <div key={item.conversion.id} className="flex items-center gap-2 py-2.5 border-b border-slate-800 last:border-0">
-                <span className="text-xs text-slate-500 tabular-nums flex-shrink-0" style={{ width: '2.5rem' }}>{dd}/{mm}</span>
-                <div className="flex-1 min-w-0">
-                  <span className="text-sm text-foreground">המרה: {item.typeName}</span>
+              <div
+                key={item.conversion.id}
+                className="border-b border-slate-800 last:border-0"
+                ref={el => { rowRefs.current[convKey] = el }}
+                data-item-key={convKey}
+              >
+                <div
+                  className="flex items-center gap-2 py-2.5 cursor-pointer hover:bg-slate-800/30 transition-colors"
+                  onClick={() => setExpandedItemKey(isConvExpanded ? null : convKey)}
+                >
+                  <span className="text-xs text-slate-500 tabular-nums flex-shrink-0" style={{ width: '2.5rem' }}>{dd}/{mm}</span>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm text-foreground">המרה: {item.typeName}</span>
+                  </div>
+                  <span className="text-sm tabular-nums text-purple-400 flex-shrink-0" dir="ltr">₪+{item.conversion.ilsReceived.toLocaleString('he-IL')}</span>
+                  <span className="text-slate-500 text-xs flex-shrink-0">{isConvExpanded ? '⌃' : '⌄'}</span>
                 </div>
-                <span className="text-sm tabular-nums text-purple-400 flex-shrink-0" dir="ltr">₪+{item.conversion.ilsReceived.toLocaleString('he-IL')}</span>
-                {deletingItem?.kind === 'conversion' && deletingItem.id === item.conversion.id ? (
-                  <span className="flex items-center gap-1 text-xs flex-shrink-0">
-                    <button onClick={() => handleDeleteConversion(item.conversion.id)} className="text-red-400 hover:text-red-300">מחק</button>
-                    <span className="text-slate-600">|</span>
-                    <button onClick={() => setDeletingItem(null)} className="text-slate-400">ביטול</button>
-                  </span>
-                ) : (
-                  <button onClick={() => setDeletingItem({ kind: 'conversion', id: item.conversion.id })} className="text-slate-600 hover:text-red-400 text-xs flex-shrink-0">✕</button>
+                {isConvExpanded && (
+                  <div className="pb-3 px-2 space-y-1.5 text-xs" onClick={e => e.stopPropagation()}>
+                    <div className="flex justify-between text-slate-400">
+                      <span>תאריך</span><span>{item.conversion.date}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-400">
+                      <span>השקעה</span><span className="text-foreground">{item.typeName}</span>
+                    </div>
+                    <div className="flex justify-between text-slate-400">
+                      <span>התקבל (₪)</span><span className="text-purple-400 tabular-nums" dir="ltr">₪{item.conversion.ilsReceived.toLocaleString('he-IL')}</span>
+                    </div>
+                    {item.conversion.foreignAmountReduced !== undefined && (
+                      <div className="flex justify-between text-slate-400">
+                        <span>הופחת (מט&quot;ח)</span><span className="text-foreground tabular-nums">{item.conversion.foreignAmountReduced.toLocaleString('he-IL')}</span>
+                      </div>
+                    )}
+                    {item.conversion.destinationAccountId && bankMap[item.conversion.destinationAccountId] && (
+                      <div className="flex justify-between text-slate-400">
+                        <span>חשבון יעד</span><span className="text-foreground">{bankMap[item.conversion.destinationAccountId].name}</span>
+                      </div>
+                    )}
+                    {item.conversion.notes && (
+                      <div className="flex justify-between text-slate-400">
+                        <span>הערות</span><span className="text-foreground">{item.conversion.notes}</span>
+                      </div>
+                    )}
+                    <div className="pt-1">
+                      {deletingItem?.kind === 'conversion' && deletingItem.id === item.conversion.id ? (
+                        <span className="flex items-center gap-1 text-xs">
+                          <button onClick={() => handleDeleteConversion(item.conversion.id)} className="text-red-400 hover:text-red-300">מחק</button>
+                          <span className="text-slate-600">|</span>
+                          <button onClick={() => setDeletingItem(null)} className="text-slate-400">ביטול</button>
+                        </span>
+                      ) : (
+                        <button onClick={() => setDeletingItem({ kind: 'conversion', id: item.conversion.id })} className="text-slate-500 hover:text-red-400 text-xs">מחק</button>
+                      )}
+                    </div>
+                  </div>
                 )}
               </div>
             )
