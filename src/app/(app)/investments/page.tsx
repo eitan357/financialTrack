@@ -55,7 +55,7 @@ export default function InvestmentsPage() {
           getTransactions(month),
         ])
         setPortfolios(accs.filter(a => a.type === 'investment'))
-        setBankAccounts(accs.filter(a => a.type === 'bank' && a.isActive))
+        setBankAccounts(accs.filter(a => a.type === 'bank' && a.isActive !== false))
         setInvestmentTypes(types)
         setEntries(ents)
         setDividends(divs)
@@ -131,18 +131,22 @@ export default function InvestmentsPage() {
       month: txMonth,
       ...(data.notes ? { description: data.notes } : { description: undefined }),
     })
-    setTransfers(prev => prev.map(t => t.id === id ? {
-      ...t,
-      date: data.date,
-      merchantName: data.merchantName,
-      amount: data.amount,
-      portfolioAccountId: data.portfolioAccountId,
-      investmentTypeId: data.investmentTypeId,
-      direction: data.direction,
-      accountId: data.accountId,
-      month: txMonth,
-      description: data.notes,
-    } : t))
+    setTransfers(prev =>
+      txMonth === month
+        ? prev.map(t => t.id === id ? {
+            ...t,
+            date: data.date,
+            merchantName: data.merchantName,
+            amount: data.amount,
+            portfolioAccountId: data.portfolioAccountId,
+            investmentTypeId: data.investmentTypeId,
+            direction: data.direction,
+            accountId: data.accountId,
+            month: txMonth,
+            description: data.notes,
+          } : t)
+        : prev.filter(t => t.id !== id)
+    )
     setEditingTransferId(null)
     setExpandedItemKey(null)
   }
@@ -318,7 +322,7 @@ export default function InvestmentsPage() {
             investmentTypes={activeTypes}
             bankAccounts={bankAccounts}
             onSave={handleAddSell}
-            onCancel={() => setShowSellForm(false)}
+            onCancel={() => { setShowSellForm(false); setSellError(null) }}
           />
         </div>
       )}
