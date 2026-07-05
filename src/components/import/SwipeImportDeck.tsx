@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { CheckCircle, Star, ChevronRight } from 'lucide-react'
+import { CheckCircle, Star, ChevronLeft } from 'lucide-react'
 import { SwipeableCard } from './SwipeableCard'
 import { ImportHUD } from './ImportHUD'
 import { ImportTutorial, shouldShowTutorial } from './ImportTutorial'
@@ -219,7 +219,7 @@ export function SwipeImportDeck({
               disabled={undoStack.length === 0}
               className="flex items-center gap-1 px-4 py-2 border border-slate-600 rounded-xl text-sm disabled:opacity-30 hover:border-slate-500 transition-colors"
             >
-              <ChevronRight size={16} />
+              <ChevronLeft size={16} />
               עסקה קודמת
             </button>
             <button
