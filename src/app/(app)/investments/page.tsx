@@ -33,6 +33,7 @@ export default function InvestmentsPage() {
   const [portfolioFilter, setPortfolioFilter] = useState<string>('all')
   const [showAddForm, setShowAddForm] = useState(false)
   const [showSellForm, setShowSellForm] = useState(false)
+  const [sellError, setSellError] = useState<string | null>(null)
   const [deletingItem, setDeletingItem] = useState<{ kind: 'deposit'; id: string } | { kind: 'dividend'; id: string } | { kind: 'conversion'; id: string } | null>(null)
   const [expandedItemKey, setExpandedItemKey] = useState<string | null>(null)
   const [editingTransferId, setEditingTransferId] = useState<string | null>(null)
@@ -73,16 +74,13 @@ export default function InvestmentsPage() {
   // Highlight from URL param
   useEffect(() => {
     const highlight = searchParams?.get('highlight')
-    if (highlight) {
-      const key = `transfer-${highlight}`
-      setExpandedItemKey(key)
-      // Scroll after a short delay to allow render
-      setTimeout(() => {
-        const el = rowRefs.current[key]
-        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      }, 300)
-    }
-  }, [searchParams])
+    if (!highlight || loading) return
+    const key = `transfer-${highlight}`
+    setExpandedItemKey(key)
+    setTimeout(() => {
+      rowRefs.current[key]?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 100)
+  }, [searchParams, loading])
 
   async function handleAddEntry(entry: Omit<InvestmentEntry, 'id'>) {
     const newEntry = await addInvestmentEntry(entry)
@@ -150,38 +148,43 @@ export default function InvestmentsPage() {
   }
 
   async function handleAddSell(data: Parameters<React.ComponentProps<typeof InvestmentTransferEditForm>['onSave']>[0]) {
-    const txMonth = data.date.slice(0, 7)
-    const id = await addTransactionGetId({
-      date: data.date,
-      merchantName: data.merchantName,
-      amount: data.amount,
-      currency: 'ILS',
-      accountId: data.accountId,
-      source: 'manual',
-      isImmediate: false,
-      month: txMonth,
-      direction: data.direction,
-      portfolioAccountId: data.portfolioAccountId,
-      ...(data.investmentTypeId ? { investmentTypeId: data.investmentTypeId } : {}),
-      ...(data.notes ? { description: data.notes } : {}),
-    })
-    if (txMonth === month) {
-      setTransfers(prev => [...prev, {
-        id,
+    setSellError(null)
+    try {
+      const txMonth = data.date.slice(0, 7)
+      const id = await addTransactionGetId({
         date: data.date,
         merchantName: data.merchantName,
         amount: data.amount,
         currency: 'ILS',
         accountId: data.accountId,
-        source: 'manual' as const,
+        source: 'manual',
         isImmediate: false,
         month: txMonth,
         direction: data.direction,
         portfolioAccountId: data.portfolioAccountId,
-        investmentTypeId: data.investmentTypeId,
-      }])
+        ...(data.investmentTypeId ? { investmentTypeId: data.investmentTypeId } : {}),
+        ...(data.notes ? { description: data.notes } : {}),
+      })
+      if (txMonth === month) {
+        setTransfers(prev => [...prev, {
+          id,
+          date: data.date,
+          merchantName: data.merchantName,
+          amount: data.amount,
+          currency: 'ILS',
+          accountId: data.accountId,
+          source: 'manual' as const,
+          isImmediate: false,
+          month: txMonth,
+          direction: data.direction,
+          portfolioAccountId: data.portfolioAccountId,
+          investmentTypeId: data.investmentTypeId,
+        }])
+      }
+      setShowSellForm(false)
+    } catch {
+      setSellError('שגיאה בשמירה. נסה שוב.')
     }
-    setShowSellForm(false)
   }
 
   const typeMap = Object.fromEntries(investmentTypes.map(t => [t.id, t]))
@@ -305,6 +308,7 @@ export default function InvestmentsPage() {
         />
       )}
 
+      {sellError && <p className="text-red-400 text-xs px-4 pb-1">{sellError}</p>}
       {showSellForm && (
         <div className="bg-surface rounded-2xl px-4 py-4 mb-4">
           <h3 className="text-sm font-semibold mb-3">הוספת מכירה</h3>
