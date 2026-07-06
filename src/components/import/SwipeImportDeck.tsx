@@ -1,15 +1,14 @@
 'use client'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { CheckCircle, Star } from 'lucide-react'
-import TinderCard from 'react-tinder-card'
+import { useDrag } from '@use-gesture/react'
+import { useSpring, animated } from '@react-spring/web'
 import { SwipeableCard } from './SwipeableCard'
 import { ImportHUD } from './ImportHUD'
 import { ImportTutorial, shouldShowTutorial } from './ImportTutorial'
 import { sortDeckCards } from './deckUtils'
 import type { DeckCard, SwipeRow, UndoEntry, CardStatus } from './deckUtils'
 import type { Category, Account, InvestmentType } from '@/lib/types'
-
-type API = { swipe(dir?: string): Promise<void>; restoreCard(): Promise<void> }
 
 interface Props {
   rows: SwipeRow[]
@@ -54,7 +53,7 @@ export function SwipeImportDeck({
   const cardsRef = useRef(cards)
   const currentIndexRef = useRef(currentIndex)
   const streakCountRef = useRef(streakCount)
-  const cardRef = useRef<API>(null)
+  const isAnimating = useRef(false)
 
   useEffect(() => { cardsRef.current = cards }, [cards])
   useEffect(() => { currentIndexRef.current = currentIndex }, [currentIndex])
@@ -63,6 +62,15 @@ export function SwipeImportDeck({
   useEffect(() => {
     if (shouldShowTutorial()) setShowTutorial(true)
   }, [])
+
+  // React-spring for card drag animation
+  const [{ x, rotate }, springApi] = useSpring(() => ({ x: 0, rotate: 0 }))
+
+  // Reset spring position when card changes (after swipe completes)
+  const currentCard = cards[currentIndex]
+  useEffect(() => {
+    springApi.set({ x: 0, rotate: 0 })
+  }, [currentCard?._id, springApi])
 
   function firePointsPopup(pts: number, streak: boolean) {
     setPoints(p => p + pts)
@@ -96,10 +104,49 @@ export function SwipeImportDeck({
     setCurrentIndex(idx + 1)
   }, [])
 
-  // Called by action buttons (inside card in Task 2, external until then)
-  const handleButtonSwipe = useCallback(async (dir: 'left' | 'right') => {
-    await cardRef.current?.swipe(dir)
-  }, [])
+  const handleButtonSwipe = useCallback((dir: 'left' | 'right') => {
+    if (isAnimating.current) return
+    isAnimating.current = true
+    setSwipeOverlay(null)
+
+    const targetX = dir === 'right' ? window.innerWidth + 200 : -(window.innerWidth + 200)
+    springApi.start({
+      x: targetX,
+      rotate: dir === 'right' ? 20 : -20,
+      config: { duration: 220 },
+    })
+    setTimeout(() => {
+      handleSwipe(dir)
+      isAnimating.current = false
+    }, 220)
+  }, [springApi, handleSwipe])
+
+  const bind = useDrag(
+    ({ active, movement: [mx], velocity: [vx], last, cancel }) => {
+      if (isAnimating.current) {
+        cancel()
+        return
+      }
+
+      const THRESHOLD = 60
+      const shouldSwipe = last && (Math.abs(mx) > THRESHOLD || (Math.abs(vx) > 0.4 && Math.abs(mx) > 20))
+
+      if (shouldSwipe) {
+        const dir = mx > 0 ? 'right' : 'left'
+        handleButtonSwipe(dir)
+      } else if (last) {
+        setSwipeOverlay(null)
+        springApi.start({ x: 0, rotate: 0 })
+      } else {
+        setSwipeOverlay(Math.abs(mx) > THRESHOLD ? (mx > 0 ? 'right' : 'left') : null)
+        springApi.start({ x: mx, rotate: mx / 15, immediate: true })
+      }
+    },
+    {
+      filterTaps: true,
+      axis: 'x',
+    }
+  )
 
   function handleUndo() {
     if (undoStack.length === 0) return
@@ -109,6 +156,7 @@ export function SwipeImportDeck({
     setUndoStack(rest)
     setStreakCount(0)
     setSwipeOverlay(null)
+    springApi.set({ x: 0, rotate: 0 })
   }
 
   function updateCard(index: number, updates: Partial<SwipeRow>) {
@@ -122,7 +170,6 @@ export function SwipeImportDeck({
   }
 
   const approvedCards = cards.filter(c => c.status === 'approved')
-  const currentCard = cards[currentIndex]
   const nextCard = cards[currentIndex + 1]
   const isDeckComplete = currentIndex >= cards.length
 
@@ -185,7 +232,7 @@ export function SwipeImportDeck({
               </div>
             )}
 
-            {/* Peek card (no TinderCard wrapper) */}
+            {/* Peek card (behind active card) */}
             {nextCard && (
               <div
                 className="absolute inset-0 pointer-events-none"
@@ -204,35 +251,33 @@ export function SwipeImportDeck({
               </div>
             )}
 
-            {/* Active card wrapped in TinderCard */}
+            {/* Active card — draggable */}
             {currentCard && (
-              <div className="absolute inset-0" style={{ zIndex: 2 }}>
-                <TinderCard
-                  key={currentCard._id}
-                  ref={cardRef as React.Ref<API>}
-                  onSwipe={(dir) => handleSwipe(dir as 'left' | 'right')}
-                  onSwipeRequirementFulfilled={(dir) => setSwipeOverlay(dir as 'left' | 'right')}
-                  onSwipeRequirementUnfulfilled={() => setSwipeOverlay(null)}
-                  preventSwipe={['up', 'down']}
-                  swipeRequirementType="position"
-                  swipeThreshold={60}
-                  flickOnSwipe
-                  className="absolute inset-0"
-                >
-                  <SwipeableCard
-                    card={currentCard}
-                    categories={categories}
-                    portfolioAccounts={portfolioAccounts}
-                    investmentTypes={investmentTypes}
-                    swipeOverlay={swipeOverlay}
-                    onSwipe={handleButtonSwipe}
-                    onChange={updates => updateCard(currentIndex, updates)}
-                  />
-                </TinderCard>
-              </div>
+              <animated.div
+                {...bind()}
+                style={{
+                  x,
+                  rotate,
+                  position: 'absolute',
+                  inset: 0,
+                  zIndex: 2,
+                  cursor: 'grab',
+                  willChange: 'transform',
+                  touchAction: 'pan-y',
+                }}
+              >
+                <SwipeableCard
+                  card={currentCard}
+                  categories={categories}
+                  portfolioAccounts={portfolioAccounts}
+                  investmentTypes={investmentTypes}
+                  swipeOverlay={swipeOverlay}
+                  onSwipe={handleButtonSwipe}
+                  onChange={updates => updateCard(currentIndex, updates)}
+                />
+              </animated.div>
             )}
           </div>
-
         </>
       )}
     </div>
