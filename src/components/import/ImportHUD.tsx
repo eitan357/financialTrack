@@ -12,6 +12,8 @@ interface Props {
   saving: boolean
   onSave: () => void
   onShowTutorial: () => void
+  onUndo: () => void
+  undoEnabled: boolean
 }
 
 export function ImportHUD({
@@ -23,6 +25,8 @@ export function ImportHUD({
   saving,
   onSave,
   onShowTutorial,
+  onUndo,
+  undoEnabled,
 }: Props) {
   const total = cards.length
   const processed = cards.filter(c => c.status !== 'pending').length
@@ -76,24 +80,33 @@ export function ImportHUD({
         <span>נקודות</span>
       </div>
 
-      {/* Totals */}
-      <div className="flex items-center gap-3 text-xs text-slate-400 flex-wrap">
-        <span>
-          הוצאות{' '}
-          <span className="text-red-400 tabular-nums">₪{expenses.toFixed(0)}</span>
-        </span>
-        <span>·</span>
-        <span>
-          הכנסות{' '}
-          <span className="text-green-400 tabular-nums">₪{income.toFixed(0)}</span>
-        </span>
-        <span>·</span>
-        <span>
-          נטו{' '}
-          <span className={`tabular-nums ${net >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-            ₪{net.toFixed(0)}
+      {/* Totals row with undo */}
+      <div className="flex items-center justify-between gap-2">
+        <button
+          onClick={onUndo}
+          disabled={!undoEnabled}
+          className="flex items-center gap-1 text-xs px-2 py-1 border border-slate-700 rounded-lg text-slate-400 disabled:opacity-30 hover:border-slate-600 transition-colors flex-shrink-0"
+        >
+          ↩ ביטול
+        </button>
+        <div className="flex items-center gap-3 text-xs text-slate-400 flex-wrap justify-end">
+          <span>
+            הוצאות{' '}
+            <span className="text-red-400 tabular-nums">₪{expenses.toFixed(0)}</span>
           </span>
-        </span>
+          <span>·</span>
+          <span>
+            הכנסות{' '}
+            <span className="text-green-400 tabular-nums">₪{income.toFixed(0)}</span>
+          </span>
+          <span>·</span>
+          <span>
+            נטו{' '}
+            <span className={`tabular-nums ${net >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+              ₪{net.toFixed(0)}
+            </span>
+          </span>
+        </div>
       </div>
     </div>
   )

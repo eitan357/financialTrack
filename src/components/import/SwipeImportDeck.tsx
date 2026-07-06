@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { CheckCircle, Star, ChevronLeft } from 'lucide-react'
+import { CheckCircle, Star } from 'lucide-react'
 import TinderCard from 'react-tinder-card'
 import { SwipeableCard } from './SwipeableCard'
 import { ImportHUD } from './ImportHUD'
@@ -134,6 +134,8 @@ export function SwipeImportDeck({
         saving={saving}
         onSave={() => onSave(approvedCards)}
         onShowTutorial={() => setShowTutorial(true)}
+        onUndo={handleUndo}
+        undoEnabled={undoStack.length > 0}
       />
 
       {isDeckComplete ? (
@@ -227,29 +229,6 @@ export function SwipeImportDeck({
             )}
           </div>
 
-          {/* Action buttons — moved inside card in Task 2 */}
-          <div className="flex items-center gap-3 justify-center">
-            <button
-              onClick={handleUndo}
-              disabled={undoStack.length === 0}
-              className="flex items-center gap-1 px-4 py-2 border border-slate-600 rounded-xl text-sm disabled:opacity-30 hover:border-slate-500 transition-colors"
-            >
-              <ChevronLeft size={16} />
-              עסקה קודמת
-            </button>
-            <button
-              onClick={() => handleButtonSwipe('left')}
-              className="px-5 py-2 border border-red-500/50 text-red-400 rounded-xl text-sm font-medium hover:bg-red-500/10 transition-colors"
-            >
-              ✗ דלג
-            </button>
-            <button
-              onClick={() => handleButtonSwipe('right')}
-              className="px-5 py-2 bg-accent rounded-xl text-sm font-semibold hover:bg-accent/90 transition-colors"
-            >
-              ✓ אשר
-            </button>
-          </div>
         </>
       )}
     </div>

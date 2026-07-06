@@ -77,123 +77,144 @@ export function SwipeableCard({
 
       {/* Body (hidden in peek mode) */}
       {!peek && (
-        <div className="p-4 space-y-3 overflow-y-auto flex-1">
-          {skipReasonLabel && (
-            <div className="px-3 py-1.5 bg-slate-800 rounded-lg text-xs text-slate-400">
-              {skipReasonLabel}
-            </div>
-          )}
-
-          {/* Direction toggle — will be restyled in Task 3 */}
-          {!card.portfolioAccountId && (
-            <div>
-              <label className="text-xs text-slate-400 mb-1 block">כיוון</label>
-              <div className="flex rounded-lg overflow-hidden border border-slate-700 text-sm">
-                <button
-                  type="button"
-                  onClick={() => onChange({ direction: 'expense', categoryId: card.direction === 'income' ? null : card.categoryId })}
-                  className={`flex-1 py-1.5 transition-colors ${card.direction === 'expense' ? 'bg-red-900/60 text-red-400' : 'text-slate-500 hover:text-slate-300'}`}
-                >
-                  הוצאה
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onChange({ direction: 'income', categoryId: null })}
-                  className={`flex-1 py-1.5 transition-colors ${card.direction === 'income' ? 'bg-green-900/60 text-green-400' : 'text-slate-500 hover:text-slate-300'}`}
-                >
-                  הכנסה
-                </button>
+        <>
+          <div className="p-4 space-y-3 overflow-y-auto flex-1">
+            {skipReasonLabel && (
+              <div className="px-3 py-1.5 bg-slate-800 rounded-lg text-xs text-slate-400">
+                {skipReasonLabel}
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Category */}
-          {card.direction === 'expense' && !card.portfolioAccountId && (
-            <div>
-              <label className="text-xs text-slate-400 mb-1 block">קטגוריה</label>
-              <SelectField
-                value={card.categoryId ?? ''}
-                onChange={v => onChange({ categoryId: v || null, categorizationSource: 'manual' })}
-                options={activeCategories.map(c => ({ value: c.id, label: c.name, color: c.color }))}
-                nullable
-                nullLabel="— ללא —"
-                placeholder="⚠️ לא מוגדרת"
-                className={!card.categoryId ? 'ring-1 ring-amber-400' : undefined}
-              />
-            </div>
-          )}
-
-          {/* Immediate debit toggle */}
-          <button
-            type="button"
-            onClick={() => onChange({ isImmediate: !card.isImmediate })}
-            className={`w-full py-2 rounded-full text-sm transition-colors ${
-              card.isImmediate
-                ? 'bg-amber-500/20 border border-amber-500 text-amber-400 font-semibold'
-                : 'border border-slate-600 text-slate-400 hover:border-slate-500'
-            }`}
-          >
-            חיוב מיידי
-          </button>
-
-          {/* Notes */}
-          <div>
-            <label className="text-xs text-slate-400 mb-1 block">הערה</label>
-            <input
-              value={card.notes ?? ''}
-              onChange={e => onChange({ notes: e.target.value })}
-              placeholder="הוסף הערה..."
-              className="w-full bg-background text-sm rounded-lg px-3 py-2 border border-slate-700 outline-none focus:border-slate-500"
-            />
-          </div>
-
-          {/* Investment picker */}
-          {portfolioAccounts.length > 0 && (
-            <div>
-              <label className="text-xs text-slate-400 mb-1 block">השקעה</label>
-              <InvestmentPicker
-                portfolios={portfolioAccounts}
-                types={investmentTypes}
-                value={
-                  card.portfolioAccountId
-                    ? { portfolioAccountId: card.portfolioAccountId, investmentTypeId: card.investmentTypeId }
-                    : null
-                }
-                onChange={(sel: InvestmentSelection | null) => {
-                  if (sel) {
-                    onChange({
-                      portfolioAccountId: sel.portfolioAccountId,
-                      investmentTypeId: sel.investmentTypeId,
-                      investmentDirection: card.investmentDirection ?? 'investment',
-                      skip: false,
-                      categoryId: null,
-                    })
-                  } else {
-                    onChange({ portfolioAccountId: undefined, investmentTypeId: undefined, investmentDirection: undefined })
-                  }
-                }}
-              />
-              {card.portfolioAccountId && (
-                <div className="flex mt-1 rounded-lg overflow-hidden border border-slate-700 text-sm">
+            {/* Direction toggle — will be restyled in Task 3 */}
+            {!card.portfolioAccountId && (
+              <div>
+                <label className="text-xs text-slate-400 mb-1 block">כיוון</label>
+                <div className="flex rounded-lg overflow-hidden border border-slate-700 text-sm">
                   <button
                     type="button"
-                    onClick={() => onChange({ investmentDirection: 'investment' })}
-                    className={`flex-1 py-1 ${(card.investmentDirection ?? 'investment') === 'investment' ? 'bg-green-900/60 text-green-400' : 'text-slate-500 hover:text-slate-300'}`}
+                    onClick={() => onChange({ direction: 'expense', categoryId: card.direction === 'income' ? null : card.categoryId })}
+                    className={`flex-1 py-1.5 transition-colors ${card.direction === 'expense' ? 'bg-red-900/60 text-red-400' : 'text-slate-500 hover:text-slate-300'}`}
                   >
-                    קנייה
+                    הוצאה
                   </button>
                   <button
                     type="button"
-                    onClick={() => onChange({ investmentDirection: 'divestment' })}
-                    className={`flex-1 py-1 ${card.investmentDirection === 'divestment' ? 'bg-red-900/60 text-red-400' : 'text-slate-500 hover:text-slate-300'}`}
+                    onClick={() => onChange({ direction: 'income', categoryId: null })}
+                    className={`flex-1 py-1.5 transition-colors ${card.direction === 'income' ? 'bg-green-900/60 text-green-400' : 'text-slate-500 hover:text-slate-300'}`}
                   >
-                    מכירה
+                    הכנסה
                   </button>
                 </div>
-              )}
+              </div>
+            )}
+
+            {/* Category */}
+            {card.direction === 'expense' && !card.portfolioAccountId && (
+              <div>
+                <label className="text-xs text-slate-400 mb-1 block">קטגוריה</label>
+                <SelectField
+                  value={card.categoryId ?? ''}
+                  onChange={v => onChange({ categoryId: v || null, categorizationSource: 'manual' })}
+                  options={activeCategories.map(c => ({ value: c.id, label: c.name, color: c.color }))}
+                  nullable
+                  nullLabel="— ללא —"
+                  placeholder="⚠️ לא מוגדרת"
+                  className={!card.categoryId ? 'ring-1 ring-amber-400' : undefined}
+                />
+              </div>
+            )}
+
+            {/* Immediate debit toggle */}
+            <button
+              type="button"
+              onClick={() => onChange({ isImmediate: !card.isImmediate })}
+              className={`w-full py-2 rounded-full text-sm transition-colors ${
+                card.isImmediate
+                  ? 'bg-amber-500/20 border border-amber-500 text-amber-400 font-semibold'
+                  : 'border border-slate-600 text-slate-400 hover:border-slate-500'
+              }`}
+            >
+              חיוב מיידי
+            </button>
+
+            {/* Notes */}
+            <div>
+              <label className="text-xs text-slate-400 mb-1 block">הערה</label>
+              <input
+                value={card.notes ?? ''}
+                onChange={e => onChange({ notes: e.target.value })}
+                placeholder="הוסף הערה..."
+                className="w-full bg-background text-sm rounded-lg px-3 py-2 border border-slate-700 outline-none focus:border-slate-500"
+              />
             </div>
-          )}
-        </div>
+
+            {/* Investment picker */}
+            {portfolioAccounts.length > 0 && (
+              <div>
+                <label className="text-xs text-slate-400 mb-1 block">השקעה</label>
+                <InvestmentPicker
+                  portfolios={portfolioAccounts}
+                  types={investmentTypes}
+                  value={
+                    card.portfolioAccountId
+                      ? { portfolioAccountId: card.portfolioAccountId, investmentTypeId: card.investmentTypeId }
+                      : null
+                  }
+                  onChange={(sel: InvestmentSelection | null) => {
+                    if (sel) {
+                      onChange({
+                        portfolioAccountId: sel.portfolioAccountId,
+                        investmentTypeId: sel.investmentTypeId,
+                        investmentDirection: card.investmentDirection ?? 'investment',
+                        skip: false,
+                        categoryId: null,
+                      })
+                    } else {
+                      onChange({ portfolioAccountId: undefined, investmentTypeId: undefined, investmentDirection: undefined })
+                    }
+                  }}
+                />
+                {card.portfolioAccountId && (
+                  <div className="flex mt-1 rounded-lg overflow-hidden border border-slate-700 text-sm">
+                    <button
+                      type="button"
+                      onClick={() => onChange({ investmentDirection: 'investment' })}
+                      className={`flex-1 py-1 ${(card.investmentDirection ?? 'investment') === 'investment' ? 'bg-green-900/60 text-green-400' : 'text-slate-500 hover:text-slate-300'}`}
+                    >
+                      קנייה
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onChange({ investmentDirection: 'divestment' })}
+                      className={`flex-1 py-1 ${card.investmentDirection === 'divestment' ? 'bg-red-900/60 text-red-400' : 'text-slate-500 hover:text-slate-300'}`}
+                    >
+                      מכירה
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Action buttons — sticky at card bottom */}
+          <div className="flex border-t border-slate-700/50 flex-shrink-0">
+            <button
+              type="button"
+              onClick={() => onSwipe('left')}
+              className="flex-1 py-3 text-red-400 text-sm font-medium hover:bg-red-500/10 transition-colors"
+            >
+              ✗ דלג
+            </button>
+            <div className="w-px bg-slate-700/50" />
+            <button
+              type="button"
+              onClick={() => onSwipe('right')}
+              className="flex-1 py-3 text-green-400 text-sm font-semibold hover:bg-green-500/10 transition-colors"
+            >
+              ✓ אשר
+            </button>
+          </div>
+        </>
       )}
     </div>
   )
