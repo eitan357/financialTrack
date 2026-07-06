@@ -154,6 +154,7 @@ export function SwipeableCard({
                 <InvestmentPicker
                   portfolios={portfolioAccounts}
                   types={investmentTypes}
+                  openInPortal
                   value={
                     card.portfolioAccountId
                       ? { portfolioAccountId: card.portfolioAccountId, investmentTypeId: card.investmentTypeId }
