@@ -122,18 +122,30 @@ export function SwipeImportDeck({
   }, [springApi, handleSwipe])
 
   const bind = useDrag(
-    ({ active, movement: [mx], velocity: [vx], last, cancel }) => {
-      if (isAnimating.current) {
-        cancel()
-        return
+    ({ movement: [mx, my], velocity: [vx], last, memo }) => {
+      if (isAnimating.current) return memo
+
+      // Determine swipe axis on first significant movement
+      if (memo == null) {
+        if (Math.abs(mx) < 6 && Math.abs(my) < 6) {
+          if (last) { setSwipeOverlay(null); springApi.start({ x: 0, rotate: 0 }) }
+          return null
+        }
+        return Math.abs(my) > Math.abs(mx) ? 'v' : 'h'
       }
 
+      // Vertical gesture — let browser handle scroll, don't move card
+      if (memo === 'v') {
+        if (last) setSwipeOverlay(null)
+        return 'v'
+      }
+
+      // Horizontal swipe
       const THRESHOLD = 60
       const shouldSwipe = last && (Math.abs(mx) > THRESHOLD || (Math.abs(vx) > 0.4 && Math.abs(mx) > 20))
 
       if (shouldSwipe) {
-        const dir = mx > 0 ? 'right' : 'left'
-        handleButtonSwipe(dir)
+        handleButtonSwipe(mx > 0 ? 'right' : 'left')
       } else if (last) {
         setSwipeOverlay(null)
         springApi.start({ x: 0, rotate: 0 })
@@ -141,11 +153,10 @@ export function SwipeImportDeck({
         setSwipeOverlay(Math.abs(mx) > THRESHOLD ? (mx > 0 ? 'right' : 'left') : null)
         springApi.start({ x: mx, rotate: mx / 15, immediate: true })
       }
+
+      return 'h'
     },
-    {
-      filterTaps: true,
-      axis: 'x',
-    }
+    { filterTaps: true }
   )
 
   function handleUndo() {
@@ -215,7 +226,7 @@ export function SwipeImportDeck({
       ) : (
         <>
           {/* Card stack */}
-          <div className="relative w-full mb-4" style={{ height: '460px' }}>
+          <div className="relative w-full mb-4 overflow-hidden" style={{ height: '460px' }}>
             {popup && (
               <div
                 key={popup.key}

@@ -1,6 +1,7 @@
 'use client'
-import { useState, useRef, useEffect } from 'react'
+import { useState } from 'react'
 import { CURRENCIES, getCurrency } from '@/lib/currencies'
+import { useDropdownPortal } from '@/hooks/useDropdownPortal'
 
 interface Props {
   value: string
@@ -9,10 +10,8 @@ interface Props {
 }
 
 export function CurrencyPicker({ value, onChange, className = '' }: Props) {
-  const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
-  const containerRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const { open, setOpen, triggerRef, toggle, renderPortal } = useDropdownPortal()
 
   const selected = getCurrency(value)
 
@@ -24,22 +23,18 @@ export function CurrencyPicker({ value, onChange, className = '' }: Props) {
       )
     : CURRENCIES
 
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false)
-        setSearch('')
-      }
-    }
-    if (open) document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [open])
+  function select(code: string) {
+    onChange(code)
+    setOpen(false)
+    setSearch('')
+  }
 
   return (
-    <div ref={containerRef} className={`relative ${className}`}>
+    <div className={`relative ${className}`}>
       <button
+        ref={triggerRef}
         type="button"
-        onClick={() => setOpen(v => !v)}
+        onClick={toggle}
         className="flex items-center gap-1 px-2 py-1.5 bg-slate-700 hover:bg-slate-600 rounded-lg text-sm transition-colors"
       >
         <span>{selected.symbol}</span>
@@ -47,24 +42,23 @@ export function CurrencyPicker({ value, onChange, className = '' }: Props) {
         <span className="text-xs text-slate-500">▾</span>
       </button>
 
-      {open && (
-        <div dir="ltr" className="absolute z-50 top-full mt-1 left-0 bg-slate-800 border border-slate-700 rounded-xl shadow-xl w-64">
-          <div className="p-2 border-b border-slate-700">
+      {renderPortal(
+        <div dir="ltr" className="bg-slate-800 border border-slate-700 flex flex-col flex-1 min-h-0">
+          <div className="p-2 border-b border-slate-700 flex-shrink-0">
             <input
-              ref={inputRef}
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="חפש מטבע..."
               className="w-full bg-slate-700 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-1 ring-accent"
             />
           </div>
-          <ul className="overflow-y-auto max-h-52" role="listbox">
+          <ul className="overflow-y-auto flex-1 min-h-0" role="listbox">
             {filtered.map(c => (
               <li
                 key={c.code}
                 role="option"
                 aria-selected={c.code === value}
-                onClick={() => { onChange(c.code); setOpen(false); setSearch('') }}
+                onClick={() => select(c.code)}
                 className={`flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-slate-700 text-sm ${c.code === value ? 'bg-slate-700/60' : ''}`}
               >
                 <span className="w-6 text-center flex-shrink-0">{c.symbol}</span>

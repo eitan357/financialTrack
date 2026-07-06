@@ -1,5 +1,6 @@
 'use client'
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
+import { useDropdownPortal } from '@/hooks/useDropdownPortal'
 
 export interface SelectOption {
   value: string
@@ -33,9 +34,8 @@ export function SelectField({
   size = 'md',
   className = '',
 }: SelectFieldProps) {
-  const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
-  const containerRef = useRef<HTMLDivElement>(null)
+  const { open, setOpen, triggerRef, toggle, renderPortal } = useDropdownPortal()
   const inputRef = useRef<HTMLInputElement>(null)
 
   const selected = options.find(o => o.value === value)
@@ -44,22 +44,16 @@ export function SelectField({
     ? options.filter(o => o.label.toLowerCase().includes(search.toLowerCase()))
     : options
 
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setOpen(false)
-        setSearch('')
-      }
-    }
-    if (open) document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [open])
-
   const isSm = size === 'sm'
   const triggerPy = isSm ? 'py-1' : 'py-2'
   const triggerPx = isSm ? 'px-2' : 'px-3'
   const triggerText = isSm ? 'text-xs' : 'text-sm'
-  const dropdownWidth = isSm ? 'w-56' : 'w-full min-w-[14rem]'
+
+  function select(val: string) {
+    onChange(val)
+    setOpen(false)
+    setSearch('')
+  }
 
   function renderGroups() {
     const items: React.ReactNode[] = []
@@ -70,7 +64,7 @@ export function SelectField({
           key="__null__"
           role="option"
           aria-selected={value === ''}
-          onClick={() => { onChange(''); setOpen(false); setSearch('') }}
+          onClick={() => select('')}
           className={`px-3 py-2 cursor-pointer hover:bg-slate-700 text-sm text-slate-400 text-right ${value === '' ? 'bg-slate-700/60' : ''}`}
         >
           {nullLabel}
@@ -95,7 +89,7 @@ export function SelectField({
           key={opt.value}
           role="option"
           aria-selected={opt.value === value}
-          onClick={() => { onChange(opt.value); setOpen(false); setSearch('') }}
+          onClick={() => select(opt.value)}
           className={`flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-slate-700 text-sm text-right ${opt.value === value ? 'bg-slate-700/60' : ''}`}
         >
           {opt.color && (
@@ -119,11 +113,12 @@ export function SelectField({
   const disabledClass = disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-slate-600'
 
   return (
-    <div ref={containerRef} className={`relative ${className}`}>
+    <div className={`relative ${className}`}>
       <button
+        ref={triggerRef}
         type="button"
         disabled={disabled}
-        onClick={() => !disabled && setOpen(v => !v)}
+        onClick={() => !disabled && toggle()}
         className={`w-full flex items-center gap-2 bg-slate-700 rounded-lg ${triggerPx} ${triggerPy} ${triggerText} transition-colors ${ringClass} ${disabledClass}`}
       >
         {selected?.color && (
@@ -135,9 +130,9 @@ export function SelectField({
         <span className="text-xs text-slate-500 flex-shrink-0">▾</span>
       </button>
 
-      {open && (
-        <div className={`absolute z-50 top-full mt-1 left-0 ${dropdownWidth} bg-slate-800 border border-slate-700 rounded-xl shadow-xl`}>
-          <div className="p-2 border-b border-slate-700">
+      {renderPortal(
+        <div dir="rtl" className="bg-slate-800 border border-slate-700 flex flex-col flex-1 min-h-0">
+          <div className="p-2 border-b border-slate-700 flex-shrink-0">
             <input
               ref={inputRef}
               value={search}
@@ -147,7 +142,7 @@ export function SelectField({
               className="w-full bg-slate-700 rounded-lg px-3 py-1.5 text-sm outline-none focus:ring-1 ring-accent text-right"
             />
           </div>
-          <ul className="overflow-y-auto max-h-52" role="listbox">
+          <ul className="overflow-y-auto flex-1 min-h-0" role="listbox">
             {renderGroups()}
           </ul>
         </div>

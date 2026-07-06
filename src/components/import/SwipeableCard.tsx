@@ -154,7 +154,6 @@ export function SwipeableCard({
                 <InvestmentPicker
                   portfolios={portfolioAccounts}
                   types={investmentTypes}
-                  openInPortal
                   value={
                     card.portfolioAccountId
                       ? { portfolioAccountId: card.portfolioAccountId, investmentTypeId: card.investmentTypeId }
@@ -200,18 +199,18 @@ export function SwipeableCard({
           <div className="flex border-t border-slate-700/50 flex-shrink-0">
             <button
               type="button"
-              onClick={() => onSwipe('left')}
-              className="flex-1 py-3 text-red-400 text-sm font-medium hover:bg-red-500/10 transition-colors"
+              onClick={() => onSwipe('right')}
+              className="flex-1 py-3 text-green-400 text-sm font-semibold hover:bg-green-500/10 transition-colors"
             >
-              ✗ דלג
+              ✓ אישור
             </button>
             <div className="w-px bg-slate-700/50" />
             <button
               type="button"
-              onClick={() => onSwipe('right')}
-              className="flex-1 py-3 text-green-400 text-sm font-semibold hover:bg-green-500/10 transition-colors"
+              onClick={() => onSwipe('left')}
+              className="flex-1 py-3 text-red-400 text-sm font-medium hover:bg-red-500/10 transition-colors"
             >
-              ✓ אשר
+              ✗ דילוג
             </button>
           </div>
         </>
