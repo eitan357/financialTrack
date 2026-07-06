@@ -27,13 +27,16 @@ export function useDropdownPortal() {
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') setOpen(false)
     }
+    function onScroll() { setOpen(false) }
     document.addEventListener('mousedown', close)
     document.addEventListener('touchstart', close, { passive: true })
     document.addEventListener('keydown', onKey)
+    window.addEventListener('scroll', onScroll, { passive: true, capture: true })
     return () => {
       document.removeEventListener('mousedown', close)
       document.removeEventListener('touchstart', close)
       document.removeEventListener('keydown', onKey)
+      window.removeEventListener('scroll', onScroll, true)
     }
   }, [open])
 
@@ -46,7 +49,7 @@ export function useDropdownPortal() {
           top: rect.bottom + 4,
           left: rect.left,
           minWidth: rect.width,
-          maxHeight: Math.max(120, Math.min(spaceBelow, 320)),
+          maxHeight: Math.max(120, Math.min(spaceBelow, 220)),
         })
       }
       return !v

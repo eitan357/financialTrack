@@ -185,7 +185,7 @@ export function SwipeImportDeck({
   const isDeckComplete = currentIndex >= cards.length
 
   return (
-    <div dir="rtl">
+    <div dir="rtl" style={{ overflowX: 'clip' }}>
       {showTutorial && <ImportTutorial onDismiss={() => setShowTutorial(false)} />}
 
       <ImportHUD
@@ -226,7 +226,7 @@ export function SwipeImportDeck({
       ) : (
         <>
           {/* Card stack */}
-          <div className="relative w-full mb-4 overflow-hidden" style={{ height: '460px' }}>
+          <div className="relative w-full mb-4" style={{ height: '460px' }}>
             {popup && (
               <div
                 key={popup.key}
