@@ -87,6 +87,7 @@ export function CreditFlow({ month, accountId, accountName, provider, categories
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [savedCount, setSavedCount] = useState(0)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   function applyCategories(raw: ReturnType<typeof mapRows>): ImportedTransaction[] {
@@ -175,6 +176,7 @@ export function CreditFlow({ month, accountId, accountName, provider, categories
         ? (window.confirm(`נמצאו ${duplicates.length} עסקאות כפולות. לשמור בכל זאת?`) ? toImport : clean)
         : toImport
       await addTransactions(toSave.map(t => toTransaction(t as CreditRow, accountId, month)))
+      setSavedCount(toSave.length)
       setSaved(true)
     } catch (err) {
       console.error('addTransactions failed:', err)
@@ -185,8 +187,8 @@ export function CreditFlow({ month, accountId, accountName, provider, categories
   }
 
   if (saved) {
-    const importedCount = rows.filter(r => !r.skip).length
-    const skippedCount = rows.length - importedCount
+    const importedCount = savedCount
+    const skippedCount = rows.length - savedCount
     return (
       <div className="text-center py-8">
         <CheckCircle size={48} className="mx-auto text-green-400 mb-4" />

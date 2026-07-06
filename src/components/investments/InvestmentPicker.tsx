@@ -102,7 +102,7 @@ export function InvestmentPicker({
     <div
       ref={portalContentRef}
       className="bg-surface border border-slate-700 rounded-lg shadow-lg overflow-hidden"
-      style={openInPortal ? { position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, minWidth: dropdownPos.width, maxWidth: 256, zIndex: 9999 } : {}}
+      style={openInPortal ? { position: 'fixed', top: dropdownPos.top, left: dropdownPos.left, minWidth: dropdownPos.width, maxWidth: 256, zIndex: 9999 } : undefined}
     >
       <div className="p-1.5 border-b border-slate-700">
         <input

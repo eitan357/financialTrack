@@ -49,6 +49,7 @@ export function ImportHUD({
             <HelpCircle size={18} />
           </button>
           <button
+            type="button"
             onClick={onSave}
             disabled={saving}
             className="px-3 py-1.5 bg-accent rounded-lg text-sm font-semibold disabled:opacity-50"
@@ -81,6 +82,7 @@ export function ImportHUD({
       {/* Totals row with undo */}
       <div className="flex items-center justify-between gap-2">
         <button
+          type="button"
           onClick={onUndo}
           disabled={!undoEnabled}
           className="flex items-center gap-1 text-xs px-2 py-1 border border-slate-700 rounded-lg text-slate-400 disabled:opacity-30 hover:border-slate-600 transition-colors flex-shrink-0"
