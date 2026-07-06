@@ -199,6 +199,8 @@ export function CreditFlow({ month, accountId, accountName, provider, categories
     )
   }
 
+  const showCompactUpload = availableSheets.length > 0 || rows.length > 0
+
   return (
     <div>
       <div className="flex items-center gap-2 mb-4">
@@ -208,28 +210,43 @@ export function CreditFlow({ month, accountId, accountName, provider, categories
         <h2 className="text-lg font-semibold">{accountName}</h2>
       </div>
 
-      <div
-        className="border-2 border-dashed border-slate-600 rounded-xl p-6 text-center cursor-pointer hover:border-accent transition-colors mb-4"
-        onClick={() => fileInputRef.current?.click()}
-      >
-        <Upload size={24} className="mx-auto mb-2 text-slate-400" />
-        <p className="text-slate-400 text-sm">
-          {provider === 'isracard' ? 'העלאת קובץ XLSX או PDF'
-            : provider === 'max' ? 'העלאת קובץ XLSX או CSV'
-            : 'העלאת קובץ CSV, XLSX או PDF'}
-        </p>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept={provider === 'isracard' ? '.xlsx,.xls,.pdf' : provider === 'max' ? '.xlsx,.xls,.csv' : '.csv,.xlsx,.xls,.pdf'}
-          className="hidden"
-          onChange={handleFileChange}
-        />
-      </div>
+      {/* Always-hidden file input — shared by both upload UIs */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept={provider === 'isracard' ? '.xlsx,.xls,.pdf' : provider === 'max' ? '.xlsx,.xls,.csv' : '.csv,.xlsx,.xls,.pdf'}
+        className="hidden"
+        onChange={handleFileChange}
+      />
+
+      {showCompactUpload ? (
+        <div className="flex justify-end mb-3">
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-300 transition-colors"
+          >
+            <Upload size={12} />
+            החלף קובץ
+          </button>
+        </div>
+      ) : (
+        <div
+          className="border-2 border-dashed border-slate-600 rounded-xl p-6 text-center cursor-pointer hover:border-accent transition-colors mb-4"
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <Upload size={24} className="mx-auto mb-2 text-slate-400" />
+          <p className="text-slate-400 text-sm">
+            {provider === 'isracard' ? 'העלאת קובץ XLSX או PDF'
+              : provider === 'max' ? 'העלאת קובץ XLSX או CSV'
+              : 'העלאת קובץ CSV, XLSX או PDF'}
+          </p>
+        </div>
+      )}
 
       {error && <p role="alert" className="text-red-400 text-sm mb-3">{error}</p>}
 
-      {availableSheets.length > 0 && (
+      {/* Sheet selection — hidden once rows are loaded */}
+      {availableSheets.length > 0 && rows.length === 0 && (
         <div className="bg-surface rounded-xl p-4 mb-4">
           <p className="text-sm font-medium mb-2">בחר גליונות לייבוא:</p>
           {availableSheets.map(sheet => (
@@ -256,7 +273,6 @@ export function CreditFlow({ month, accountId, accountName, provider, categories
           onDone={onDone}
         />
       )}
-
     </div>
   )
 }
