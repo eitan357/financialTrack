@@ -1,12 +1,15 @@
 'use client'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { CheckCircle, Star, ChevronLeft } from 'lucide-react'
+import TinderCard from 'react-tinder-card'
 import { SwipeableCard } from './SwipeableCard'
 import { ImportHUD } from './ImportHUD'
 import { ImportTutorial, shouldShowTutorial } from './ImportTutorial'
 import { sortDeckCards } from './deckUtils'
 import type { DeckCard, SwipeRow, UndoEntry, CardStatus } from './deckUtils'
 import type { Category, Account, InvestmentType } from '@/lib/types'
+
+type API = { swipe(dir?: string): Promise<void>; restoreCard(): Promise<void> }
 
 interface Props {
   rows: SwipeRow[]
@@ -46,11 +49,13 @@ export function SwipeImportDeck({
   const [streakCount, setStreakCount] = useState(0)
   const [popup, setPopup] = useState<{ pts: number; streak: boolean; key: number } | null>(null)
   const [showTutorial, setShowTutorial] = useState(false)
+  const [swipeOverlay, setSwipeOverlay] = useState<'left' | 'right' | null>(null)
 
-  // Keep refs to avoid stale closures in handleSwipe
   const cardsRef = useRef(cards)
   const currentIndexRef = useRef(currentIndex)
   const streakCountRef = useRef(streakCount)
+  const cardRef = useRef<API>(null)
+
   useEffect(() => { cardsRef.current = cards }, [cards])
   useEffect(() => { currentIndexRef.current = currentIndex }, [currentIndex])
   useEffect(() => { streakCountRef.current = streakCount }, [streakCount])
@@ -71,18 +76,11 @@ export function SwipeImportDeck({
     const card = currentCards[idx]
     if (!card) return
 
+    setSwipeOverlay(null)
     const newStatus: CardStatus = direction === 'right' ? 'approved' : 'skipped'
-
-    // Update card status
     setCards(cs => cs.map((c, i) => i === idx ? { ...c, status: newStatus } : c))
+    setUndoStack(stack => [{ index: idx, previous: card }, ...stack.slice(0, 4)])
 
-    // Update undo stack
-    setUndoStack(stack => [
-      { index: idx, previous: card },
-      ...stack.slice(0, 4),
-    ])
-
-    // Compute points from current streak
     const currentStreak = streakCountRef.current
     const newStreak = currentStreak + 1
     let pts = direction === 'right' ? 2 : 1
@@ -90,14 +88,17 @@ export function SwipeImportDeck({
     if (newStreak % 5 === 0) { pts += 5; isStreak = true }
     firePointsPopup(pts, isStreak)
 
-    // Completion bonus fires after the last card
     if (idx + 1 >= currentCards.length) {
       setTimeout(() => firePointsPopup(20, false), 500)
     }
 
-    // Update streak and index
     setStreakCount(newStreak)
     setCurrentIndex(idx + 1)
+  }, [])
+
+  // Called by action buttons (inside card in Task 2, external until then)
+  const handleButtonSwipe = useCallback(async (dir: 'left' | 'right') => {
+    await cardRef.current?.swipe(dir)
   }, [])
 
   function handleUndo() {
@@ -107,6 +108,7 @@ export function SwipeImportDeck({
     setCurrentIndex(entry.index)
     setUndoStack(rest)
     setStreakCount(0)
+    setSwipeOverlay(null)
   }
 
   function updateCard(index: number, updates: Partial<SwipeRow>) {
@@ -152,10 +154,7 @@ export function SwipeImportDeck({
             >
               {saving ? 'שומר...' : `שמור ויבא ${approvedCards.length} עסקאות`}
             </button>
-            <button
-              onClick={onDone}
-              className="w-full py-3 border border-slate-600 rounded-xl text-slate-300 text-sm"
-            >
+            <button onClick={onDone} className="w-full py-3 border border-slate-600 rounded-xl text-slate-300 text-sm">
               עבור לעמוד עסקאות
             </button>
           </div>
@@ -164,7 +163,6 @@ export function SwipeImportDeck({
         <>
           {/* Card stack */}
           <div className="relative w-full mb-4" style={{ height: '460px' }}>
-            {/* Points popup */}
             {popup && (
               <div
                 key={popup.key}
@@ -180,10 +178,11 @@ export function SwipeImportDeck({
                 </span>
               </div>
             )}
-            {/* Next card (peek) */}
+
+            {/* Peek card (no TinderCard wrapper) */}
             {nextCard && (
               <div
-                className="absolute inset-0"
+                className="absolute inset-0 pointer-events-none"
                 style={{ transform: 'scale(0.95) translateY(8px)', zIndex: 1, transformOrigin: 'center bottom' }}
               >
                 <SwipeableCard
@@ -192,27 +191,43 @@ export function SwipeImportDeck({
                   portfolioAccounts={portfolioAccounts}
                   investmentTypes={investmentTypes}
                   peek
+                  swipeOverlay={null}
                   onSwipe={() => {}}
                   onChange={() => {}}
                 />
               </div>
             )}
-            {/* Active card */}
+
+            {/* Active card wrapped in TinderCard */}
             {currentCard && (
               <div className="absolute inset-0" style={{ zIndex: 2 }}>
-                <SwipeableCard
-                  card={currentCard}
-                  categories={categories}
-                  portfolioAccounts={portfolioAccounts}
-                  investmentTypes={investmentTypes}
-                  onSwipe={handleSwipe}
-                  onChange={updates => updateCard(currentIndex, updates)}
-                />
+                <TinderCard
+                  key={currentCard._id}
+                  ref={cardRef as React.Ref<API>}
+                  onSwipe={(dir) => handleSwipe(dir as 'left' | 'right')}
+                  onSwipeRequirementFulfilled={(dir) => setSwipeOverlay(dir as 'left' | 'right')}
+                  onSwipeRequirementUnfulfilled={() => setSwipeOverlay(null)}
+                  preventSwipe={['up', 'down']}
+                  swipeRequirementType="position"
+                  swipeThreshold={60}
+                  flickOnSwipe
+                  className="absolute inset-0"
+                >
+                  <SwipeableCard
+                    card={currentCard}
+                    categories={categories}
+                    portfolioAccounts={portfolioAccounts}
+                    investmentTypes={investmentTypes}
+                    swipeOverlay={swipeOverlay}
+                    onSwipe={handleButtonSwipe}
+                    onChange={updates => updateCard(currentIndex, updates)}
+                  />
+                </TinderCard>
               </div>
             )}
           </div>
 
-          {/* Action buttons */}
+          {/* Action buttons — moved inside card in Task 2 */}
           <div className="flex items-center gap-3 justify-center">
             <button
               onClick={handleUndo}
@@ -223,13 +238,13 @@ export function SwipeImportDeck({
               עסקה קודמת
             </button>
             <button
-              onClick={() => handleSwipe('left')}
+              onClick={() => handleButtonSwipe('left')}
               className="px-5 py-2 border border-red-500/50 text-red-400 rounded-xl text-sm font-medium hover:bg-red-500/10 transition-colors"
             >
               ✗ דלג
             </button>
             <button
-              onClick={() => handleSwipe('right')}
+              onClick={() => handleButtonSwipe('right')}
               className="px-5 py-2 bg-accent rounded-xl text-sm font-semibold hover:bg-accent/90 transition-colors"
             >
               ✓ אשר
