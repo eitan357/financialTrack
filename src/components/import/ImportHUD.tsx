@@ -8,7 +8,6 @@ interface Props {
   month: string
   cards: DeckCard[]
   points: number
-  approvedCount: number
   saving: boolean
   onSave: () => void
   onShowTutorial: () => void
@@ -21,7 +20,6 @@ export function ImportHUD({
   month,
   cards,
   points,
-  approvedCount,
   saving,
   onSave,
   onShowTutorial,
@@ -52,10 +50,10 @@ export function ImportHUD({
           </button>
           <button
             onClick={onSave}
-            disabled={saving || approvedCount === 0}
-            className="px-3 py-1.5 bg-accent rounded-lg text-sm font-semibold disabled:opacity-50 tabular-nums"
+            disabled={saving}
+            className="px-3 py-1.5 bg-accent rounded-lg text-sm font-semibold disabled:opacity-50"
           >
-            {saving ? '...' : `שמור ${approvedCount}`}
+            {saving ? '...' : 'שמור'}
           </button>
         </div>
       </div>

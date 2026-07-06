@@ -116,6 +116,11 @@ export function SwipeImportDeck({
     setStreakCount(0)
   }
 
+  function handleSave() {
+    const toSave = cards.filter(c => c.status !== 'skipped' && !c.skip)
+    onSave(toSave)
+  }
+
   const approvedCards = cards.filter(c => c.status === 'approved')
   const currentCard = cards[currentIndex]
   const nextCard = cards[currentIndex + 1]
@@ -130,9 +135,8 @@ export function SwipeImportDeck({
         month={month}
         cards={cards}
         points={points}
-        approvedCount={approvedCards.length}
         saving={saving}
-        onSave={() => onSave(approvedCards)}
+        onSave={handleSave}
         onShowTutorial={() => setShowTutorial(true)}
         onUndo={handleUndo}
         undoEnabled={undoStack.length > 0}
