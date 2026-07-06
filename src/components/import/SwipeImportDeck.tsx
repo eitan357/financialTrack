@@ -9,7 +9,7 @@ import { sortDeckCards } from './deckUtils'
 import type { DeckCard, SwipeRow, UndoEntry, CardStatus } from './deckUtils'
 import type { Category, Account, InvestmentType } from '@/lib/types'
 
-type API = { swipe(dir?: string): Promise<void> }
+type API = { swipe(dir?: string): Promise<void>; restoreCard(): Promise<void> }
 
 interface Props {
   rows: SwipeRow[]
@@ -54,9 +54,7 @@ export function SwipeImportDeck({
   const cardsRef = useRef(cards)
   const currentIndexRef = useRef(currentIndex)
   const streakCountRef = useRef(streakCount)
-  // cardRef is typed with only the methods we call; the library also exposes restoreCard which we don't use
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const cardRef = useRef<any>(null)
+  const cardRef = useRef<API>(null)
 
   useEffect(() => { cardsRef.current = cards }, [cards])
   useEffect(() => { currentIndexRef.current = currentIndex }, [currentIndex])
@@ -211,7 +209,7 @@ export function SwipeImportDeck({
               <div className="absolute inset-0" style={{ zIndex: 2 }}>
                 <TinderCard
                   key={currentCard._id}
-                  ref={cardRef}
+                  ref={cardRef as React.Ref<API>}
                   onSwipe={(dir) => handleSwipe(dir as 'left' | 'right')}
                   onSwipeRequirementFulfilled={(dir) => setSwipeOverlay(dir as 'left' | 'right')}
                   onSwipeRequirementUnfulfilled={() => setSwipeOverlay(null)}
