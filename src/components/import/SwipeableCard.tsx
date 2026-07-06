@@ -85,11 +85,10 @@ export function SwipeableCard({
               </div>
             )}
 
-            {/* Direction toggle — will be restyled in Task 3 */}
             {!card.portfolioAccountId && (
-              <div>
-                <label className="text-xs text-slate-400 mb-1 block">כיוון</label>
-                <div className="flex rounded-lg overflow-hidden border border-slate-700 text-sm">
+              <div className="flex flex-col items-center">
+                <label className="text-xs text-slate-400 mb-1">כיוון</label>
+                <div className="flex rounded-lg overflow-hidden border border-slate-700 text-sm w-48">
                   <button
                     type="button"
                     onClick={() => onChange({ direction: 'expense', categoryId: card.direction === 'income' ? null : card.categoryId })}
