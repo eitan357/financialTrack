@@ -59,3 +59,21 @@ export function computeTotals(cards: DeckCard[]): DeckTotals {
   }
   return { income, expenses, net: income - expenses }
 }
+
+export function computeDisplayTotals(cards: DeckCard[]): DeckTotals {
+  // Include pending + approved; exclude explicitly skipped and pre-skipped
+  const visible = cards.filter(c => c.status !== 'skipped' && !c.skip)
+  let income = 0
+  let expenses = 0
+  for (const c of visible) {
+    const dir = c.portfolioAccountId
+      ? (c.investmentDirection ?? 'investment')
+      : c.direction
+    if (dir === 'income' || dir === 'divestment') {
+      income += c.amount
+    } else {
+      expenses += c.amount
+    }
+  }
+  return { income, expenses, net: income - expenses }
+}

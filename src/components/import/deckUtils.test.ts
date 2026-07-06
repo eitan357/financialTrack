@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { sortDeckCards, computeTotals } from './deckUtils'
+import { sortDeckCards, computeTotals, computeDisplayTotals } from './deckUtils'
 import type { DeckCard } from './deckUtils'
 
 const base: Omit<DeckCard, '_id' | 'status'> = {
@@ -90,6 +90,53 @@ describe('computeTotals', () => {
 
   it('returns zeros when no approved cards', () => {
     const totals = computeTotals([])
+    expect(totals).toEqual({ income: 0, expenses: 0, net: 0 })
+  })
+})
+
+describe('computeDisplayTotals', () => {
+  it('includes pending cards in totals', () => {
+    const cards: DeckCard[] = [
+      { ...base, _id: '1', status: 'pending', direction: 'expense', amount: 100 },
+      { ...base, _id: '2', status: 'approved', direction: 'expense', amount: 50 },
+    ]
+    const totals = computeDisplayTotals(cards)
+    expect(totals.expenses).toBe(150)
+  })
+
+  it('excludes status=skipped cards', () => {
+    const cards: DeckCard[] = [
+      { ...base, _id: '1', status: 'pending', direction: 'expense', amount: 100 },
+      { ...base, _id: '2', status: 'skipped', direction: 'expense', amount: 200 },
+    ]
+    const totals = computeDisplayTotals(cards)
+    expect(totals.expenses).toBe(100)
+  })
+
+  it('excludes pre-skipped cards (skip=true)', () => {
+    const cards: DeckCard[] = [
+      { ...base, _id: '1', status: 'pending', skip: false, direction: 'expense', amount: 100 },
+      { ...base, _id: '2', status: 'pending', skip: true, direction: 'expense', amount: 500 },
+    ]
+    const totals = computeDisplayTotals(cards)
+    expect(totals.expenses).toBe(100)
+  })
+
+  it('reflects direction changes on pending cards immediately', () => {
+    const cards: DeckCard[] = [
+      { ...base, _id: '1', status: 'pending', direction: 'income', amount: 300 },
+    ]
+    const totals = computeDisplayTotals(cards)
+    expect(totals.income).toBe(300)
+    expect(totals.expenses).toBe(0)
+  })
+
+  it('returns zeros when all cards are skipped', () => {
+    const cards: DeckCard[] = [
+      { ...base, _id: '1', status: 'skipped', direction: 'expense', amount: 100 },
+      { ...base, _id: '2', status: 'pending', skip: true, direction: 'expense', amount: 200 },
+    ]
+    const totals = computeDisplayTotals(cards)
     expect(totals).toEqual({ income: 0, expenses: 0, net: 0 })
   })
 })

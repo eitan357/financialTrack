@@ -1,6 +1,6 @@
 'use client'
 import { Star, HelpCircle } from 'lucide-react'
-import { computeTotals } from './deckUtils'
+import { computeDisplayTotals } from './deckUtils'
 import type { DeckCard } from './deckUtils'
 
 interface Props {
@@ -31,7 +31,7 @@ export function ImportHUD({
   const total = cards.length
   const processed = cards.filter(c => c.status !== 'pending').length
   const progress = total > 0 ? processed / total : 0
-  const { income, expenses, net } = computeTotals(cards)
+  const { income, expenses, net } = computeDisplayTotals(cards)
 
   return (
     <div className="mb-4 space-y-2">
