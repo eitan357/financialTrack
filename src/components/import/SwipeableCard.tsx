@@ -87,7 +87,7 @@ export function SwipeableCard({
 
             {!card.portfolioAccountId && (
               <div className="flex flex-col items-center">
-                <label className="text-xs text-slate-400 mb-1">כיוון</label>
+                <label className="text-xs text-slate-400 mb-1 block">כיוון</label>
                 <div className="flex rounded-lg overflow-hidden border border-slate-700 text-sm w-48">
                   <button
                     type="button"
