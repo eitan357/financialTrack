@@ -27,7 +27,10 @@ export function useDropdownPortal() {
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') setOpen(false)
     }
-    function onScroll() { setOpen(false) }
+    function onScroll(e: Event) {
+      if (dropdownRef.current?.contains(e.target as Node)) return
+      setOpen(false)
+    }
     document.addEventListener('mousedown', close)
     document.addEventListener('touchstart', close, { passive: true })
     document.addEventListener('keydown', onKey)
